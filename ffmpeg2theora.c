@@ -48,12 +48,11 @@ typedef struct ff2theora{
 	AVFormatContext *context;
 	int video_index;
 	int audio_index;
-
+	int deinterlace;
 	int frequency;
 	int channels;
 	int disable_audio;
 	float audio_quality;
-	
 	int output_width;
 	int output_height;
 	double fps;
@@ -100,6 +99,7 @@ ff2theora ff2theora_init (){
 		this->audio_quality=0.297;// audio quality 3
 		this->aspect_numerator=0;
 		this->aspect_denominator=0;
+		this->deinterlace=1;
 	}
 	return this;
 }
@@ -204,7 +204,7 @@ void ff2theora_output(ff2theora this) {
 		if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
 			aenc->channels = this->channels;
 		if (acodec != NULL && avcodec_open (aenc, acodec) >= 0)
-			if(this->frequency!=aenc->sample_rate){
+			if(this->frequency!=aenc->sample_rate || this->channels!=aenc->channels){
 				this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->frequency,aenc->sample_rate);
 				fprintf(stderr,"  Resample: %dHz => %dHz\n",aenc->sample_rate,this->frequency);
 			}
@@ -325,12 +325,16 @@ void ff2theora_output(ff2theora this) {
 							img_convert((AVPicture *)output,PIX_FMT_YUV420P,
 										(AVPicture *)frame,venc->pix_fmt,
 										venc->width,venc->height);
-							
-							if(avpicture_deinterlace((AVPicture *)output_tmp,
+							if(this->deinterlace){
+								if(avpicture_deinterlace((AVPicture *)output_tmp,
 											(AVPicture *)output,PIX_FMT_YUV420P
 											,venc->width,venc->height)<0){
-								output_tmp = output;
+									output_tmp = output;
+								}
 							}
+							else
+								output_tmp = output;
+							
 						//}
 						//else{
 							/* there must be better way to do this, it seems to work like this though */
@@ -396,7 +400,7 @@ void ff2theora_output(ff2theora this) {
 			av_free_packet (&pkt);
 		}
 		while (ret >= 0);
-
+			
 		av_free(audio_buf);
 
 		if (this->img_resample_ctx)
@@ -428,6 +432,8 @@ void print_usage (){
 		"\t --height,-y scale to given size\n"
 		"\t --videoquality,-v encoding quality for video ( 1 to 10)\n"
 		"\t --audioquality,-a encoding quality for audio (-1 to 10)\n"
+		"\t --deinterlace [off|on] 	disable deinterlace, enabled by default right now\n"
+		"\t --samplerate 	set output samplerate in Hz\n"
 		"\t --nosound,-n disable the sound from input, generate video only file\n"
 		"\t --help,-h this message\n"
 		"\n Examples:\n"
@@ -461,6 +467,9 @@ int main (int argc, char **argv){
 	  {"height",required_argument,NULL,'y'},
 	  {"videoquality",required_argument,NULL,'v'},
 	  {"audioquality",required_argument,NULL,'a'},
+	  {"deinterlace",required_argument,NULL,'deint'},
+	  {"samplerate",required_argument,NULL,'H'},
+	  {"channels",required_argument,NULL,'c'},
 	  {"nosound",required_argument,NULL,'n'},
 	  {"help",NULL,NULL,'h'},
 	  {NULL,0,NULL,0}
@@ -498,6 +507,21 @@ int main (int argc, char **argv){
         				fprintf(stderr,"audio quality out of range (choose -1 through 10)\n");
         				exit(1);
 				}
+				break;
+			case 'H':
+				convert->frequency=atoi(optarg);
+				break;
+			/* does not work right now */
+			case 'c':
+				convert->channels=2;
+				fprintf(stderr,"\n\tonly stereo works right now, encoding in stereo!\n\n");
+				//convert->channels=atoi(optarg);
+				break;
+			case 'deint':
+				if(!strcmp(optarg,"off"))
+					convert->deinterlace=0;
+				else
+					convert->deinterlace=1;
 				break;
 			case 'n':
 				convert->disable_audio=1;
