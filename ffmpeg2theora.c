@@ -831,7 +831,7 @@ int main (int argc, char **argv){
 				}
 				if (inputfps_flag){
 					convert->force_input_fps=atof(optarg);
-					aspect_flag=0;
+					inputfps_flag=0;
 				}
 				/* metadata */
 				if (metadata_flag){
