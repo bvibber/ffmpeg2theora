@@ -167,13 +167,17 @@ void ff2theora_output(ff2theora this) {
 		this->fps = fps;
 
 		if(info.preset == V2V_PRESET_PREVIEW){
-			if(this->fps==25 && (venc->width!=352 || venc->height!=288) ){
-				this->output_width=352;
-				this->output_height=288;
+			int pal_width=384;
+			int pal_height=288;
+			int ntsc_width=352;
+			int ntsc_height=240;
+			if(this->fps==25 && (venc->width!=pal_width || venc->height!=pal_height) ){
+				this->output_width=pal_width;
+				this->output_height=pal_height;
 			}
-			else if(abs(this->fps-30)<1 && (venc->width!=352 || venc->height!=240) ){
-				this->output_width=352;
-				this->output_height=240;
+			else if(abs(this->fps-30)<1 && (venc->width!=ntsc_width || venc->height!=ntsc_height) ){
+				this->output_width=ntsc_width;
+				this->output_height=ntsc_height;
 			}
 		}
 		else if(info.preset == V2V_PRESET_PRO){
@@ -233,8 +237,8 @@ void ff2theora_output(ff2theora this) {
 		this->video_y=((this->output_height + 15) >>4)<<4;
 		this->frame_x_offset=(this->video_x-this->output_width);
 		this->frame_y_offset=(this->video_y-this->output_height);
-
-		if(this->output_height>0 || this->output_width>0){
+		
+		if(this->video_x>0 || this->video_y>0){
 			// we might need that for values other than /16?
 			int frame_padtop=0, frame_padbottom=0;
 			int frame_padleft=0, frame_padright=0;
@@ -250,7 +254,7 @@ void ff2theora_output(ff2theora this) {
 						  this->frame_leftBand, this->frame_rightBand,
 						  frame_padtop, frame_padbottom,
 						  frame_padleft, frame_padright
-		  );
+		  	);
 			fprintf(stderr,"  Resize: %dx%d",venc->width,venc->height);
 			if(this->frame_topBand || this->frame_bottomBand ||
 			this->frame_leftBand || this->frame_rightBand){
@@ -263,6 +267,8 @@ void ff2theora_output(ff2theora this) {
 			
 		}
 		else{
+			this->video_x = venc->width;
+			this->video_y = venc->height;
 			this->output_height=venc->height;
 			this->output_width=venc->width;
 		}
