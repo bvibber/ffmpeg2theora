@@ -57,8 +57,8 @@ typedef struct ff2theora{
 	int output_width;
 	int output_height;
 	double fps;
-	int audio_resample;
 	ImgReSampleContext *img_resample_ctx; /* for image resampling/resizing */
+	ReSampleContext *audio_resample_ctx;
 	double aspect_numerator;
 	double aspect_denominator;
 	int video_quality;
@@ -112,7 +112,6 @@ void ff2theora_output(ff2theora this) {
 	AVStream *vstream = NULL;
 	AVCodec *acodec = NULL;
 	AVCodec *vcodec = NULL;
-	ReSampleContext *resample = NULL;
 	
 	double fps = 0.0;
 
@@ -205,7 +204,14 @@ void ff2theora_output(ff2theora this) {
 		if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
 			aenc->channels = this->channels;
 		if (acodec != NULL && avcodec_open (aenc, acodec) >= 0)
-			resample = audio_resample_init (this->channels,aenc->channels,this->frequency,aenc->sample_rate);
+			if(this->frequency!=aenc->sample_rate){
+				this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->frequency,aenc->sample_rate);
+				fprintf(stderr,"  Resample: %dHz => %dHz\n",aenc->sample_rate,this->frequency);
+			}
+			else{
+				this->audio_resample_ctx=NULL;
+			}
+		
 		else
 			this->audio_index = -1;
 	}
@@ -315,7 +321,7 @@ void ff2theora_output(ff2theora this) {
 
 					if(got_picture){
 						/* might have to cast other progressive formats here */
-						if(venc->pix_fmt != PIX_FMT_YUV420P){
+						//if(venc->pix_fmt != PIX_FMT_YUV420P){
 							img_convert((AVPicture *)output,PIX_FMT_YUV420P,
 										(AVPicture *)frame,venc->pix_fmt,
 										venc->width,venc->height);
@@ -325,9 +331,10 @@ void ff2theora_output(ff2theora this) {
 											,venc->width,venc->height)<0){
 								output_tmp = output;
 							}
-						}
-						else{
+						//}
+						//else{
 							/* there must be better way to do this, it seems to work like this though */
+						/*
 							if(frame->linesize[0] != vstream->codec.width){
 								img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
 											(AVPicture *)frame,venc->pix_fmt,venc->width,venc->height);
@@ -336,6 +343,7 @@ void ff2theora_output(ff2theora this) {
 								output_tmp=frame;
 							}
 						}
+						*/
 						// now output_tmp
 						if(this->img_resample_ctx){
 							img_resample(this->img_resample_ctx, 
@@ -370,7 +378,12 @@ void ff2theora_output(ff2theora this) {
 					ptr += len1;
 					if(data_size >0){
 						int samples =data_size / (aenc->channels * 2);
-						int samples_out = audio_resample(resample, resampled, audio_buf, samples);
+						int samples_out = samples;
+						if(this->audio_resample_ctx)
+							samples_out = audio_resample(this->audio_resample_ctx, resampled, audio_buf, samples);
+						else
+							resampled=audio_buf;
+						
 						if (theoraframes_add_audio(resampled, samples_out *(aenc->channels),samples_out)){
 							ret = -1;
 							fprintf (stderr,"No audio frames available\n");
@@ -390,8 +403,8 @@ void ff2theora_output(ff2theora this) {
 
 		if (this->img_resample_ctx)
 		    img_resample_close(this->img_resample_ctx);
-		if (this->audio_resample)
-		    audio_resample_close(resample);
+		if (this->audio_resample_ctx)
+		    audio_resample_close(this->audio_resample_ctx);
 
 		av_free(resampled);
 		theoraframes_close ();

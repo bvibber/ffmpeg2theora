@@ -276,6 +276,7 @@ void theoraframes_flush (){
 			timebase = info.audiotime;
 			video=0;
 		}
+		if(video>=0)
 		{
 			int hundredths = timebase * 100 - (long) timebase * 100;
 			int seconds = (long) timebase % 60;
@@ -289,8 +290,8 @@ void theoraframes_flush (){
 					info.akbps = rint (info.audio_bytesout *
 						      8. / timebase * .001);
 
-				fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps                 ",
-					 hours, minutes, seconds, hundredths,info.akbps, info.vkbps);
+				fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps diff: %.4f             ",
+					 hours, minutes, seconds, hundredths,info.akbps, info.vkbps,info.audiotime-info.videotime);
 				
 			}
 		}
