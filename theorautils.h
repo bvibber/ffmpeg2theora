@@ -34,6 +34,7 @@ typedef struct
 	int sample_rate;
 	int channels;
 	double vorbis_quality;
+	int vorbis_bitrate;
 	int scale;
 	int wide;
 	double start;

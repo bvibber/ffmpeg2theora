@@ -53,6 +53,7 @@ typedef struct ff2theora{
 	int channels;
 	int disable_audio;
 	float audio_quality;
+	int audio_bitrate;
 	int output_width;
 	int output_height;
 	double fps;
@@ -63,6 +64,7 @@ typedef struct ff2theora{
 	double	frame_aspect;
 	int video_quality;
 	int video_bitrate;
+	double force_input_fps;
 	
 	/* cropping */
 	int frame_topBand;
@@ -116,6 +118,8 @@ ff2theora ff2theora_init (){
 		this->video_quality=31.5; // video quality 5
 		this->video_bitrate=0;
 		this->audio_quality=0.297;// audio quality 3
+		this->audio_bitrate=0;
+		this->force_input_fps=0;
 		this->aspect_numerator=0;
 		this->aspect_denominator=0;
 		this->frame_aspect=0;
@@ -165,12 +169,13 @@ void ff2theora_output(ff2theora this) {
 		fps = (double) venc->frame_rate / venc->frame_rate_base;
 		if (fps > 10000)
 			fps /= 1000;
-		
-		
-		if (vcodec == NULL || avcodec_open (venc, vcodec) < 0){
+
+		if(this->force_input_fps)
+			fps=this->force_input_fps;
+
+		if (vcodec == NULL || avcodec_open (venc, vcodec) < 0)
 			this->video_index = -1;
-			
-		}
+
 		this->fps = fps;
 		
 		if(info.preset == V2V_PRESET_PREVIEW){
@@ -320,7 +325,6 @@ void ff2theora_output(ff2theora this) {
 	}
 	
 	if (this->video_index >= 0 || this->audio_index >=0){
-		fprintf(stderr,"unknown type: %d\n",this->video_index);
 		AVFrame *frame=NULL;
 		AVFrame *frame_tmp=NULL;
 		AVFrame *output=NULL;
@@ -381,10 +385,14 @@ void ff2theora_output(ff2theora this) {
 			info.ti.offset_y = this->frame_y_offset;
 			// FIXED: looks like ffmpeg uses num and denum for fps too
 			// venc->frame_rate / venc->frame_rate_base;
-			//info.ti.fps_numerator = 1000000 * (this->fps);	/* fps= numerator/denominator */
-			//info.ti.fps_denominator = 1000000;
-			info.ti.fps_numerator=venc->frame_rate;
-			info.ti.fps_denominator = venc->frame_rate_base;
+			if(this->force_input_fps) {
+				info.ti.fps_numerator = 1000000 * (this->fps);	/* fps= numerator/denominator */
+				info.ti.fps_denominator = 1000000;
+			}
+			else {
+				info.ti.fps_numerator=venc->frame_rate;
+				info.ti.fps_denominator = venc->frame_rate_base;
+			}
 			/* this is pixel aspect ratio */
 			info.ti.aspect_numerator=this->aspect_numerator;
 			info.ti.aspect_denominator=this->aspect_denominator;
@@ -396,7 +404,7 @@ void ff2theora_output(ff2theora this) {
 				info.ti.colorspace = OC_CS_ITU_REC_470M;
 			else
 				info.ti.colorspace = OC_CS_UNSPECIFIED;
-			info.ti.target_bitrate = this->video_bitrate;
+			info.ti.target_bitrate = this->video_bitrate; 
 			info.ti.quality = this->video_quality;
 			info.ti.dropframes_p = 0;
 			info.ti.quick_p = 1;
@@ -416,6 +424,7 @@ void ff2theora_output(ff2theora this) {
 		info.channels = this->channels;
 		info.sample_rate = this->sample_rate;
 		info.vorbis_quality = this->audio_quality;
+		info.vorbis_bitrate = this->audio_bitrate;
 		theoraframes_init ();
 	
 		/* main decoding loop */
@@ -631,11 +640,13 @@ void print_usage (){
 		"\t --crop[top|bottom|left|right]\tcrop input before resizing\n"
 		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"		
 		"\t\t\t\t\tenabled by default right now\n"
-		"\t --videobitrate,-V\t[45 to 2000] encoding bitrate for video\n"
-		"\t --videoquality,-v\t[0 to 10]    encoding quality for video\n"
-		"\t --audioquality,-a\t[-1 to 10]   encoding quality for audio\n"
+		"\t --videoquality,-v\t[0 to 10]  encoding quality for video\n"
+		"\t --videobitrate,-V\t[45 to 2000]  encoding bitrate for video [recommended for streaming]\n"
+		"\t --audioquality,-a\t[-1 to 10] encoding quality for audio\n"
+		"\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio [recommended for streaming]\n"
 		"\t --samplerate,-H\t\tset output samplerate in Hz\n"
 		"\t --nosound\t\tdisable the sound from input\n"
+		"\t --inputfps [fps]\t\toverride input fps\n"
 		"\n"
 		"\t --v2v-preset,-p\tencode file with v2v preset, \n"
 		"\t\t\t\t right now there is preview and pro,\n"
@@ -671,21 +682,23 @@ int main (int argc, char **argv){
 	static int cropleft_flag=0;	
 	static int nosound_flag=0;	
 	static int aspect_flag=0;
+	static int inputfps_flag=0;
 	
 	AVInputFormat *input_fmt=NULL;
 	ff2theora convert = ff2theora_init ();
 	av_register_all ();
 	
 	int c,long_option_index;
-	const char *optstring = "o:f:x:y:v:V:a:d:H:c:p:N:D:h::";
+	const char *optstring = "o:f:x:y:v:V:a:A:d:H:c:p:N:D:h::";
 	struct option options [] = {
 	  {"output",required_argument,NULL,'o'},
 	  {"format",required_argument,NULL,'f'},
 	  {"width",required_argument,NULL,'x'},
 	  {"height",required_argument,NULL,'y'},
-	  {"videobitrate",required_argument,NULL,'V'},
 	  {"videoquality",required_argument,NULL,'v'},
+	  {"videobitrate",required_argument,NULL,'V'},
 	  {"audioquality",required_argument,NULL,'a'},
+	  {"audiobitrate",required_argument,NULL,'A'},
 	  {"deinterlace",required_argument,NULL,'d'},
 	  {"samplerate",required_argument,NULL,'H'},
 	  {"channels",required_argument,NULL,'c'},
@@ -697,6 +710,7 @@ int main (int argc, char **argv){
 	  {"cropbottom",required_argument,&cropbottom_flag,1},
 	  {"cropright",required_argument,&cropright_flag,1},
 	  {"cropleft",required_argument,&cropleft_flag,1},
+	  {"inputfps",required_argument,&inputfps_flag,1},
 	  
 	  {"debug",0,NULL,'D'},
 	  {"help",0,NULL,'h'},
@@ -737,6 +751,10 @@ int main (int argc, char **argv){
 					convert->frame_aspect=aspect_check(optarg);
 					aspect_flag=0;
 				}
+				if (inputfps_flag){
+					convert->force_input_fps=atof(optarg);
+					aspect_flag=0;
+				}
 				break;
 			case 'o':
 				sprintf(outputfile_name,optarg);
@@ -757,23 +775,32 @@ int main (int argc, char **argv){
 				        fprintf(stderr,"video quality out of range (choose 0 through 10)\n");
 				        exit(1);
 				}
-                                convert->video_bitrate = 0;
+				convert->video_bitrate=0;
 				break;
 			case 'V':
-				convert->video_bitrate = rint(1000*atof(optarg));
-				if(convert->video_bitrate <45000 || convert->video_bitrate >2000000){
-				        fprintf(stderr,"video bitrate out of range (choose 45kbps through 2000kbps)\n");
-				        exit(1);
+				convert->video_bitrate=rint(atof(optarg)*1000);
+				if(convert->video_bitrate<45000 || convert->video_bitrate>2000000){
+					fprintf(stderr,"Illegal video bitrate (choose 45kbps through 2000kbps)\n");
+					exit(1);
 				}
-                                convert->video_quality = 0;
-				break;
+				convert->video_quality=0;
+				break; 
 			case 'a':
 				convert->audio_quality=atof(optarg)*.099;
-      			if(convert->audio_quality<-.1 || convert->audio_quality>1){
-        			fprintf(stderr,"audio quality out of range (choose -1 through 10)\n");
-        			exit(1);
+				if(convert->audio_quality<-.1 || convert->audio_quality>1){
+					fprintf(stderr,"audio quality out of range (choose -1 through 10)\n");
+					exit(1);
 				}
+				convert->audio_bitrate=0;
 				break;
+			case 'A':
+				convert->audio_bitrate=atof(optarg)*1000;
+				if(convert->audio_bitrate<0){
+					fprintf(stderr,"Illegal audio bitrate (choose > 0 please)\n");
+					exit(1);
+				}
+				convert->audio_quality=-99;
+				break; 
 			case 'd':
 				if(!strcmp(optarg,"off"))
 					convert->deinterlace=0;

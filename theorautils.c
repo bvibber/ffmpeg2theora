@@ -61,7 +61,11 @@ void theoraframes_init (){
 	if(!info.video_only){
 		vorbis_info_init (&info.vi);
 		/* Encoding using a VBR quality mode.  */
-		int ret =vorbis_encode_init_vbr (&info.vi, info.channels,info.sample_rate,info.vorbis_quality);
+		int ret;
+		if(info.vorbis_quality>-99) 
+			ret =vorbis_encode_init_vbr (&info.vi, info.channels,info.sample_rate,info.vorbis_quality);
+		else
+			ret=vorbis_encode_init(&info.vi,info.channels,info.sample_rate,-1,info.vorbis_bitrate,-1); 
 
 		if (ret){
 			fprintf (stderr,
