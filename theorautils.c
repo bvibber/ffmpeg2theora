@@ -94,6 +94,7 @@ void theoraframes_init (){
 
 		/* create the remaining theora headers */
 		theora_comment_init (&info.tc);
+		theora_comment_add_tag (&info.tc, "ENCODER",PACKAGE_STRING);
 		theora_encode_comment (&info.tc, &info.op);
 		ogg_stream_packetin (&info.to, &info.op);
 		theora_encode_tables (&info.td, &info.op);
