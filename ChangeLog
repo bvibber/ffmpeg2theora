@@ -1,7 +1,7 @@
 0.11 	2004-09-04
 	- changed default, then called without parameters to -p preview mode
 	- changed PREVIEW(PAL) settings to 384x288 to make pixel aspect ratio 1:1
-	- performance imporvements if compiled with theora-mmx 
+	- performance improvement if compiled with theora-mmx 
 	  [http://svn.xiph.org/branches/theora-mmx]
 	- new option: --aspect to define frame aspect ratio: i.e. 4:3 or 16:9
 
