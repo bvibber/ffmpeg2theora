@@ -245,13 +245,15 @@ void ff2theora_output(ff2theora this) {
 		this->frame_width = this->picture_width + (this->picture_width % 16);		
 		this->frame_height = this->picture_height + (this->picture_height % 16);
 
-		this->frame_x_offset = this->frame_width-this->picture_width;
-		this->frame_y_offset = this->frame_height-this->picture_height;
+		this->frame_x_offset = 0;
+		this->frame_y_offset = 0;
 		
 		if(this->frame_width > 0 || this->frame_height > 0){
-			int frame_padtop = 0, frame_padbottom = this->frame_y_offset;
-			int frame_padleft = this->frame_x_offset, frame_padright = 0;
-			
+			int frame_padtop = this->frame_width-this->picture_width;
+			int frame_padbottom = this->frame_y_offset;
+			int frame_padleft = this->frame_x_offset;
+			int frame_padright = this->frame_width-this->picture_width;
+
 			this->img_resample_ctx = img_resample_full_init(
 						  //this->picture_width, this->picture_height,
 						  this->frame_width, this->frame_height,
@@ -443,7 +445,6 @@ void ff2theora_output(ff2theora this) {
 							//as we donot increment frame_number in audio section.
 							frame_number++;
 							if(venc->pix_fmt != PIX_FMT_YUV420P) {
-								fprintf(stderr,"colorspace transform\n");
 								img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
 									    (AVPicture *)frame,venc->pix_fmt,
 											 venc->width,venc->height);
