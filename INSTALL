@@ -4,7 +4,7 @@ you need
 - the latest version of libtheora ( http://www.theora.org/files )
 - ffmpeg 0.4.9-pre1 or cvs ( http://ffmpeg.sf.net ) / by running ./get_ffmpeg_cvs.sh
   configure it with i.e.
-  ./configure --enable-faad --enable-vorbis --disable-mp3lame --enable-pp --enable-a52  --enable-dts --enable-pthreads --disable-vhook --disable-v4l --disable-audio-oss --disable-dv1394  --disable-ffmpeg --disable-ffserver --disable-network --enable-gpl
+  ./configure --enable-faad --enable-vorbis --disable-mp3lame --enable-pp --enable-a52  --enable-dts --enable-pthreads --disable-vhook --disable-v4l --disable-audio-oss --disable-dv1394  --disable-ffmpeg --disable-ffserver --disable-network --enable-gpl --enable-theora --enable-ogg
 
 now run:
 ./configure [--with-ffmpegprefix=/path/to/ffmpeg_src]
