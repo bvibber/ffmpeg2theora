@@ -1,7 +1,5 @@
-- remove global variable info and outfile
+- remove global variable info
 - more commandline options
-- fix problem that sometimes audio/video get out of sync while
-  interleaving, results in sync problems in mplayers than seeking.
-  -> find way to spool video until audio gets decoded.
-- set EOS on theora and vorbis stream.
-- think of noise reduction
+- think of adding noise reduction(best would be integration of denoise3d)
+- fix problems related to eof than using ffmpeg-cvs
+- allow frame size not multiple of 16.

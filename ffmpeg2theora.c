@@ -40,8 +40,8 @@ static double rint(double x)
     return (double)(int)(x + 0.5);
 }
 
-FILE *outfile;
 theoraframes_info info;
+
 static int using_stdin = 0;
 
 typedef struct ff2theora{
@@ -49,7 +49,7 @@ typedef struct ff2theora{
 	int video_index;
 	int audio_index;
 	int deinterlace;
-	int frequency;
+	int sample_rate;
 	int channels;
 	int disable_audio;
 	float audio_quality;
@@ -91,7 +91,7 @@ ff2theora ff2theora_init (){
 		this->disable_audio=0;
 		this->video_index = -1;
 		this->audio_index = -1;
-		this->frequency = 44100;  // samplerate hmhmhm
+		this->sample_rate = 44100;  // samplerate hmhmhm
 		this->channels = 2;
 		this->output_width=0;	  // set to 0 to not resize the output
 		this->output_height=0;	  // set to 0 to not resize the output
@@ -112,6 +112,7 @@ void ff2theora_output(ff2theora this) {
 	AVStream *vstream = NULL;
 	AVCodec *acodec = NULL;
 	AVCodec *vcodec = NULL;
+	float frame_aspect;
 	
 	double fps = 0.0;
 
@@ -135,33 +136,15 @@ void ff2theora_output(ff2theora this) {
 		vstream = this->context->streams[this->video_index];
 		venc = &this->context->streams[this->video_index]->codec;
 		vcodec = avcodec_find_decoder (venc->codec_id);
+
 		fps = (double) venc->frame_rate / venc->frame_rate_base;
-#ifdef FFMPEGCVS
-		if(venc->sample_aspect_ratio.num!=0){
-			this->aspect_numerator=venc->sample_aspect_ratio.num;
-			this->aspect_denominator=venc->sample_aspect_ratio.den;
-			//fprintf(stderr,"  Aspect %.2f/1\n",this->aspect_numerator/this->aspect_denominator);
-		}
-#else
-		if(venc->aspect_ratio!=0){
-			this->aspect_numerator=(int)(venc->aspect_ratio*100000*venc->width);
-			this->aspect_denominator=(int)100000*venc->height;
-			//fprintf(stderr,"  Aspect %d/%d\n",this->aspect_numerator,this->aspect_denominator);
-			//fprintf(stderr,"  Aspect %.2f/1\n",(float)this->aspect_numerator/this->aspect_denominator);
-		}
-		
-#endif
 		if (fps > 10000)
 			fps /= 1000;
+				
 		if (vcodec == NULL || avcodec_open (venc, vcodec) < 0)
 			this->video_index = -1;
 		this->fps = fps;
-		
-        if (this->deinterlace==1)
-			fprintf(stderr,"  Deinterlace: on\n");
-		else
-			fprintf(stderr,"  Deinterlace: off\n");
-		
+
 		if(info.preset == V2V_PRESET_PREVIEW){
 			if(this->fps==25 && (venc->width!=352 || venc->height!=288) ){
 				this->output_width=352;
@@ -182,8 +165,49 @@ void ff2theora_output(ff2theora this) {
 				this->output_height=480;
 			}
 		}
+        if (this->deinterlace==1)
+			fprintf(stderr,"  Deinterlace: on\n");
+		else
+			fprintf(stderr,"  Deinterlace: off\n");
 		
 		
+#ifdef FFMPEGCVS
+		if(venc->sample_aspect_ratio.num!=0){
+#else
+		if(venc->aspect_ratio!=0){
+#endif
+#ifdef FFMPEGCVS
+			// just use the ratio from the input
+			this->aspect_numerator=venc->sample_aspect_ratio.num;
+			this->aspect_denominator=venc->sample_aspect_ratio.den;
+			// or we use ratio for the output
+			if(this->output_height){
+				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
+				venc->sample_aspect_ratio.num*venc->width*this->output_height,
+				venc->sample_aspect_ratio.den*venc->height*this->output_width,10000);
+#else
+			// just use the ratio from the input
+			av_reduce(&this->aspect_numerator,&this->aspect_denominator,
+				rint(10000*venc->aspect_ratio*venc->height),rint(10000*venc->width),10000);
+			// or we use ratio for the output
+			if(this->output_height){
+				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
+					rint(venc->aspect_ratio*10000*this->output_height),
+					rint(10000*this->output_width),10000);
+#endif	
+				frame_aspect=(float)(this->aspect_numerator*this->output_width)/
+								(this->aspect_denominator*this->output_height);
+			}
+			else{
+				frame_aspect=(float)(this->aspect_numerator*venc->width)/
+								(this->aspect_denominator*venc->height);
+			}
+			fprintf(stderr,
+			"  Pixel Aspect Ratio: %.2f/1 ",
+				(float)this->aspect_numerator/this->aspect_denominator);
+			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
+			
+		}
 		if(this->output_height>0){
 			// we might need that for values other than /16?
 			int frame_topBand=0;
@@ -217,40 +241,46 @@ void ff2theora_output(ff2theora this) {
 			this->output_height=venc->height;
 			this->output_width=venc->width;
 		}
-
 	}
-
 	if (this->audio_index >= 0){
 		astream = this->context->streams[this->audio_index];
 		aenc = &this->context->streams[this->audio_index]->codec;
 		acodec = avcodec_find_decoder (aenc->codec_id);
 		if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
 			aenc->channels = this->channels;
-		if (acodec != NULL && avcodec_open (aenc, acodec) >= 0)
-			if(this->frequency!=aenc->sample_rate || this->channels!=aenc->channels){
-				this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->frequency,aenc->sample_rate);
-				fprintf(stderr,"  Resample: %dHz => %dHz\n",aenc->sample_rate,this->frequency);
+
+		if (acodec != NULL && avcodec_open (aenc, acodec) >= 0){
+			if(this->sample_rate!=aenc->sample_rate || this->channels!=aenc->channels){
+				this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->sample_rate,aenc->sample_rate);
+				if(this->sample_rate!=aenc->sample_rate)
+					fprintf(stderr,"  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
+				if(this->channels!=aenc->channels)
+					fprintf(stderr,"  Channels: %d => %d\n",aenc->channels,this->channels);
 			}
 			else{
 				this->audio_resample_ctx=NULL;
 			}
-		
-		else
+		}
+		else{
 			this->audio_index = -1;
+		}
 	}
-
+	
 	if (this->video_index >= 0 || this->audio_index >=0){
 		AVFrame *frame=NULL;
 		AVFrame *frame_tmp=NULL;
 		AVFrame *output=NULL;
 		AVFrame *output_tmp=NULL;
 		AVFrame *output_resized=NULL;
+		AVFrame *output_buffered=NULL;
 		
 		AVPacket pkt;
 		int len;
 		int len1;
 		int got_picture;
 		int first = 1;
+		int e_o_s=0;
+		int ret;
 		uint8_t *ptr;
 		int16_t *audio_buf= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
 		int16_t *resampled= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);		
@@ -265,7 +295,6 @@ void ff2theora_output(ff2theora this) {
 		else
 			info.video_only=1;
 		
-		int ret;
 		if(!info.audio_only){
 			frame = alloc_picture(vstream->codec.pix_fmt,
 							vstream->codec.width,vstream->codec.height);
@@ -277,11 +306,13 @@ void ff2theora_output(ff2theora this) {
 							vstream->codec.width,vstream->codec.height);
 			output_resized =alloc_picture(PIX_FMT_YUV420P, 
 							this->output_width,this->output_height);
+			output_buffered =alloc_picture(PIX_FMT_YUV420P, 
+							this->output_width,this->output_height);
 		}
 
 		if(!info.audio_only){
 			/* video settings here */
-			/*  config file? commandline options? v2v presets? */
+			/* config file? commandline options? v2v presets? */
 			theora_info_init (&info.ti);
 			info.ti.width = this->output_width;
 			info.ti.height = this->output_height;
@@ -289,25 +320,25 @@ void ff2theora_output(ff2theora this) {
 			info.ti.frame_height = this->output_height;
 			info.ti.offset_x = 0;
 			info.ti.offset_y = 0;
-			info.ti.fps_numerator = 1000000 * (this->fps);	/* fps= numerator/denominator */
-			info.ti.fps_denominator = 1000000;
-			/*
-			DV NTSC
-			4:3  	10:11  	720x480
-			16:9 	40:33 	720x480
-			DV PAL
-			4:3  	59:54  	720x576
-			16:9 	118:81 	720x576
-			---
-			so this is the aspect ratio of the frame 4/3, 16/9 etc */
+			// FIXED: looks like ffmpeg uses num and denum for fps too
+			// venc->frame_rate / venc->frame_rate_base;
+			//info.ti.fps_numerator = 1000000 * (this->fps);	/* fps= numerator/denominator */
+			//info.ti.fps_denominator = 1000000;
+			info.ti.fps_numerator=venc->frame_rate;
+			info.ti.fps_denominator = venc->frame_rate_base;
+			/* this is pixel aspect ratio */
 			info.ti.aspect_numerator=this->aspect_numerator;
 			info.ti.aspect_denominator=this->aspect_denominator;
+			// FIXME: is all input material with fps==25 OC_CS_ITU_REC_470BG?
+			// guess not, commandline option to select colorspace would be the best.
 			if(this->fps==25)
 				info.ti.colorspace = OC_CS_ITU_REC_470BG;
 			else if(abs(this->fps-30)<1)
 				info.ti.colorspace = OC_CS_ITU_REC_470M;
 			else
 				info.ti.colorspace = OC_CS_UNSPECIFIED;
+			//FIXME: allow target_bitrate as an alternative mode
+			//only use quality mode for now.
 			//info.ti.target_bitrate=1200; 
 			info.ti.quality = this->video_quality;
 			info.ti.dropframes_p = 0;
@@ -326,116 +357,137 @@ void ff2theora_output(ff2theora this) {
 		}
 		/* audio settings here */
 		info.channels = this->channels;
-		info.frequency = this->frequency;
+		info.sample_rate = this->sample_rate;
 		info.vorbis_quality = this->audio_quality;
 		theoraframes_init ();
-		
+	
+		/* main decoding loop */
 		do{
 			ret = av_read_packet (this->context, &pkt);
+			if(ret<0){
+				e_o_s=1;
+			}
 			
 			ptr = pkt.data;
 			len = pkt.size;
-
-			if (ret >= 0 && pkt.stream_index == this->video_index){
-	
-				if(len == 0 && !first){
+			if (e_o_s && !info.audio_only || (ret >= 0 && pkt.stream_index == this->video_index)){
+				if(len == 0 && !first && !e_o_s){
 					fprintf (stderr, "no frame available\n");
 				}
-				while(len > 0){
-					len1 = avcodec_decode_video(&vstream->codec, frame,&got_picture, ptr, len);
-					if(len1 < 0)
-						break;
-
-					if(got_picture){
-						/* might have to cast other progressive formats here */
-						//if(venc->pix_fmt != PIX_FMT_YUV420P){
-							img_convert((AVPicture *)output,PIX_FMT_YUV420P,
-										(AVPicture *)frame,venc->pix_fmt,
-										venc->width,venc->height);
-							if(this->deinterlace){
-								if(avpicture_deinterlace((AVPicture *)output_tmp,
-											(AVPicture *)output,PIX_FMT_YUV420P
-											,venc->width,venc->height)<0){
-									output_tmp = output;
+				while(e_o_s || len > 0){
+					if(len >0 && 
+						(len1 = avcodec_decode_video(&vstream->codec, 
+										frame,&got_picture, ptr, len))>0) {
+						//FIXME: move image resize/deinterlace/colorformat transformation
+						//			into seperate function
+						if(got_picture){
+							//FIXME: better colorformat transformation to YUV420P
+							/* might have to cast other progressive formats here */
+							//if(venc->pix_fmt != PIX_FMT_YUV420P){
+								img_convert((AVPicture *)output,PIX_FMT_YUV420P,
+											(AVPicture *)frame,venc->pix_fmt,
+											venc->width,venc->height);
+								if(this->deinterlace){
+									if(avpicture_deinterlace((AVPicture *)output_tmp,
+											(AVPicture *)output,PIX_FMT_YUV420P,
+											venc->width,venc->height)<0){
+										output_tmp=output;
+									}
+								}
+								else
+									output_tmp=output;
+							//}
+							//else{
+								/* there must be better way to do this, it seems to work like this though */
+							/*
+								if(frame->linesize[0] != vstream->codec.width){
+									img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
+												(AVPicture *)frame,venc->pix_fmt,venc->width,venc->height);
+								}
+								else{
+									output_tmp=frame;
 								}
 							}
-							else
-								output_tmp = output;
-							
-						//}
-						//else{
-							/* there must be better way to do this, it seems to work like this though */
-						/*
-							if(frame->linesize[0] != vstream->codec.width){
-								img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
-											(AVPicture *)frame,venc->pix_fmt,venc->width,venc->height);
-							}
+							*/
+							// now output_tmp
+							if(this->img_resample_ctx){
+								img_resample(this->img_resample_ctx, 
+											(AVPicture *)output_resized, (AVPicture *)output_tmp);
+							}	
 							else{
-								output_tmp=frame;
+								output_resized=output_tmp;
 							}
 						}
-						*/
-						// now output_tmp
-						if(this->img_resample_ctx){
-							img_resample(this->img_resample_ctx, 
-										(AVPicture *)output_resized, (AVPicture *)output_tmp);
-						}	
-						else{
-							output_resized=output_tmp;
-						}
-						// now output_resized
-						first = 0;
-						if(theoraframes_add_video(output_resized->data[0],
-							this->output_width,this->output_height,output_resized->linesize[0])){
-							ret = -1;
-							fprintf (stderr,"No theora frames available\n");
-							break;
-						}
+						ptr += len1;
+						len -= len1;
+					}	
+					first=0;
+					//now output_resized
+					if(theoraframes_add_video(output_resized->data[0],
+						this->output_width,this->output_height,output_resized->linesize[0],e_o_s)){
+						ret = -1;
+						fprintf (stderr,"No theora frames available\n");
+						break;
 					}
-					ptr += len1;
-					len -= len1;
+					if(e_o_s){
+						break;
+					}
 				}
+				
 			}
-			else if(ret >= 0 && pkt.stream_index == this->audio_index){
-				int data_size;
-				while(len > 0 ){
-					len1 = avcodec_decode_audio(&astream->codec, audio_buf,&data_size, ptr, len);
-					if (len1 < 0){
-                		/* if error, we skip the frame */
-                		break;
-            		}
-					len -= len1;
-					ptr += len1;
-					if(data_size >0){
-						int samples =data_size / (aenc->channels * 2);
-						int samples_out = samples;
-						if(this->audio_resample_ctx)
-							samples_out = audio_resample(this->audio_resample_ctx, resampled, audio_buf, samples);
-						else
-							resampled=audio_buf;
-						
-						if (theoraframes_add_audio(resampled, samples_out *(aenc->channels),samples_out)){
-							ret = -1;
-							fprintf (stderr,"No audio frames available\n");
+			if(e_o_s && !info.video_only 
+					 || (ret >= 0 && pkt.stream_index == this->audio_index)){
+				while(e_o_s || len > 0 ){
+					int samples=0;
+					int samples_out=0;
+					int data_size;
+					if(len > 0){
+						len1 = avcodec_decode_audio(&astream->codec, audio_buf,&data_size, ptr, len);
+						if (len1 < 0){
+							/* if error, we skip the frame */
 							break;
 						}
+						len -= len1;
+						ptr += len1;
+						if(data_size >0){
+							samples =data_size / (aenc->channels * 2);
+	
+							samples_out = samples;
+							if(this->audio_resample_ctx){
+								samples_out = audio_resample(this->audio_resample_ctx, resampled, audio_buf, samples);
+							}
+							else
+								resampled=audio_buf;
+						}
+					}
+					if (theoraframes_add_audio(resampled, 
+						samples_out *(this->channels),samples_out,e_o_s)){
+						ret = -1;
+						fprintf (stderr,"No audio frames available\n");
+					}
+					if(e_o_s && len <= 0){
+						break;
 					}
 				}
+
 			}
 			/* flush out the file */
-			theoraframes_flush ();
+			theoraframes_flush (e_o_s);
 			av_free_packet (&pkt);
 		}
 		while (ret >= 0);
-			
-		av_free(audio_buf);
 
+		if(audio_buf){
+			if(audio_buf!=resampled)
+				av_free(resampled);
+			av_free(audio_buf);
+		}
+		
 		if (this->img_resample_ctx)
 		    img_resample_close(this->img_resample_ctx);
 		if (this->audio_resample_ctx)
 		    audio_resample_close(this->audio_resample_ctx);
 
-		av_free(resampled);
 		theoraframes_close ();
 	}
 	else{
@@ -567,13 +619,11 @@ int main (int argc, char **argv){
 					convert->deinterlace=1;
 				break;
 			case 'H':
-				convert->frequency=atoi(optarg);
+				convert->sample_rate=atoi(optarg);
 				break;
 			/* does not work right now */
 			case 'c':
-				convert->channels=2;
-				fprintf(stderr,"\n\tonly stereo works right now, encoding in stereo!\n\n");
-				//convert->channels=atoi(optarg);
+				convert->channels=atoi(optarg);
 				break;
 			case 'n':
 				convert->disable_audio=1;
@@ -590,7 +640,7 @@ int main (int argc, char **argv){
 					convert->video_quality = rint(7*6.3);
 					convert->audio_quality=3*.099;
 					convert->channels=2;
-					convert->frequency=48000;
+					convert->sample_rate=48000;
 				}
 				else if(!strcmp(optarg,"preview")){
 					//need a way to set resize here. and not later
@@ -598,7 +648,7 @@ int main (int argc, char **argv){
 					convert->video_quality = rint(5*6.3);
 					convert->audio_quality=1*.099;
 					convert->channels=2;
-					convert->frequency=44100;
+					convert->sample_rate=44100;
 				}
 				else{
 					fprintf(stderr,"\nunknown preset.\n\n");
@@ -638,6 +688,7 @@ int main (int argc, char **argv){
 		}
 		optind++;
 	}
+	//FIXME: is using_stdin still neded? is it needed as global variable?
 	using_stdin |= !strcmp(inputfile_name, "pipe:" ) ||
                    !strcmp( inputfile_name, "/dev/stdin" );
 
@@ -652,7 +703,7 @@ int main (int argc, char **argv){
 	}
 
 	if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, NULL) >= 0){
-			outfile = fopen(outputfile_name,"wb");
+			info.outfile = fopen(outputfile_name,"wb");
 			if (av_find_stream_info (convert->context) >= 0){
 				dump_format (convert->context, 0,inputfile_name, 0);
 				if(convert->disable_audio){

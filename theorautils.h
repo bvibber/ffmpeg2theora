@@ -31,7 +31,7 @@ typedef struct
 	int preset;
 	int audio_only;
 	int video_only;
-	int frequency;
+	int sample_rate;
 	int channels;
 	double vorbis_quality;
 	int scale;
@@ -45,7 +45,6 @@ typedef struct
 	int videoflag;
 	double audiotime;
 	double videotime;
-	double timebase;
 	int vkbps;
 	int akbps;
 	ogg_int64_t audio_bytesout;
@@ -59,23 +58,25 @@ typedef struct
 	ogg_packet op;		/* one raw packet of data for decode */
 
 	theora_info ti;
-	theora_state td;
 	theora_comment tc;
+	
+	theora_state td;
+
 
 	vorbis_info vi;		/* struct that stores all the static vorbis bitstream settings */
 	vorbis_comment vc;	/* struct that stores all the user comments */
 
 	vorbis_dsp_state vd;	/* central working state for the packet->PCM decoder */
 	vorbis_block vb;	/* local working space for packet->PCM decode */
-
+	FILE *outfile;
 }
 theoraframes_info;
 
 
 extern void theoraframes_init ();
 extern int theoraframes_add_video (uint8_t * data, int width, int height,
-				   int linesize);
+				   int linesize,int e_o_s);
 extern int theoraframes_add_audio (int16_t * readbuffer, int bytesread,
-				   int samplesread);
-extern void theoraframes_flush ();
+				   int samplesread,int e_o_s);
+extern void theoraframes_flush (int e_o_s);
 extern void theoraframes_close ();
