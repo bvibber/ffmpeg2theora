@@ -1,6 +1,6 @@
 /*
  * ffmpeg2theora.c -- Convert ffmpeg supported a/v files to  Ogg Theora
- * Copyright (C) 2003-2004 <j@thing.net>
+ * Copyright (C) 2003-2004 <j@v2v.cc>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,11 @@ typedef struct ff2theora{
 	int frame_bottomBand;
 	int frame_leftBand;
 	int frame_rightBand;
-
+	
+	int video_x;
+	int video_y;
+	int frame_x_offset;
+	int frame_y_offset;
 }
 *ff2theora;
 
@@ -198,6 +202,8 @@ void ff2theora_output(ff2theora this) {
 					this->frame_leftBand-this->frame_rightBand;
 		}
 
+
+		
 		if(venc->sample_aspect_ratio.num!=0){
 			// just use the ratio from the input
 			this->aspect_numerator=venc->sample_aspect_ratio.num;
@@ -222,13 +228,23 @@ void ff2theora_output(ff2theora this) {
 			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
 			
 		}
+		/* Theora has a divisible-by-sixteen restriction for the encoded video size */  /* scale the frame size up to the nearest /16 and calculate offsets */
+		this->video_x=((this->output_width + 15) >>4)<<4;
+		this->video_y=((this->output_height + 15) >>4)<<4;
+		this->frame_x_offset=(this->video_x-this->output_width)/2;
+		this->frame_y_offset=(this->video_y-this->output_height)/2;
+
 		if(this->output_height>0 || this->output_width>0){
 			// we might need that for values other than /16?
 			int frame_padtop=0, frame_padbottom=0;
 			int frame_padleft=0, frame_padright=0;
+			
+			frame_padtop=frame_padbottom=this->frame_x_offset;
+			frame_padleft=frame_padright=this->frame_y_offset;
 
 			this->img_resample_ctx = img_resample_full_init(
-						  this->output_width, this->output_height,
+						  //this->output_width, this->output_height,
+						  this->video_x, this->video_y,
 						  venc->width, venc->height,
 						  this->frame_topBand, this->frame_bottomBand,
 						  this->frame_leftBand, this->frame_rightBand,
@@ -242,7 +258,7 @@ void ff2theora_output(ff2theora this) {
 			}
 			if(this->output_width!=(venc->width-this->frame_leftBand-this->frame_rightBand) ||
 				this->output_height!=(venc->height-this->frame_topBand-this->frame_bottomBand))
-				fprintf(stderr," => %dx%d\n",this->output_width,this->output_height);
+				fprintf(stderr," => %dx%d",this->output_width,this->output_height);
 			fprintf(stderr,"\n");
 			
 		}
@@ -314,21 +330,26 @@ void ff2theora_output(ff2theora this) {
 			output =alloc_picture(PIX_FMT_YUV420P, 
 							vstream->codec.width,vstream->codec.height);
 			output_resized =alloc_picture(PIX_FMT_YUV420P, 
-							this->output_width,this->output_height);
-			output_buffered =alloc_picture(PIX_FMT_YUV420P, 
-							this->output_width,this->output_height);
+							this->video_x, this->video_y);
+							//this->output_width,this->output_height);
+			output_buffered =alloc_picture(PIX_FMT_YUV420P,
+							this->video_x, this->video_y);			
+							//this->output_width,this->output_height);
 		}
 
 		if(!info.audio_only){
 			/* video settings here */
 			/* config file? commandline options? v2v presets? */
+			
+
 			theora_info_init (&info.ti);
-			info.ti.width = this->output_width;
-			info.ti.height = this->output_height;
+			
+			info.ti.width = this->video_x;
+			info.ti.height = this->video_y;
 			info.ti.frame_width = this->output_width;
 			info.ti.frame_height = this->output_height;
-			info.ti.offset_x = 0;
-			info.ti.offset_y = 0;
+			info.ti.offset_x = this->frame_x_offset;
+			info.ti.offset_y = this->frame_y_offset;
 			// FIXED: looks like ffmpeg uses num and denum for fps too
 			// venc->frame_rate / venc->frame_rate_base;
 			//info.ti.fps_numerator = 1000000 * (this->fps);	/* fps= numerator/denominator */
@@ -385,9 +406,10 @@ void ff2theora_output(ff2theora this) {
 				}
 				while(e_o_s || len > 0){
 					
-					if(len >0 && 
-						(len1 = avcodec_decode_video(&vstream->codec, 
+					if(len >0 &&
+						(len1 = avcodec_decode_video(&vstream->codec,
 										frame,&got_picture, ptr, len))>0) {
+										
 						//FIXME: move image resize/deinterlace/colorformat transformation
 						//			into seperate function
 						if(got_picture){
@@ -434,7 +456,8 @@ void ff2theora_output(ff2theora this) {
 					first=0;
 					//now output_resized
 					if(theoraframes_add_video(output_resized->data[0],
-						this->output_width,this->output_height,output_resized->linesize[0],e_o_s)){
+					this->video_x,this->video_y,output_resized->linesize[0],e_o_s)){
+				//this->output_width,this->output_height,output_resized->linesize[0],e_o_s)){
 						ret = -1;
 						fprintf (stderr,"No theora frames available\n");
 						break;
@@ -766,8 +789,13 @@ int main (int argc, char **argv){
 		exit(1);
 	}
 
+	/*could go, but so far no player supports offset_x/y */
 	if(convert->output_width % 16 ||  convert->output_height % 16){
 		fprintf(stderr,"output size must be a multiple of 16 for now.\n");
+		exit(1);
+	}
+	if(convert->output_width % 4 ||  convert->output_height % 4){
+		fprintf(stderr,"output size must be a multiple of 4 for now.\n");
 		exit(1);
 	}
 
