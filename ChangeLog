@@ -1,7 +1,7 @@
 0.11 	2004-09-04
-	- changed default, than called without parameters to -p preview mode
+	- changed default, then called without parameters to -p preview mode
 	- changed PREVIEW(PAL) settings to 384x288 to make pixel aspect ratio 1:1
-	- performance imporvements than compiled with theora-mmx 
+	- performance imporvements if compiled with theora-mmx 
 	  [http://svn.xiph.org/branches/theora-mmx]
 	- new option: --aspect to define frame aspect ratio: i.e. 4:3 or 16:9
 
@@ -13,7 +13,7 @@
 
 0.10.1 	2004-07-15 21:03:15
 	- fix problems with mpeg files using ffmpeg from cvs or versions
-	  higher than 0.4.8.
+	  newer than 0.4.8.
 	- remove --with-ffmpegcvs and detect changes by LIBAVCODEC_BUILD
 
 0.10 	2004-07-10 18:14:15
