@@ -1,7 +1,8 @@
-svn 	2004-??-??
+svn 	2005-??-??
 	- add new command line options, starttime, endtime
 	- fix compile issues with new version of faad
-
+	- better support for stdout on win32,
+	   to allow ezstream streaming non-theora source types
 
 0.12 	2004-11-18
 	- add more command line options, for bitrate modes, metadata

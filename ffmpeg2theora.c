@@ -30,6 +30,10 @@
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
 
+#ifdef WIN32
+#include "fcntl.h"
+#endif
+
 #include "theorautils.h"
 
 static double rint(double x)
@@ -421,8 +425,8 @@ void ff2theora_output(ff2theora this) {
 			info.ti.keyframe_mindistance = 8;
 			info.ti.noise_sensitivity = 1;
 			// range 0-2, 0 sharp, 2 less sharp,less bandwidth
-			if(info.preset == V2V_PRESET_PREVIEW)
-				info.ti.sharpness=2;
+			// if(info.preset == V2V_PRESET_PREVIEW)
+			info.ti.sharpness=2;
 			
 		}
 		/* audio settings here */
@@ -964,19 +968,17 @@ int main (int argc, char **argv){
 	
 	while(optind<argc){
 		/* assume that anything following the options must be a filename */
-		if(!strcmp(argv[optind],"-")){
+		sprintf(inputfile_name,"%s",argv[optind]);
+		if(!strcmp(inputfile_name,"-")){
 			sprintf(inputfile_name,"pipe:");
 		}
-		else{
-			sprintf(inputfile_name,"%s",argv[optind]);
-			if(outputfile_set!=1){
-				sprintf(outputfile_name,"%s.ogg",argv[optind]);
-				outputfile_set=1;
-			}	
+		if(outputfile_set!=1){
+			sprintf(outputfile_name,"%s.ogg",argv[optind]);
+			outputfile_set=1;
 		}
 		optind++;
 	}
-	
+
 	//FIXME: is using_stdin still neded? is it needed as global variable?
 	using_stdin |= !strcmp(inputfile_name, "pipe:" ) ||
                    !strcmp( inputfile_name, "/dev/stdin" );
@@ -1002,7 +1004,20 @@ int main (int argc, char **argv){
 
 	if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, NULL) >= 0){
 			if (av_find_stream_info (convert->context) >= 0){
+#ifdef WIN32
+				if(!strcmp(outputfile_name,"-")){
+					_setmode(_fileno(stdout), _O_BINARY);
+					info.outfile = stdout;
+				}
+				else {
+					info.outfile = fopen(outputfile_name,"wb");
+				}
+#else
+				if(!strcmp(outputfile_name,"-")){
+					sprintf(outputfile_name,"/dev/stdout");
+				}
 				info.outfile = fopen(outputfile_name,"wb");
+#endif
 				dump_format (convert->context, 0,inputfile_name, 0);
 				if(convert->disable_audio){
 					fprintf(stderr,"  [audio disabled].\n");
