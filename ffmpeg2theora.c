@@ -433,9 +433,9 @@ void ff2theora_output(ff2theora this) {
 		theoraframes_init (&info);
 		/*seek to start time*/	
 #if LIBAVFORMAT_BUILD <= 4616
-		av_seek_frame( this->context, this->video_index, (int64_t)AV_TIME_BASE*this->start_time);
+		av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time);
 #else
-		av_seek_frame( this->context, this->video_index, (int64_t)AV_TIME_BASE*this->start_time, 1);
+		av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
 #endif
 		/*check for end time and caclulate number of frames to encode*/
 		int no_frames = fps*(this->end_time - this->start_time);
