@@ -60,6 +60,7 @@ typedef struct ff2theora{
 	ReSampleContext *audio_resample_ctx;
 	ogg_uint32_t aspect_numerator;
 	ogg_uint32_t aspect_denominator;
+	double	frame_aspect;
 	int video_quality;
 	
 	/* cropping */
@@ -115,6 +116,7 @@ ff2theora ff2theora_init (){
 		this->audio_quality=0.297;// audio quality 3
 		this->aspect_numerator=0;
 		this->aspect_denominator=0;
+		this->frame_aspect=0;
 		this->deinterlace=1;
 		this->frame_topBand=0;
 		this->frame_bottomBand=0;
@@ -161,15 +163,16 @@ void ff2theora_output(ff2theora this) {
 		fps = (double) venc->frame_rate / venc->frame_rate_base;
 		if (fps > 10000)
 			fps /= 1000;
-				
+		
 		if (vcodec == NULL || avcodec_open (venc, vcodec) < 0)
 			this->video_index = -1;
 		this->fps = fps;
-
+		
 		if(info.preset == V2V_PRESET_PREVIEW){
+			// possible sizes 384/288,320/240
 			int pal_width=384;
 			int pal_height=288;
-			int ntsc_width=352;
+			int ntsc_width=320;
 			int ntsc_height=240;
 			if(this->fps==25 && (venc->width!=pal_width || venc->height!=pal_height) ){
 				this->output_width=pal_width;
@@ -205,10 +208,21 @@ void ff2theora_output(ff2theora this) {
 			this->output_width=venc->width-
 					this->frame_leftBand-this->frame_rightBand;
 		}
-
-
-		
-		if(venc->sample_aspect_ratio.num!=0){
+		//so frame_aspect is set on the commandline
+		if(this->frame_aspect!=0){
+				if(this->output_height){
+					this->aspect_numerator=10000*this->frame_aspect*this->output_height;
+					this->aspect_denominator=10000*this->output_width;
+				}
+				else{
+					this->aspect_numerator=10000*this->frame_aspect*venc->height;
+					this->aspect_denominator=10000*venc->width;
+				}
+				av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
+				frame_aspect=this->frame_aspect;
+		}
+		fprintf(stderr,"what is what should not be: %d:%d\n",venc->sample_aspect_ratio.num,venc->sample_aspect_ratio.den);		
+		if(venc->sample_aspect_ratio.num!=0 && this->frame_aspect==0){
 			// just use the ratio from the input
 			this->aspect_numerator=venc->sample_aspect_ratio.num;
 			this->aspect_denominator=venc->sample_aspect_ratio.den;
@@ -221,17 +235,29 @@ void ff2theora_output(ff2theora this) {
 				venc->sample_aspect_ratio.den*height*this->output_width,10000);
 				frame_aspect=(float)(this->aspect_numerator*this->output_width)/
 								(this->aspect_denominator*this->output_height);
+				// this one is a hack but it looks like dv aspect ratio is
+				// to far off in ffmpeg, need a way to fix that for 16:9 too.
+				if(frame_aspect-(float)(4/3)<0.37){
+					this->aspect_numerator=1;
+					this->aspect_denominator=1;
+					frame_aspect=(float)(this->aspect_numerator*this->output_width)/
+								(this->aspect_denominator*this->output_height);
+				}
 			}
 			else{
 				frame_aspect=(float)(this->aspect_numerator*venc->width)/
 								(this->aspect_denominator*venc->height);
 			}
-			fprintf(stderr,
-			"  Pixel Aspect Ratio: %.2f/1 ",
-				(float)this->aspect_numerator/this->aspect_denominator);
-			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
 			
 		}
+
+		if(this->aspect_denominator && frame_aspect){
+			fprintf(stderr,
+			"  Pixel Aspect Ratio: %d/%d ",this->aspect_numerator,this->aspect_denominator);
+			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
+		}
+
+		
 		/* Theora has a divisible-by-sixteen restriction for the encoded video size */  /* scale the frame size up to the nearest /16 and calculate offsets */
 		this->video_x=((this->output_width + 15) >>4)<<4;
 		this->video_y=((this->output_height + 15) >>4)<<4;
@@ -539,6 +565,29 @@ void ff2theora_close (ff2theora this){
 	av_free (this);
 }
 
+double aspect_check(const char *arg)
+{
+    int x = 0, y = 0;
+    double ar = 0;
+    const char *p;
+
+    p = strchr(arg, ':');
+    if (p) {
+        x = strtol(arg, (char **)&arg, 10);
+        if (arg == p)
+            y = strtol(arg+1, (char **)&arg, 10);
+        if (x > 0 && y > 0)
+            ar = (double)x / (double)y;
+    } else
+        ar = strtod(arg, (char **)&arg);
+
+    if (!ar) {
+        fprintf(stderr, "Incorrect aspect ratio specification.\n");
+        exit(1);
+    }
+	return ar;
+}
+
 int crop_check(ff2theora this, char *name, const char *arg)
 {
 	int crop_value = atoi(arg); 
@@ -558,6 +607,8 @@ int crop_check(ff2theora this, char *name, const char *arg)
 	*/
     return crop_value;
 }
+
+
 
 void print_presets_info() {
 	fprintf (stderr, 
@@ -581,6 +632,7 @@ void print_usage (){
 		"\t --format,-f\t\tspecify input format\n"
 		"\t --width, -x\t\tscale to given size\n"
 		"\t --height,-y\t\tscale to given size\n"
+		"\t --aspect\t\tdefine frame aspect ratio: i.e. 4:3 or 16:9\n"
 		"\t --crop[top|bottom|left|right]\tcrop input before resizing\n"
 		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"		
 		"\t\t\t\t\tenabled by default right now\n"
@@ -622,6 +674,7 @@ int main (int argc, char **argv){
 	static int cropright_flag=0;
 	static int cropleft_flag=0;	
 	static int nosound_flag=0;	
+	static int aspect_flag=0;
 	
 	AVInputFormat *input_fmt=NULL;
 	ff2theora convert = ff2theora_init ();
@@ -640,6 +693,7 @@ int main (int argc, char **argv){
 	  {"samplerate",required_argument,NULL,'H'},
 	  {"channels",required_argument,NULL,'c'},
 	  {"nosound",0,&nosound_flag,1},
+	  {"aspect",required_argument,&aspect_flag,1},
 	  {"v2v-preset",required_argument,NULL,'p'},
 	  {"nice",required_argument,NULL,'N'},
 	  {"croptop",required_argument,&croptop_flag,1},
@@ -681,6 +735,10 @@ int main (int argc, char **argv){
 				if (cropleft_flag){
 					convert->frame_leftBand=crop_check(convert,"left",optarg);
 					cropleft_flag=0;
+				}
+				if (aspect_flag){
+					convert->frame_aspect=aspect_check(optarg);
+					aspect_flag=0;
 				}
 				break;
 			case 'o':
@@ -770,6 +828,15 @@ int main (int argc, char **argv){
 				exit(1);
 		}  
 	}	
+	//use PREVIEW as default setting
+	if(argc==2){
+		//need a way to set resize here. and not later
+		info.preset=V2V_PRESET_PREVIEW;
+		convert->video_quality = rint(5*6.3);
+		convert->audio_quality=1*.099;
+		convert->channels=2;
+		convert->sample_rate=44100;
+	}
 	
 	while(optind<argc){
 		/* assume that anything following the options must be a filename */
@@ -800,7 +867,7 @@ int main (int argc, char **argv){
 		fprintf(stderr,"output size must be a multiple of 16 for now.\n");
 		exit(1);
 	}
-	if(convert->output_width % 2 ||  convert->output_height % 2){
+	if(convert->output_width % 4 ||  convert->output_height % 4){
 		fprintf(stderr,"output width and hight size must be a multiple of 2.\n");
 		exit(1);
 	}
