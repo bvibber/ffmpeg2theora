@@ -1,2 +1,2 @@
 #!/bin/sh
-cvs -d:pserver:cvs.mplayerhq.hu:/ffmpeg/ co ffmpeg
+cvs -z3 -d:pserver:anonymous@cvs.mplayerhq.hu:/cvsroot/ffmpeg/ co ffmpeg
