@@ -221,7 +221,6 @@ void ff2theora_output(ff2theora this) {
 				av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
 				frame_aspect=this->frame_aspect;
 		}
-		fprintf(stderr,"what is what should not be: %d:%d\n",venc->sample_aspect_ratio.num,venc->sample_aspect_ratio.den);		
 		if(venc->sample_aspect_ratio.num!=0 && this->frame_aspect==0){
 			// just use the ratio from the input
 			this->aspect_numerator=venc->sample_aspect_ratio.num;
@@ -235,14 +234,6 @@ void ff2theora_output(ff2theora this) {
 				venc->sample_aspect_ratio.den*height*this->output_width,10000);
 				frame_aspect=(float)(this->aspect_numerator*this->output_width)/
 								(this->aspect_denominator*this->output_height);
-				// this one is a hack but it looks like dv aspect ratio is
-				// to far off in ffmpeg, need a way to fix that for 16:9 too.
-				if(frame_aspect-(float)(4/3)<0.37){
-					this->aspect_numerator=1;
-					this->aspect_denominator=1;
-					frame_aspect=(float)(this->aspect_numerator*this->output_width)/
-								(this->aspect_denominator*this->output_height);
-				}
 			}
 			else{
 				frame_aspect=(float)(this->aspect_numerator*venc->width)/
@@ -252,8 +243,8 @@ void ff2theora_output(ff2theora this) {
 		}
 
 		if(this->aspect_denominator && frame_aspect){
-			fprintf(stderr,
-			"  Pixel Aspect Ratio: %d/%d ",this->aspect_numerator,this->aspect_denominator);
+			//fprintf(stderr,"  Pixel Aspect Ratio: %d/%d ",this->aspect_numerator,this->aspect_denominator);
+			fprintf(stderr,"  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
 			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
 		}
 
