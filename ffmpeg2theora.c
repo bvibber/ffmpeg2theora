@@ -191,7 +191,6 @@ void ff2theora_output(ff2theora this) {
 			(this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
 			this->output_height=venc->height-
 					this->frame_topBand-this->frame_bottomBand;
-			fprintf(stderr,"bla bal\n");
 		}
 		if(this->output_width==0 && 
 			(this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
@@ -223,10 +222,7 @@ void ff2theora_output(ff2theora this) {
 			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
 			
 		}
-		if(this->output_height>0 || this->output_width>0 ||
-			this->frame_topBand || this->frame_bottomBand ||
-			this->frame_leftBand || this->frame_rightBand
-			){
+		if(this->output_height>0 || this->output_width>0){
 			// we might need that for values other than /16?
 			int frame_padtop=0, frame_padbottom=0;
 			int frame_padleft=0, frame_padright=0;
