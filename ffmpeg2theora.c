@@ -176,8 +176,8 @@ void ff2theora_output(ff2theora this) {
                                       venc->width, venc->height,
                                       frame_topBand, frame_bottomBand,
                                       frame_leftBand, frame_rightBand,
-				      frame_padtop, frame_padbottom,
-				      frame_padleft, frame_padright
+									  frame_padtop, frame_padbottom,
+									  frame_padleft, frame_padright
 				      );
 #else
 			/* ffmpeg 0.48 */
@@ -190,7 +190,7 @@ void ff2theora_output(ff2theora this) {
 #endif
 			fprintf(stderr,"  Resize: %dx%d => %dx%d\n",venc->width,venc->height,this->output_width,this->output_height);
 		}
-		else {
+		else{
 			this->output_height=venc->height;
 			this->output_width=venc->width;
 		}
@@ -369,11 +369,10 @@ void ff2theora_output(ff2theora this) {
 				int data_size;
 				while(len > 0 ){
 					len1 = avcodec_decode_audio(&astream->codec, audio_buf,&data_size, ptr, len);
-					if (len1 < 0 || data_size ==0) {
+					if (len1 < 0){
                 		/* if error, we skip the frame */
                 		break;
-            		}	
-
+            		}
 					len -= len1;
 					ptr += len1;
 					if(data_size >0){
@@ -392,7 +391,6 @@ void ff2theora_output(ff2theora this) {
 					}
 				}
 			}
-			
 			/* flush out the file */
 			theoraframes_flush ();
 			av_free_packet (&pkt);
