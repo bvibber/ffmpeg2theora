@@ -1,5 +1,5 @@
 - remove global variable info
 - more commandline options
 - think of adding noise reduction(best would be integration of denoise3d)
-- fix problems related to eof than using ffmpeg-cvs
 - allow frame size not multiple of 16.
+- add option for pixel aspect ratio

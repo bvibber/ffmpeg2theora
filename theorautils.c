@@ -164,7 +164,7 @@ void theoraframes_init (theoraframes_info *info){
  * @param linesize of data
  * @param e_o_s 1 indicates ond of stream
  */
-int theoraframes_add_video (theoraframes_info *info, uint8_t * data, int width, int height, int linesize,int e_o_s){
+int theoraframes_add_video (ff2theora this, theoraframes_info *info, AVFrame * avframe, int e_o_s){
 	/* map some things from info struk to local variables, 
 	 * just to understand the code better */
 	/* pysical pages */
@@ -172,17 +172,18 @@ int theoraframes_add_video (theoraframes_info *info, uint8_t * data, int width, 
 	/* Theora is a one-frame-in,one-frame-out system; submit a frame
 	 * for compression and pull out the packet */
 	{
-		yuv.y_width = width;
-		yuv.y_height = height;
-		yuv.y_stride = linesize;
+		yuv.y_width = this->frame_width;
+		yuv.y_height = this->frame_height;
+		yuv.y_stride = avframe->linesize[0];
 
-		yuv.uv_width = width / 2;
-		yuv.uv_height = height / 2;
-		yuv.uv_stride = linesize / 2;
+		yuv.uv_width = this->frame_width / 2;
+		yuv.uv_height = this->frame_height / 2;
+		yuv.uv_stride = avframe->linesize[1];
 
-		yuv.y = data;
-		yuv.u = data + width * height;
-		yuv.v = data + width * height * 5 / 4;
+		yuv.y = avframe->data[0];
+		yuv.u = avframe->data[1];
+		yuv.v = avframe->data[2];
+
 	}
 	theora_encode_YUVin (&info->td, &yuv);
 	theora_encode_packetout (&info->td, e_o_s, &info->op);

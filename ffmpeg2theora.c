@@ -49,50 +49,6 @@ theoraframes_info info;
 
 static int using_stdin = 0;
 
-typedef struct ff2theora{
-	AVFormatContext *context;
-	int video_index;
-	int audio_index;
-	
-	int deinterlace;
-	int sample_rate;
-	int channels;
-	int disable_audio;
-	float audio_quality;
-	int audio_bitrate;
-	
-	int output_width;
-	int output_height;
-	double fps;
-	ImgReSampleContext *img_resample_ctx; /* for image resampling/resizing */
-	ReSampleContext *audio_resample_ctx;
-	ogg_uint32_t aspect_numerator;
-	ogg_uint32_t aspect_denominator;
-	double	frame_aspect;
-
-	int video_quality;
-	int video_bitrate;
-	int sharpness;
-	int keyint;
-
-	double force_input_fps;
-	
-	/* cropping */
-	int frame_topBand;
-	int frame_bottomBand;
-	int frame_leftBand;
-	int frame_rightBand;
-	
-	int video_x;
-	int video_y;
-	int frame_x_offset;
-	int frame_y_offset;
-
-	/* In seconds */
-	int start_time;
-	int end_time; 
-}
-*ff2theora;
 
 /**
  * Allocate and initialise an AVFrame. 
@@ -135,8 +91,8 @@ ff2theora ff2theora_init (){
 		this->audio_quality=0.297;// audio quality 3
 		this->audio_bitrate=0;
 		// video
-		this->output_width=0;	  // set to 0 to not resize the output
-		this->output_height=0;	  // set to 0 to not resize the output
+		this->picture_width=0;	  // set to 0 to not resize the output
+		this->picture_height=0;	  // set to 0 to not resize the output
 		this->video_quality=31.5; // video quality 5
 		this->video_bitrate=0;
 		this->sharpness=2;
@@ -145,7 +101,7 @@ ff2theora ff2theora_init (){
 		this->aspect_numerator=0;
 		this->aspect_denominator=0;
 		this->frame_aspect=0;
-		this->deinterlace=1;
+		this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace. 
 		
 		this->frame_topBand=0;
 		this->frame_bottomBand=0;
@@ -207,22 +163,22 @@ void ff2theora_output(ff2theora this) {
 			int ntsc_width=320;
 			int ntsc_height=240;
 			if(this->fps==25 && (venc->width!=pal_width || venc->height!=pal_height) ){
-				this->output_width=pal_width;
-				this->output_height=pal_height;
+				this->picture_width=pal_width;
+				this->picture_height=pal_height;
 			}
 			else if(abs(this->fps-30)<1 && (venc->width!=ntsc_width || venc->height!=ntsc_height) ){
-				this->output_width=ntsc_width;
-				this->output_height=ntsc_height;
+				this->picture_width=ntsc_width;
+				this->picture_height=ntsc_height;
 			}
 		}
 		else if(info.preset == V2V_PRESET_PRO){
 			if(this->fps==25 && (venc->width!=720 || venc->height!=576) ){
-				this->output_width=720;
-				this->output_height=576;
+				this->picture_width=720;
+				this->picture_height=576;
 			}
 			else if(abs(this->fps-30)<1 && (venc->width!=720 || venc->height!=480) ){
-				this->output_width=720;
-				this->output_height=480;
+				this->picture_width=720;
+				this->picture_height=480;
 			}
 		}
         if (this->deinterlace==1)
@@ -230,21 +186,21 @@ void ff2theora_output(ff2theora this) {
 		else
 			fprintf(stderr,"  Deinterlace: off\n");
 
-		if(this->output_height==0 && 
+		if(this->picture_height==0 && 
 			(this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
-			this->output_height=venc->height-
+			this->picture_height=venc->height-
 					this->frame_topBand-this->frame_bottomBand;
 		}
-		if(this->output_width==0 && 
+		if(this->picture_width==0 && 
 			(this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
-			this->output_width=venc->width-
+			this->picture_width=venc->width-
 					this->frame_leftBand-this->frame_rightBand;
 		}
 		//so frame_aspect is set on the commandline
 		if(this->frame_aspect!=0){
-				if(this->output_height){
-					this->aspect_numerator=10000*this->frame_aspect*this->output_height;
-					this->aspect_denominator=10000*this->output_width;
+				if(this->picture_height){
+					this->aspect_numerator=10000*this->frame_aspect*this->picture_height;
+					this->aspect_denominator=10000*this->picture_width;
 				}
 				else{
 					this->aspect_numerator=10000*this->frame_aspect*venc->height;
@@ -258,14 +214,14 @@ void ff2theora_output(ff2theora this) {
 			this->aspect_numerator=venc->sample_aspect_ratio.num;
 			this->aspect_denominator=venc->sample_aspect_ratio.den;
 			// or we use ratio for the output
-			if(this->output_height){
+			if(this->picture_height){
 				int width=venc->width-this->frame_leftBand-this->frame_rightBand;
 				int height=venc->height-this->frame_topBand-this->frame_bottomBand;
 				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-				venc->sample_aspect_ratio.num*width*this->output_height,
-				venc->sample_aspect_ratio.den*height*this->output_width,10000);
-				frame_aspect=(float)(this->aspect_numerator*this->output_width)/
-								(this->aspect_denominator*this->output_height);
+				venc->sample_aspect_ratio.num*width*this->picture_height,
+				venc->sample_aspect_ratio.den*height*this->picture_width,10000);
+				frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
+								(this->aspect_denominator*this->picture_height);
 			}
 			else{
 				frame_aspect=(float)(this->aspect_numerator*venc->width)/
@@ -281,22 +237,24 @@ void ff2theora_output(ff2theora this) {
 
 		
 		/* Theora has a divisible-by-sixteen restriction for the encoded video size */  /* scale the frame size up to the nearest /16 and calculate offsets */
-		this->video_x=((this->output_width + 15) >>4)<<4;
-		this->video_y=((this->output_height + 15) >>4)<<4;
-		this->frame_x_offset=(this->video_x-this->output_width);
-		this->frame_y_offset=(this->video_y-this->output_height);
-		
-		if(this->video_x>0 || this->video_y>0){
-			// we might need that for values other than /16?
-			int frame_padtop=0, frame_padbottom=0;
-			int frame_padleft=0, frame_padright=0;
-			
-			frame_padbottom=this->frame_x_offset;
-			frame_padleft=this->frame_y_offset;
 
+		if(!this->picture_width) 
+			this->picture_width = venc->width;
+		if(!this->picture_height)
+			this->picture_height = venc->height;
+		this->frame_width = this->picture_width + (this->picture_width % 16);		
+		this->frame_height = this->picture_height + (this->picture_height % 16);
+
+		this->frame_x_offset = this->frame_width-this->picture_width;
+		this->frame_y_offset = this->frame_height-this->picture_height;
+		
+		if(this->frame_width > 0 || this->frame_height > 0){
+			int frame_padtop = 0, frame_padbottom = this->frame_y_offset;
+			int frame_padleft = this->frame_x_offset, frame_padright = 0;
+			
 			this->img_resample_ctx = img_resample_full_init(
-						  //this->output_width, this->output_height,
-						  this->video_x, this->video_y,
+						  //this->picture_width, this->picture_height,
+						  this->frame_width, this->frame_height,
 						  venc->width, venc->height,
 						  this->frame_topBand, this->frame_bottomBand,
 						  this->frame_leftBand, this->frame_rightBand,
@@ -306,19 +264,15 @@ void ff2theora_output(ff2theora this) {
 			fprintf(stderr,"  Resize: %dx%d",venc->width,venc->height);
 			if(this->frame_topBand || this->frame_bottomBand ||
 			this->frame_leftBand || this->frame_rightBand){
-				fprintf(stderr," => %dx%d",venc->width-this->frame_leftBand- this->frame_rightBand,venc->height-this->frame_topBand-this->frame_bottomBand);
+				fprintf(stderr," => %dx%d",
+					venc->width-this->frame_leftBand-this->frame_rightBand,
+					venc->height-this->frame_topBand-this->frame_bottomBand);
 			}
-			if(this->output_width!=(venc->width-this->frame_leftBand-this->frame_rightBand) ||
-				this->output_height!=(venc->height-this->frame_topBand-this->frame_bottomBand))
-				fprintf(stderr," => %dx%d",this->output_width,this->output_height);
+			if(this->picture_width != (venc->width-this->frame_leftBand-this->frame_rightBand) 
+				|| this->picture_height != (venc->height-this->frame_topBand-this->frame_bottomBand))
+				fprintf(stderr," => %dx%d",this->picture_width, this->picture_height);
 			fprintf(stderr,"\n");
 			
-		}
-		else{
-			this->video_x = venc->width;
-			this->video_y = venc->height;
-			this->output_height=venc->height;
-			this->output_width=venc->width;
 		}
 	}
 	if (this->audio_index >= 0){
@@ -329,7 +283,7 @@ void ff2theora_output(ff2theora this) {
 			aenc->channels = this->channels;
 
 		if (acodec != NULL && avcodec_open (aenc, acodec) >= 0){
-			if(this->sample_rate!=aenc->sample_rate || this->channels!=aenc->channels){
+			if(this->sample_rate != aenc->sample_rate || this->channels != aenc->channels){
 				this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->sample_rate,aenc->sample_rate);
 				if(this->sample_rate!=aenc->sample_rate)
 					fprintf(stderr,"  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
@@ -362,8 +316,8 @@ void ff2theora_output(ff2theora this) {
 		int ret;
 		uint8_t *ptr;
 		int16_t *audio_buf= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
-		int16_t *resampled= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);		
-		
+		int16_t *resampled= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
+
 		if(this->video_index >= 0)
 			info.audio_only=0;
 		else
@@ -384,11 +338,9 @@ void ff2theora_output(ff2theora this) {
 			output =alloc_picture(PIX_FMT_YUV420P, 
 							vstream->codec.width,vstream->codec.height);
 			output_resized =alloc_picture(PIX_FMT_YUV420P, 
-							this->video_x, this->video_y);
-							//this->output_width,this->output_height);
+							this->frame_width, this->frame_height);
 			output_buffered =alloc_picture(PIX_FMT_YUV420P,
-							this->video_x, this->video_y);			
-							//this->output_width,this->output_height);
+							this->frame_width, this->frame_height);	
 		}
 
 		if(!info.audio_only){
@@ -397,14 +349,12 @@ void ff2theora_output(ff2theora this) {
 			
 			theora_info_init (&info.ti);
 			
-			info.ti.width = this->video_x;
-			info.ti.height = this->video_y;
-			info.ti.frame_width = this->output_width;
-			info.ti.frame_height = this->output_height;
+			info.ti.width = this->frame_width;
+			info.ti.height = this->frame_height;
+			info.ti.frame_width = this->picture_width;
+			info.ti.frame_height = this->picture_height;
 			info.ti.offset_x = this->frame_x_offset;
 			info.ti.offset_y = this->frame_y_offset;
-			// FIXED: looks like ffmpeg uses num and denum for fps too
-			// venc->frame_rate / venc->frame_rate_base;
 			if(this->force_input_fps) {
 				info.ti.fps_numerator = 1000000 * (this->fps);	/* fps= numerator/denominator */
 				info.ti.fps_denominator = 1000000;
@@ -424,6 +374,7 @@ void ff2theora_output(ff2theora this) {
 				info.ti.colorspace = OC_CS_ITU_REC_470M;
 			else
 				info.ti.colorspace = OC_CS_UNSPECIFIED;
+
 			info.ti.target_bitrate = this->video_bitrate; 
 			info.ti.quality = this->video_quality;
 			info.ti.dropframes_p = 0;
@@ -436,7 +387,6 @@ void ff2theora_output(ff2theora this) {
 			info.ti.keyframe_mindistance = 8;
 			info.ti.noise_sensitivity = 1;
 			// range 0-2, 0 sharp, 2 less sharp,less bandwidth
-			// if(info.preset == V2V_PRESET_PREVIEW)
 			info.ti.sharpness = this->sharpness;
 			
 		}
@@ -488,47 +438,38 @@ void ff2theora_output(ff2theora this) {
 						(len1 = avcodec_decode_video(&vstream->codec,
 										frame,&got_picture, ptr, len))>0) {
 										
-						//FIXME: move image resize/deinterlace/colorformat transformation
-						//			into seperate function
 						if(got_picture){
 							//For audio only files command line option"-e" will not work
 							//as we donot increment frame_number in audio section.
 							frame_number++;
-							//FIXME: better colorformat transformation to YUV420P
-							/* might have to cast other progressive formats here */
-							//if(venc->pix_fmt != PIX_FMT_YUV420P){
-								img_convert((AVPicture *)output,PIX_FMT_YUV420P,
-											(AVPicture *)frame,venc->pix_fmt,
-											venc->width,venc->height);
-								if(this->deinterlace){
-									if(avpicture_deinterlace((AVPicture *)output_tmp,
-											(AVPicture *)output,PIX_FMT_YUV420P,
-											venc->width,venc->height)<0){
-										output_tmp=output;
-									}
-								}
-								else
-									output_tmp=output;
-							//}
-							//else{
-								/* there must be better way to do this, it seems to work like this though */
-							/*
-								if(frame->linesize[0] != vstream->codec.width){
-									img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
-												(AVPicture *)frame,venc->pix_fmt,venc->width,venc->height);
-								}
-								else{
-									output_tmp=frame;
+							if(venc->pix_fmt != PIX_FMT_YUV420P) {
+								fprintf(stderr,"colorspace transform\n");
+								img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
+									    (AVPicture *)frame,venc->pix_fmt,
+											 venc->width,venc->height);
+							}
+							else{
+								output_tmp = frame;
+							}
+
+							if(frame->interlaced_frame || this->deinterlace){
+								if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,PIX_FMT_YUV420P,venc->width,venc->height)<0){								fprintf(stderr," failed deinterlace\n");
+										// deinterlace failed
+										 output=output_tmp;
 								}
 							}
-							*/
-							// now output_tmp
+							else{
+								output=output_tmp;
+							}
+
+							// now output
 							if(this->img_resample_ctx){
 								img_resample(this->img_resample_ctx, 
-											(AVPicture *)output_resized, (AVPicture *)output_tmp);
+										(AVPicture *)output_resized, 
+										(AVPicture *)output);
 							}	
 							else{
-								output_resized=output_tmp;
+								output_resized=output;
 							}
 						}
 						ptr += len1;
@@ -536,9 +477,7 @@ void ff2theora_output(ff2theora this) {
 					}	
 					first=0;
 					//now output_resized
-					if(theoraframes_add_video(&info, output_resized->data[0],
-					this->video_x,this->video_y,output_resized->linesize[0],e_o_s)){
-				//this->output_width,this->output_height,output_resized->linesize[0],e_o_s)){
+					if( theoraframes_add_video(this, &info, output_resized ,e_o_s) ){
 						ret = -1;
 						fprintf (stderr,"No theora frames available\n");
 						break;
@@ -691,6 +630,7 @@ void print_usage (){
 		"\t --audioquality,-a\t[-1 to 10]   encoding quality for audio\n"
 		"\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio\n"
 		"\t --samplerate,-H\tset output samplerate in Hz\n"
+		"\t --channels,-c\tset number of output sound channels\n"
 		"\t --nosound\t\tdisable the sound from input\n"
 		"\t --endtime,-e\t\tend encoding at this time (in sec)\n"
 		"\t --starttime,-s\t\tstart encoding at this time (in sec)\n"
@@ -699,8 +639,8 @@ void print_usage (){
 		"\t\t\t\t '"PACKAGE" -p info' for more informations\n"
 	
 		"\nInput options:\n"
-		"\t --deinterlace,-d \t[off|on] disable deinterlace, \n"
-		"\t\t\t\t\t enabled by default right now\n"
+		"\t --deinterlace,-d \tforce deinterlace,n"
+		"\t\t\t\t\t otherwise only interlaced material is deinterlaced\\n"
 		"\t --format,-f\t\tspecify input format\n"
 		"\t --inputfps [fps]\toverride input fps\n"
 		
@@ -748,6 +688,7 @@ int main (int argc, char **argv){
 	static int aspect_flag=0;
 	static int inputfps_flag=0;
 	static int metadata_flag=0;
+	static int deinterlace_flag=0;
 	
 	AVInputFormat *input_fmt=NULL;
 	ff2theora convert = ff2theora_init ();
@@ -766,7 +707,7 @@ int main (int argc, char **argv){
 	  {"audiobitrate",required_argument,NULL,'A'},
 	  {"sharpness",required_argument,NULL,'S'},
 	  {"keyint",required_argument,NULL,'K'},
-	  {"deinterlace",required_argument,NULL,'d'},
+	  {"deinterlace",0,&deinterlace_flag,'d'},
 	  {"samplerate",required_argument,NULL,'H'},
 	  {"channels",required_argument,NULL,'c'},
 	  {"nosound",0,&nosound_flag,1},
@@ -807,6 +748,10 @@ int main (int argc, char **argv){
 				if (nosound_flag){
 					convert->disable_audio=1;
 					nosound_flag=0;
+				}
+				if (deinterlace_flag){
+					convert->deinterlace=1;
+					deinterlace_flag=0;
 				}
 				/* crop */
 				if (croptop_flag){
@@ -875,10 +820,10 @@ int main (int argc, char **argv){
 				input_fmt=av_find_input_format(optarg);
 				break;
 			case 'x':
-				convert->output_width=atoi(optarg);
+				convert->picture_width=atoi(optarg);
 				break;
 			case 'y':
-				convert->output_height=atoi(optarg);
+				convert->picture_height=atoi(optarg);
 				break;
 			case 'v':
 				convert->video_quality = rint(atof(optarg)*6.3);
@@ -1021,14 +966,16 @@ int main (int argc, char **argv){
 	}
 
 	/* could go, but so far no player supports offset_x/y */
-	if(convert->output_width % 16 ||  convert->output_height % 16){
-		fprintf(stderr,"output size must be a multiple of 16 for now.\n");
+	if(convert->picture_width % 8 ||  convert->picture_height % 8){
+		fprintf(stderr,"output size must be a multiple of 8 for now.\n");
 		exit(1);
 	}
-	if(convert->output_width % 4 ||  convert->output_height % 4){
+	/*
+	if(convert->picture_width % 4 ||  convert->picture_height % 4){
 		fprintf(stderr,"output width and hight size must be a multiple of 2.\n");
 		exit(1);
 	}
+	*/
 	if(convert->end_time>0 && convert->end_time <= convert->start_time){
 		fprintf(stderr,"end time has to be bigger than start time\n");
 		exit(1);

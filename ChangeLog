@@ -3,6 +3,8 @@ svn 	2005-??-??
 	- fix compile issues with new version of faad
 	- better support for stdout on win32,
 	   to allow ezstream streaming non-theora source types
+	- deinterlace only interlaced input by default
+	- handle input files with frame sizes that are not a multiple of 16
 
 0.12 	2004-11-18
 	- add more command line options, for bitrate modes, metadata
