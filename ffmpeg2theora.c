@@ -995,7 +995,7 @@ int main (int argc, char **argv){
 		fprintf(stderr,"output width and hight size must be a multiple of 2.\n");
 		exit(1);
 	}
-	if(convert->end_time <= convert->start_time){
+	if(convert->end_time>0 && convert->end_time <= convert->start_time){
 		fprintf(stderr,"end time has to be bigger than start time\n");
 		exit(1);
 	}
