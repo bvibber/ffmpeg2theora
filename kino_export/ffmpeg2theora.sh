@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# place this script in/usr/share/kino/scripts/exports
+# place this script in /usr/share/kino/scripts/exports
 # and make sure ffmpeg2theora is in $PATH
 #
 #

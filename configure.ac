@@ -71,6 +71,9 @@ fi
 AC_CHECK_LIB(faad,faacDecClose, [
   AC_CHECK_HEADER(faad.h, [HAVE_FAAD=yes])
     ],,[-lm -lz])
+AC_CHECK_LIB(faad,NeAACDecInit, [
+  AC_CHECK_HEADER(faad.h, [HAVE_FAAD=yes])
+    ],,[-lm -lz])
 if test "x$HAVE_FAAD" = xyes; then
 	FFMPEG_EXTLIBS="-lfaad"
 	FFMPEG_LIBS="$FFMPEG_LIBS $FFMPEG_EXTLIBS"

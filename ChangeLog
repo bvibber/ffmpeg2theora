@@ -1,3 +1,8 @@
+svn 	2004-??-??
+	- add new command line options, starttime, endtime
+	- fix compile issues with new version of faad
+
+
 0.12 	2004-11-18
 	- add more command line options, for bitrate modes, metadata
 	- update kino plugin

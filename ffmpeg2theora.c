@@ -76,6 +76,10 @@ typedef struct ff2theora{
 	int video_y;
 	int frame_x_offset;
 	int frame_y_offset;
+
+	/* In seconds */
+	int start_time;
+	int end_time; 
 }
 *ff2theora;
 
@@ -128,7 +132,8 @@ ff2theora ff2theora_init (){
 		this->frame_bottomBand=0;
 		this->frame_leftBand=0;
 		this->frame_rightBand=0;
-
+		this->start_time=0;
+		this->end_time=0; /* ZERO denotes no end time set */
 	}
 	return this;
 }
@@ -142,7 +147,7 @@ void ff2theora_output(ff2theora this) {
 	AVCodec *acodec = NULL;
 	AVCodec *vcodec = NULL;
 	float frame_aspect;
-	
+	int64_t frame_number=0;
 	double fps = 0.0;
 
 	for (i = 0; i < this->context->nb_streams; i++){
@@ -426,9 +431,31 @@ void ff2theora_output(ff2theora this) {
 		info.vorbis_quality = this->audio_quality;
 		info.vorbis_bitrate = this->audio_bitrate;
 		theoraframes_init (&info);
-	
+		/*seek to start time*/	
+#if LIBAVFORMAT_BUILD <= 4616
+		av_seek_frame( this->context, this->video_index, (int64_t)AV_TIME_BASE*this->start_time);
+#else
+		av_seek_frame( this->context, this->video_index, (int64_t)AV_TIME_BASE*this->start_time, 1);
+#endif
+		/*check for end time and caclulate number of frames to encode*/
+		int no_frames = fps*(this->end_time - this->start_time);
+		if(this->end_time > 0 && no_frames <= 0){
+			fprintf(stderr,"end time has to be bigger than start time\n");
+			exit(1);
+		}
+		if(info.audio_only && (this->end_time>0 || this->start_time>0)){
+			fprintf(stderr,"sorry, right now start/end time does not work for audio only files\n");
+			exit(1);
+		}
 		/* main decoding loop */
-		do{
+		do{	
+			if(no_frames > 0){
+				if(frame_number > no_frames){
+					if(info.debug)
+						fprintf(stderr,"\nreached end specified with --endtime\n");
+					break;
+				}
+			}
 			ret = av_read_frame(this->context,&pkt);
 			if(ret<0){
 				e_o_s=1;
@@ -449,6 +476,9 @@ void ff2theora_output(ff2theora this) {
 						//FIXME: move image resize/deinterlace/colorformat transformation
 						//			into seperate function
 						if(got_picture){
+							//For audio only files command line option"-e" will not work
+							//as we donot increment frame_number in audio section.
+							frame_number++;
 							//FIXME: better colorformat transformation to YUV420P
 							/* might have to cast other progressive formats here */
 							//if(venc->pix_fmt != PIX_FMT_YUV420P){
@@ -644,6 +674,8 @@ void print_usage (){
 		"\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio\n"
 		"\t --samplerate,-H\tset output samplerate in Hz\n"
 		"\t --nosound\t\tdisable the sound from input\n"
+		"\t --endtime,-e\t\tend encoding at this time (in sec)\n"
+		"\t --starttime,-s\t\tstart encoding at this time (in sec)\n"
 		"\t --v2v-preset,-p\tencode file with v2v preset, \n"
 		"\t\t\t\t right now there is preview and pro,\n"
 		"\t\t\t\t '"PACKAGE" -p info' for more informations\n"
@@ -704,7 +736,7 @@ int main (int argc, char **argv){
 	av_register_all ();
 	
 	int c,long_option_index;
-	const char *optstring = "o:f:x:y:v:V:a:A:d:H:c:p:N:D:h::";
+	const char *optstring = "o:f:x:y:v:V:a:s:e:A:d:H:c:p:N:D:h::";
 	struct option options [] = {
 	  {"output",required_argument,NULL,'o'},
 	  {"format",required_argument,NULL,'f'},
@@ -726,6 +758,8 @@ int main (int argc, char **argv){
 	  {"cropright",required_argument,&cropright_flag,1},
 	  {"cropleft",required_argument,&cropleft_flag,1},
 	  {"inputfps",required_argument,&inputfps_flag,1},
+	  {"starttime",required_argument,NULL,'s'},
+	  {"endtime",required_argument,NULL,'e'},
 
 	  {"artist",required_argument,&metadata_flag,10},
 	  {"title",required_argument,&metadata_flag,11},
@@ -806,6 +840,12 @@ int main (int argc, char **argv){
 					}
 					metadata_flag=0;
 				}
+				break;
+			case 'e':
+				convert->end_time = atoi(optarg);
+				break;
+			case 's':
+				convert->start_time = atoi(optarg);
 				break;
 			case 'o':
 				sprintf(outputfile_name,optarg);
@@ -953,6 +993,10 @@ int main (int argc, char **argv){
 	}
 	if(convert->output_width % 4 ||  convert->output_height % 4){
 		fprintf(stderr,"output width and hight size must be a multiple of 2.\n");
+		exit(1);
+	}
+	if(convert->end_time <= convert->start_time){
+		fprintf(stderr,"end time has to be bigger than start time\n");
 		exit(1);
 	}
 
