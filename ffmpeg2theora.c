@@ -231,16 +231,16 @@ void ff2theora_output(ff2theora this) {
 		/* Theora has a divisible-by-sixteen restriction for the encoded video size */  /* scale the frame size up to the nearest /16 and calculate offsets */
 		this->video_x=((this->output_width + 15) >>4)<<4;
 		this->video_y=((this->output_height + 15) >>4)<<4;
-		this->frame_x_offset=(this->video_x-this->output_width)/2;
-		this->frame_y_offset=(this->video_y-this->output_height)/2;
+		this->frame_x_offset=(this->video_x-this->output_width);
+		this->frame_y_offset=(this->video_y-this->output_height);
 
 		if(this->output_height>0 || this->output_width>0){
 			// we might need that for values other than /16?
 			int frame_padtop=0, frame_padbottom=0;
 			int frame_padleft=0, frame_padright=0;
 			
-			frame_padtop=frame_padbottom=this->frame_x_offset;
-			frame_padleft=frame_padright=this->frame_y_offset;
+			frame_padbottom=this->frame_x_offset;
+			frame_padleft=this->frame_y_offset;
 
 			this->img_resample_ctx = img_resample_full_init(
 						  //this->output_width, this->output_height,
@@ -789,13 +789,13 @@ int main (int argc, char **argv){
 		exit(1);
 	}
 
-	/*could go, but so far no player supports offset_x/y */
+	/* could go, but so far no player supports offset_x/y */
 	if(convert->output_width % 16 ||  convert->output_height % 16){
 		fprintf(stderr,"output size must be a multiple of 16 for now.\n");
 		exit(1);
 	}
-	if(convert->output_width % 4 ||  convert->output_height % 4){
-		fprintf(stderr,"output size must be a multiple of 4 for now.\n");
+	if(convert->output_width % 2 ||  convert->output_height % 2){
+		fprintf(stderr,"output width and hight size must be a multiple of 2.\n");
 		exit(1);
 	}
 
