@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
-AC_INIT(ffmpeg2theora,0.12)
+AC_INIT(ffmpeg2theora,0.13)
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE([dist-bzip2])
 
@@ -81,8 +81,12 @@ fi
 AC_SUBST(FFMPEG_CFLAGS)
 AC_SUBST(FFMPEG_LIBS)
 
-PKG_CHECK_MODULES(DTS,libdts )
-FFMPEG_LIBS="$FFMPEG_LIBS $DTS_LIBS"
+PKG_CHECK_MODULES(DTS, libdts, HAVE_DTS=yes, HAVE_DTS=no)
+if test "x$HAVE_DTS" = "xyes" 
+then
+    FFMPEG_LIBS="$FFMPEG_LIBS $DTS_LIBS"
+fi
+
 
 PKG_CHECK_MODULES(XIPH,ogg >= 1.1 vorbis vorbisenc theora )
 

@@ -183,8 +183,6 @@ void ff2theora_output(ff2theora this) {
         }
         if (this->deinterlace==1)
             fprintf(stderr,"  Deinterlace: on\n");
-        else
-            fprintf(stderr,"  Deinterlace: off\n");
 
         if(this->picture_height==0 && 
             (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
@@ -631,7 +629,7 @@ void print_usage (){
         "\t --audioquality,-a\t[-1 to 10]   encoding quality for audio\n"
         "\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio\n"
         "\t --samplerate,-H\tset output samplerate in Hz\n"
-        "\t --channels,-c\tset number of output sound channels\n"
+        "\t --channels,-c\t\tset number of output sound channels\n"
         "\t --nosound\t\tdisable the sound from input\n"
         "\t --endtime,-e\t\tend encoding at this time (in sec)\n"
         "\t --starttime,-s\t\tstart encoding at this time (in sec)\n"
@@ -640,8 +638,9 @@ void print_usage (){
         "\t\t\t\t '"PACKAGE" -p info' for more informations\n"
     
         "\nInput options:\n"
-        "\t --deinterlace,-d \tforce deinterlace,n"
-        "\t\t\t\t\t otherwise only interlaced material is deinterlaced\\n"
+        "\t --deinterlace,-d \tforce deinterlace\n"
+        "\t\t\t\t otherwise only material marked as interlaced \n"
+        "\t\t\t\t will be deinterlaced\n"
         "\t --format,-f\t\tspecify input format\n"
         "\t --inputfps [fps]\toverride input fps\n"
         
@@ -844,7 +843,7 @@ int main (int argc, char **argv){
                 break; 
             case 'a':
                 convert->audio_quality=atof(optarg)*.099;
-                if(convert->audio_quality<-.1 || convert->audio_quality>1){
+                if(convert->audio_quality<-.2 || convert->audio_quality>1){
                     fprintf(stderr,"only values from -1 to 10 are valid for audio quality\n");
                     exit(1);
                 }
