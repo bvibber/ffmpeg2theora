@@ -22,8 +22,13 @@
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
 
+#define V2V_PRESET_PRO 1
+#define V2V_PRESET_PREVIEW 2
+
 typedef struct
 {
+	int debug;
+	int preset;
 	int audio_only;
 	int video_only;
 	int frequency;

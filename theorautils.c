@@ -290,9 +290,16 @@ void theoraframes_flush (){
 					info.akbps = rint (info.audio_bytesout *
 						      8. / timebase * .001);
 
-				fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps diff: %.4f             ",
+				if(info.vkbps<0)
+					info.vkbps=0;
+				if(info.debug==1){
+					fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps diff: %.4f             ",
 					 hours, minutes, seconds, hundredths,info.akbps, info.vkbps,info.audiotime-info.videotime);
-				
+				}
+				else{
+					fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps                  ",
+					 hours, minutes, seconds, hundredths,info.akbps, info.vkbps);
+				}
 			}
 		}
 	}

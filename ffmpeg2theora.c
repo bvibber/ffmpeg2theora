@@ -160,7 +160,34 @@ void ff2theora_output(ff2theora this) {
 		if (vcodec == NULL || avcodec_open (venc, vcodec) < 0)
 			this->video_index = -1;
 		this->fps = fps;
-
+		
+        if (this->deinterlace==1)
+			fprintf(stderr,"  Deinterlace: on\n");
+		else
+			fprintf(stderr,"  Deinterlace: off\n");
+		
+		if(info.preset == V2V_PRESET_PREVIEW){
+			if(this->fps==25 && (venc->width!=352 || venc->height!=288) ){
+				this->output_width=352;
+				this->output_height=288;
+			}
+			else if(abs(this->fps-30)<1 && (venc->width!=352 || venc->height!=240) ){
+				this->output_width=352;
+				this->output_height=240;
+			}
+		}
+		else if(info.preset == V2V_PRESET_PRO){
+			if(this->fps==25 && (venc->width!=720 || venc->height!=576) ){
+				this->output_width=720;
+				this->output_height=576;
+			}
+			else if(abs(this->fps-30)<1 && (venc->width!=720 || venc->height!=480) ){
+				this->output_width=720;
+				this->output_height=480;
+			}
+		}
+		
+		
 		if(this->output_height>0){
 			// we might need that for values other than /16?
 			int frame_topBand=0;
@@ -296,6 +323,10 @@ void ff2theora_output(ff2theora this) {
 			info.ti.keyframe_auto_threshold = 80;
 			info.ti.keyframe_mindistance = 8;
 			info.ti.noise_sensitivity = 1;
+			// range 0-2, 0 sharp, 2 less sharp,less bandwidth
+			if(info.preset == V2V_PRESET_PREVIEW)
+				info.ti.sharpness=2;
+			
 		}
 		/* audio settings here */
 		info.channels = this->channels;
@@ -421,21 +452,39 @@ void ff2theora_close (ff2theora this){
 	av_free (this);
 }
 
+void print_presets_info() {
+	fprintf (stderr, 
+	//  "v2v presets - more info at http://wiki.v2v.cc/presets"
+		"v2v presets\n"
+		"preview\t\thalf size DV video. encoded with Ogg Theora/Ogg Vorbis\n"
+		"\t\t\tVideo: Quality 5;\n"
+		"\t\t\tAudio: Quality 1 - 44,1kHz - Stereo\n\n"
+		"pro\t\tfull size DV video. encoded with Ogg Theora/Ogg Vorbis \n"
+		"\t\t\tVideo: Quality 7;\n"
+		"\t\t\tAudio: Quality 3 - 48kHz - Stereo\n"
+		"\n");
+}
+
 void print_usage (){
 	fprintf (stderr, 
 		PACKAGE " " PACKAGE_VERSION "\n\n"
 		" usage: " PACKAGE " [options] input\n\n"
 		" Options:\n"
-		"\t --output,-o alternative output\n"
-		"\t --format,-f specify input format\n"
-		"\t --width, -x scale to given size\n"
-		"\t --height,-y scale to given size\n"
-		"\t --videoquality,-v encoding quality for video ( 1 to 10)\n"
-		"\t --audioquality,-a encoding quality for audio (-1 to 10)\n"
-		"\t --deinterlace [off|on] 	disable deinterlace, enabled by default right now\n"
-		"\t --samplerate 	set output samplerate in Hz\n"
-		"\t --nosound,-n disable the sound from input, generate video only file\n"
-		"\t --help,-h this message\n"
+		"\t --output,-o\t\talternative output\n"
+		"\t --format,-f\t\tspecify input format\n"
+		"\t --width, -x\t\tscale to given size\n"
+		"\t --height,-y\t\tscale to given size\n"
+		"\t --videoquality,-v\t[0 to 10]  encoding quality for video\n"
+		"\t --audioquality,-a\t[-1 to 10] encoding quality for audio\n"
+		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"
+		"\t\t\t\t\tenabled by default right now\n"
+		"\t --samplerate,-H\t\tset output samplerate in Hz\n"
+		"\t --nosound,-n\t\tdisable the sound from input\n"
+		"\t --v2v-preset,-p\tencode file with v2v preset, \n"
+		"\t\t\t\t right now there is preview and pro,\n"
+		"\t\t\t\t '"PACKAGE" -p info' for more informations\n"
+		"\t --debug\t\toutputt some more information during encoding\n"
+		"\t --help,-h\t\tthis message\n"
 		"\n Examples:\n"
 	
 		"\tffmpeg2theora videoclip.avi (will write output to videoclip.avi.ogg)\n\n"
@@ -459,7 +508,7 @@ int main (int argc, char **argv){
 	av_register_all ();
 	
 	int c,long_option_index;
-	const char *optstring = "o:f:x:y:v:a:n:h::";
+	const char *optstring = "o:f:x:y:v:a:d:H:c:n:p:D:h::";
 	struct option options [] = {
 	  {"output",required_argument,NULL,'o'},
 	  {"format",required_argument,NULL,'f'},
@@ -467,16 +516,20 @@ int main (int argc, char **argv){
 	  {"height",required_argument,NULL,'y'},
 	  {"videoquality",required_argument,NULL,'v'},
 	  {"audioquality",required_argument,NULL,'a'},
-	  {"deinterlace",required_argument,NULL,'deint'},
+	  {"deinterlace",required_argument,NULL,'d'},
 	  {"samplerate",required_argument,NULL,'H'},
 	  {"channels",required_argument,NULL,'c'},
-	  {"nosound",required_argument,NULL,'n'},
-	  {"help",NULL,NULL,'h'},
+	  {"nosound",0,NULL,'n'},
+	  {"v2v-preset",required_argument,NULL,'p'},
+	  {"debug",0,NULL,'D'},
+	  {"help",0,NULL,'h'},
 	  {NULL,0,NULL,0}
 	};
 	if (argc == 1){
 		print_usage ();
 	}
+	// set some variables;
+	info.debug=0;
 	
 	while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF){
 		switch(c)
@@ -503,10 +556,16 @@ int main (int argc, char **argv){
 				break;
 			case 'a':
 				convert->audio_quality=atof(optarg)*.099;
-      				if(convert->audio_quality<-.1 || convert->audio_quality>1){
-        				fprintf(stderr,"audio quality out of range (choose -1 through 10)\n");
-        				exit(1);
+      			if(convert->audio_quality<-.1 || convert->audio_quality>1){
+        			fprintf(stderr,"audio quality out of range (choose -1 through 10)\n");
+        			exit(1);
 				}
+				break;
+			case 'd':
+				if(!strcmp(optarg,"off"))
+					convert->deinterlace=0;
+				else
+					convert->deinterlace=1;
 				break;
 			case 'H':
 				convert->frequency=atoi(optarg);
@@ -517,14 +576,40 @@ int main (int argc, char **argv){
 				fprintf(stderr,"\n\tonly stereo works right now, encoding in stereo!\n\n");
 				//convert->channels=atoi(optarg);
 				break;
-			case 'deint':
-				if(!strcmp(optarg,"off"))
-					convert->deinterlace=0;
-				else
-					convert->deinterlace=1;
-				break;
 			case 'n':
 				convert->disable_audio=1;
+				break;
+			case 'p':
+				//v2v presets
+				if(!strcmp(optarg, "info")){
+					print_presets_info();
+					exit(1);
+				}
+				else if(!strcmp(optarg, "pro")){
+					//need a way to set resize here. and not later
+					info.preset=V2V_PRESET_PRO;
+					convert->video_quality = rint(7*6.3);
+					convert->audio_quality=3*.099;
+					convert->channels=2;
+					convert->frequency=48000;
+				}
+				else if(!strcmp(optarg,"preview")){
+					//need a way to set resize here. and not later
+					info.preset=V2V_PRESET_PREVIEW;
+					convert->video_quality = rint(5*6.3);
+					convert->audio_quality=1*.099;
+					convert->channels=2;
+					convert->frequency=44100;
+				}
+				else{
+					fprintf(stderr,"\nunknown preset.\n\n");
+					print_presets_info();
+					exit(1);
+				}
+				break;
+			case 'D':
+				//enable debug informations
+				info.debug=1;
 				break;
 			case 'h':
 				print_usage ();
