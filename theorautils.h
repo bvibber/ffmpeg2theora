@@ -67,6 +67,10 @@ typedef struct ff2theora{
     /* In seconds */
     int start_time;
     int end_time; 
+
+    double pts_offset; /* between given input pts and calculated output pts */
+    int64_t frame_count; /* total video frames output so far */
+    int64_t sample_count; /* total audio samples output so far */
 }
 *ff2theora;
 

@@ -120,7 +120,6 @@ void ff2theora_output(ff2theora this) {
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
     float frame_aspect;
-    int64_t frame_number=0;
     double fps = 0.0;
 
     for (i = 0; i < this->context->nb_streams; i++){
@@ -380,8 +379,8 @@ void ff2theora_output(ff2theora this) {
             info.ti.dropframes_p = 0;
             info.ti.quick_p = 1;
             info.ti.keyframe_auto_p = 1;
-             info.ti.keyframe_frequency = this->keyint;
-             info.ti.keyframe_frequency_force = this->keyint;
+            info.ti.keyframe_frequency = this->keyint;
+            info.ti.keyframe_frequency_force = this->keyint;
             info.ti.keyframe_data_target_bitrate = info.ti.target_bitrate * 1.5;
             info.ti.keyframe_auto_threshold = 80;
             info.ti.keyframe_mindistance = 8;
@@ -415,7 +414,7 @@ void ff2theora_output(ff2theora this) {
         /* main decoding loop */
         do{    
             if(no_frames > 0){
-                if(frame_number > no_frames){
+                if(this->frame_count > no_frames){
                     if(info.debug)
                         fprintf(stderr,"\nreached end specified with --endtime\n");
                     break;
@@ -433,15 +432,32 @@ void ff2theora_output(ff2theora this) {
                     fprintf (stderr, "no frame available\n");
                 }
                 while(e_o_s || len > 0){
-                    
+                    int dups = 0;
                     if(len >0 &&
                         (len1 = avcodec_decode_video(&vstream->codec,
                                         frame,&got_picture, ptr, len))>0) {
                                         
                         if(got_picture){
+                            double delta = ((double) pkt.dts / 
+                                AV_TIME_BASE - this->pts_offset) * 
+                                this->fps - this->frame_count;
+                            /* 0.7 is an arbitrary value */
+                            /* it should be larger than half a frame to 
+                             avoid excessive dropping and duplicating */
+                            if (delta < -0.7) {
+                                fprintf(stderr,
+                                      "Frame dropped to maintain sync\n");
+                                break;
+                            }
+                            if (delta > 0.7) {
+                                dups = lrintf(delta);
+                                fprintf(stderr,
+                                  "%d duplicate %s added to maintain sync\n",
+                                  dups, (dups == 1) ? "frame" : "frames");
+                            }
+
                             //For audio only files command line option"-e" will not work
-                            //as we donot increment frame_number in audio section.
-                            frame_number++;
+                            //as we don't increment frame_count in audio section.
                             if(venc->pix_fmt != PIX_FMT_YUV420P) {
                                 img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
                                         (AVPicture *)frame,venc->pix_fmt,
@@ -476,11 +492,15 @@ void ff2theora_output(ff2theora this) {
                     }    
                     first=0;
                     //now output_resized
-                    if( theoraframes_add_video(this, &info, output_resized ,e_o_s) ){
-                        ret = -1;
-                        fprintf (stderr,"No theora frames available\n");
-                        break;
-                    }
+                    do {
+                        if( theoraframes_add_video(this, &info, 
+                                             output_resized ,e_o_s) ){
+                            ret = -1;
+                            fprintf (stderr,"No theora frames available\n");
+                            break;
+                        }
+                        this->frame_count++;
+                    } while(dups--);
                     if(e_o_s){
                         break;
                     }
@@ -489,6 +509,8 @@ void ff2theora_output(ff2theora this) {
             }
             if(e_o_s && !info.video_only 
                      || (ret >= 0 && pkt.stream_index == this->audio_index)){
+                this->pts_offset = (double) pkt.pts / AV_TIME_BASE - 
+                    (double) this->sample_count / this->sample_rate;
                 while(e_o_s || len > 0 ){
                     int samples=0;
                     int samples_out=0;
@@ -517,6 +539,7 @@ void ff2theora_output(ff2theora this) {
                         ret = -1;
                         fprintf (stderr,"No audio frames available\n");
                     }
+                    this->sample_count += samples_out;
                     if(e_o_s && len <= 0){
                         break;
                     }
@@ -1001,6 +1024,8 @@ int main (int argc, char **argv){
                 if(convert->disable_audio){
                     fprintf(stderr,"  [audio disabled].\n");
                 }
+                convert->pts_offset = 
+                    (double) convert->context->start_time / AV_TIME_BASE;
                 ff2theora_output (convert);
                 convert->audio_index =convert->video_index = -1;
             }
