@@ -1,3 +1,8 @@
+0.10.1 	2004-07-15 21:03:15
+	- fix problems with mpeg files using ffmpeg from cvs or versions
+	  higher than 0.4.8.
+	- remove --with-ffmpegcvs and detect changes by LIBAVCODEC_BUILD
+
 0.10 	2004-07-10 18:14:15
 	- write eos at the end of the file.
 	- fix memleak due to not enough calls of ogg_stream_pageout

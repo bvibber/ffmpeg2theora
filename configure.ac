@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
-AC_INIT(ffmpeg2theora,0.10)
+AC_INIT(ffmpeg2theora,0.10.1)
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE([dist-bzip2])
 
@@ -16,10 +16,19 @@ AC_ARG_WITH(ffmpegprefix,
 	[prefix to ffmpeg source, if libavcodec and libavformat are not in . (default=.)]),
        ffmpegprefix="$withval", ffmpegprefix="ffmpeg")
 
-AC_CHECK_FILES([$ffmpegprefix/libavcodec/libavcodec.a $ffmpegprefix/libavformat/libavformat.a],[HAVE_FFMPEG=yes])
+dnl only check for libavcodec.a and libformat.a if not crosscompiling
+dnl
+if test "$cross_compiling" = yes; then
+  HAVE_FFMPEG=yes
+else
+  AC_CHECK_FILES([$ffmpegprefix $ffmpegprefix/libavcodec/libavcodec.a $ffmpegprefix/libavformat/libavformat.a],[HAVE_FFMPEG=yes])
+fi
+
+dnl if not using ffmpegprefix try to look for shared files
 if test "x$HAVE_FFMPEG" != xyes; then
 	AC_CHECK_HEADER(ffmpeg/avcodec.h,[HAVE_SHARED_AVCODEC=yes])
 	AC_CHECK_HEADER(ffmpeg/avformat.h, [HAVE_SHARED_AVFORMAT=yes])
+	AC_CHECK_FILE(/usr/local/include/ffmpeg, [HAVE_FFMPEG_LOCAL=yes])
 	if test "x$HAVE_SHARED_AVCODEC$HAVE_SHARED_AVCODEC" != xyesyes; then
 		AC_MSG_ERROR([
 	you need libavcodec and libavformat from ffmpeg cvs
@@ -29,25 +38,21 @@ if test "x$HAVE_FFMPEG" != xyes; then
 	(see INSTALL for more information)
 	])
 	else
-		dnl try to link against shared libs
-		dnl might need to check for the libs
-		FFMPEG_CFLAGS="-I/usr/include/ffmpeg -I/usr/local/include/ffmpeg"
+		if test "x$HAVE_FFMPEG_LOCAL" != xyes; then
+			FFMPEG_CFLAGS="-I/usr/include/ffmpeg"
+		else
+			FFMPEG_CFLAGS="-I/usr/local/include/ffmpeg"
+		fi
 		FFMPEG_EXTLIBS="-lm -lz"
-		FFMPEG_LIBS="-lavformat -lavcodec -lm -lz"
+		FFMPEG_LIBS="-L/usr/local/lib -L/usr/lib -lavformat -lavcodec $FFMPEG_EXTLIBS"
 	fi
-	break
+	
 else
-	dnl just link against shared libs for now. 
 	FFMPEG_CFLAGS="-I$ffmpegprefix/libavformat -I$ffmpegprefix/libavcodec"
 	FFMPEG_EXTLIBS="-lm -lz"
 	FFMPEG_LIBS="$ffmpegprefix/libavformat/libavformat.a $ffmpegprefix/libavcodec/libavcodec.a $FFMPEG_EXTLIBS"
 fi
 
-dnl keep track of the api
-AC_ARG_ENABLE(ffmpegcvs,AS_HELP_STRING([--enable-ffmpegcvs],[use ffmpeg from cvs(to track api changes)]),ffmpegcvs="yes",ffmpegcvs="no")
-if test "x$ffmpegcvs" = xyes; then
-	FFMPEG_CFLAGS="$FFMPEG_CFLAGS -DFFMPEGCVS"
-fi
 
 AC_CHECK_LIB(faad,faacDecClose, [
   AC_CHECK_HEADER(faad.h, [HAVE_FAAD=yes])

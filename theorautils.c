@@ -153,10 +153,14 @@ void theoraframes_init (){
 
 
 /**	
-	theora_add_video adds the video the the stream
-	data hold the one frame in the format provided by img_convert 
-	if e_o_s is 1 the end of the logical bitstream will be marked.
-**/
+ * adds a video frame to the encoding sink
+ * if e_o_s is 1 the end of the logical bitstream will be marked.
+ * @param data hold the one frame in the format provided by img_convert 
+ * @param width frame width in pixel
+ * @param height frame height in pixel
+ * @param linesize of data
+ * @param e_o_s 1 indicates ond of stream
+ */
 int theoraframes_add_video (uint8_t * data, int width, int height, int linesize,int e_o_s){
 	/* map some things from info struk to local variables, 
 	 * just to understand the code better */
@@ -184,8 +188,13 @@ int theoraframes_add_video (uint8_t * data, int width, int height, int linesize,
 	return 0;
 }
 	
-/** theora_add_audio: fill the audio buffer
-	copy from the encoder_example.c need to be reworkes in order to work. */
+/** 
+ * adds audio samples to encoding sink
+ * @param buffer pointer to buffer
+ * @param bytes bytes in buffer
+ * @param samples samples in buffer
+ * @param e_o_s 1 indicates end of stream.
+ */
 int theoraframes_add_audio (int16_t * buffer, int bytes, int samples, int e_o_s){
 	int i,j, count = 0;
 	float **vorbis_buffer;
@@ -309,8 +318,6 @@ void theoraframes_flush (int e_o_s){
 }
 
 void theoraframes_close (){
-	/* do we have to write last page do output file with EOS and stuff??*/
-	/* pysical pages */
 	ogg_stream_clear (&info.vo);
 	vorbis_block_clear (&info.vb);
 	vorbis_dsp_clear (&info.vd);

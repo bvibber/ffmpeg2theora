@@ -64,7 +64,9 @@ typedef struct ff2theora{
 }
 *ff2theora;
 
-/* Allocate and initialise an AVFrame. */
+/**
+ * Allocate and initialise an AVFrame. 
+ */
 AVFrame *alloc_picture (int pix_fmt, int width, int height){
 	AVFrame *picture;
 	uint8_t *picture_buf;
@@ -84,10 +86,13 @@ AVFrame *alloc_picture (int pix_fmt, int width, int height){
 	return picture;
 }
 
+/**
+ * initialize ff2theora with default values
+ * @return ff2theora struct
+ */
 ff2theora ff2theora_init (){
 	ff2theora this = calloc (1, sizeof (*this));
 	if (this != NULL){
-		// initialise with sane values here.
 		this->disable_audio=0;
 		this->video_index = -1;
 		this->audio_index = -1;
@@ -171,21 +176,12 @@ void ff2theora_output(ff2theora this) {
 			fprintf(stderr,"  Deinterlace: off\n");
 		
 		
-#ifdef FFMPEGCVS
-		if(venc->sample_aspect_ratio.num!=0){
-#else
+#if LIBAVCODEC_BUILD<=4680 // ffmpeg-0.48
 		if(venc->aspect_ratio!=0){
-#endif
-#ifdef FFMPEGCVS
-			// just use the ratio from the input
-			this->aspect_numerator=venc->sample_aspect_ratio.num;
-			this->aspect_denominator=venc->sample_aspect_ratio.den;
-			// or we use ratio for the output
-			if(this->output_height){
-				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-				venc->sample_aspect_ratio.num*venc->width*this->output_height,
-				venc->sample_aspect_ratio.den*venc->height*this->output_width,10000);
 #else
+		if(venc->sample_aspect_ratio.num!=0){
+#endif
+#if LIBAVCODEC_BUILD<=4680 // ffmpeg-0.48
 			// just use the ratio from the input
 			av_reduce(&this->aspect_numerator,&this->aspect_denominator,
 				rint(10000*venc->aspect_ratio*venc->height),rint(10000*venc->width),10000);
@@ -194,6 +190,15 @@ void ff2theora_output(ff2theora this) {
 				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
 					rint(venc->aspect_ratio*10000*this->output_height),
 					rint(10000*this->output_width),10000);
+#else
+			// just use the ratio from the input
+			this->aspect_numerator=venc->sample_aspect_ratio.num;
+			this->aspect_denominator=venc->sample_aspect_ratio.den;
+			// or we use ratio for the output
+			if(this->output_height){
+				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
+				venc->sample_aspect_ratio.num*venc->width*this->output_height,
+				venc->sample_aspect_ratio.den*venc->height*this->output_width,10000);
 #endif	
 				frame_aspect=(float)(this->aspect_numerator*this->output_width)/
 								(this->aspect_denominator*this->output_height);
@@ -217,23 +222,22 @@ void ff2theora_output(ff2theora this) {
 			int frame_padtop=0, frame_padbottom=0;
 			int frame_padleft=0, frame_padright=0;
 			/* ffmpeg cvs version */
-#ifdef FFMPEGCVS
-			this->img_resample_ctx = img_resample_full_init(
-                                      this->output_width, this->output_height,
-                                      venc->width, venc->height,
-                                      frame_topBand, frame_bottomBand,
-                                      frame_leftBand, frame_rightBand,
-									  frame_padtop, frame_padbottom,
-									  frame_padleft, frame_padright
-				      );
-#else
-			/* ffmpeg 0.48 */
+#if LIBAVCODEC_BUILD<=4680 // ffmpeg-0.48
 			this->img_resample_ctx = img_resample_full_init(
                                       this->output_width, this->output_height,
                                       venc->width, venc->height,
                                       frame_topBand, frame_bottomBand,
                                       frame_leftBand, frame_rightBand
-				      );
+		    );
+#else
+			this->img_resample_ctx = img_resample_full_init(
+						  this->output_width, this->output_height,
+						  venc->width, venc->height,
+						  frame_topBand, frame_bottomBand,
+						  frame_leftBand, frame_rightBand,
+						  frame_padtop, frame_padbottom,
+						  frame_padleft, frame_padright
+		  );
 #endif
 			fprintf(stderr,"  Resize: %dx%d => %dx%d\n",venc->width,venc->height,this->output_width,this->output_height);
 		}
@@ -363,7 +367,11 @@ void ff2theora_output(ff2theora this) {
 	
 		/* main decoding loop */
 		do{
-			ret = av_read_packet (this->context, &pkt);
+#if LIBAVFORMAT_BUILD<=4608 // ffmpeg-0.48
+			ret = av_read_packet(this->context,&pkt);
+#else
+			ret = av_read_frame(this->context,&pkt);
+#endif
 			if(ret<0){
 				e_o_s=1;
 			}
@@ -375,6 +383,7 @@ void ff2theora_output(ff2theora this) {
 					fprintf (stderr, "no frame available\n");
 				}
 				while(e_o_s || len > 0){
+					
 					if(len >0 && 
 						(len1 = avcodec_decode_video(&vstream->codec, 
 										frame,&got_picture, ptr, len))>0) {
@@ -531,7 +540,9 @@ void print_usage (){
 		"\t --v2v-preset,-p\tencode file with v2v preset, \n"
 		"\t\t\t\t right now there is preview and pro,\n"
 		"\t\t\t\t '"PACKAGE" -p info' for more informations\n"
-		"\t --nice\t\tset niceness to n\n"
+#ifndef _WIN32
+		"\t --nice\t\t\tset niceness to n\n"
+#endif
 		"\t --debug\t\toutputt some more information during encoding\n"
 		"\t --help,-h\t\tthis message\n"
 		"\n Examples:\n"
@@ -659,9 +670,11 @@ int main (int argc, char **argv){
 			case 'N':
 				n = atoi(optarg);
 				if (n) {
+#ifndef _WIN32
 					if (nice(n)<0) {
 						fprintf(stderr,"error setting %d for niceness", n);
 					}
+#endif
 				}
 				break;
 			case 'D':
@@ -703,8 +716,8 @@ int main (int argc, char **argv){
 	}
 
 	if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, NULL) >= 0){
-			info.outfile = fopen(outputfile_name,"wb");
 			if (av_find_stream_info (convert->context) >= 0){
+				info.outfile = fopen(outputfile_name,"wb");
 				dump_format (convert->context, 0,inputfile_name, 0);
 				if(convert->disable_audio){
 					fprintf(stderr,"  [audio disabled].\n");

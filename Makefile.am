@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = 1.6 dist-zip
 
 SUBDIRS = kino_export
 
-EXTRA_DIST = Makefile.mingw32
+EXTRA_DIST = Makefile.mingw32 theorautils.h
 
 EXTRA="-D_FILE_OFFSET_BITS=64"
 
