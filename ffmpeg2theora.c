@@ -655,11 +655,11 @@ void print_usage (){
 		"\t --inputfps [fps]\toverride input fps\n"
 		
 		"\nMetadata options:\n"
-		"\t --artist\tName of artist\n"
+		"\t --artist\tName of artist (director)\n"
 		"\t --title\tTitle\n"
 		"\t --date\t\tDate\n"
 		"\t --location\tLocation\n"
-		"\t --organizaion\tName of organization\n"
+		"\t --organization\tName of organization (studio)\n"
 		"\t --copyright\tCopyright\n"
 		"\t --license\tLicence\n"
 		"\nOther options:\n"
