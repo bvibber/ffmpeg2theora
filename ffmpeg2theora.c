@@ -139,14 +139,19 @@ void ff2theora_output(ff2theora this) {
 		fps = (double) venc->frame_rate / venc->frame_rate_base;
 #ifdef FFMPEGCVS
 		if(venc->sample_aspect_ratio.num!=0){
-			this->aspect_numerator=venc->sample_aspect_ratio.num*(float)venc->width;
-			this->aspect_denominator=venc->sample_aspect_ratio.den*(float)venc->height;
+			//the way vlc is doing it right now.
+			//this->aspect_numerator=venc->sample_aspect_ratio.num*(float)venc->width;
+			//this->aspect_denominator=venc->sample_aspect_ratio.den*(float)venc->height;
+			this->aspect_numerator=venc->sample_aspect_ratio.num;
+			this->aspect_denominator=venc->sample_aspect_ratio.den;
 			//fprintf(stderr,"  Aspect %.2f/1\n",this->aspect_numerator/this->aspect_denominator);
 		}
 #else
 		if(venc->aspect_ratio!=0){
-			this->aspect_numerator=venc->aspect_ratio*10000;
-			this->aspect_denominator=10000;
+			//this->aspect_numerator=venc->aspect_ratio*10000;
+			//this->aspect_denominator=10000;
+			this->aspect_numerator=(venc->aspect_ratio/(float)venc->width)*10000;
+			this->aspect_denominator=10000/(float)venc->height;
 			//fprintf(stderr,"  Aspect %.2f/1\n",this->aspect_numerator/this->aspect_denominator);
 		}
 		
