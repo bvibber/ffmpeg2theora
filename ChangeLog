@@ -1,3 +1,7 @@
+0.xx 	2004-0x-xx
+	- add cropping support
+	- remove support for ffmpeg<0.4.9-pre1
+
 0.10.1 	2004-07-15 21:03:15
 	- fix problems with mpeg files using ffmpeg from cvs or versions
 	  higher than 0.4.8.

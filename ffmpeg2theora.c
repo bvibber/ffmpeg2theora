@@ -61,6 +61,13 @@ typedef struct ff2theora{
 	ogg_uint32_t aspect_numerator;
 	ogg_uint32_t aspect_denominator;
 	int video_quality;
+	
+	/* cropping */
+	int frame_topBand;
+	int frame_bottomBand;
+	int frame_leftBand;
+	int frame_rightBand;
+
 }
 *ff2theora;
 
@@ -105,6 +112,11 @@ ff2theora ff2theora_init (){
 		this->aspect_numerator=0;
 		this->aspect_denominator=0;
 		this->deinterlace=1;
+		this->frame_topBand=0;
+		this->frame_bottomBand=0;
+		this->frame_leftBand=0;
+		this->frame_rightBand=0;
+
 	}
 	return this;
 }
@@ -174,32 +186,30 @@ void ff2theora_output(ff2theora this) {
 			fprintf(stderr,"  Deinterlace: on\n");
 		else
 			fprintf(stderr,"  Deinterlace: off\n");
-		
-		
-#if LIBAVCODEC_BUILD<=4680 // ffmpeg-0.48
-		if(venc->aspect_ratio!=0){
-#else
+
+		if(this->output_height==0 && 
+			(this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
+			this->output_height=venc->height-
+					this->frame_topBand-this->frame_bottomBand;
+			fprintf(stderr,"bla bal\n");
+		}
+		if(this->output_width==0 && 
+			(this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
+			this->output_width=venc->width-
+					this->frame_leftBand-this->frame_rightBand;
+		}
+
 		if(venc->sample_aspect_ratio.num!=0){
-#endif
-#if LIBAVCODEC_BUILD<=4680 // ffmpeg-0.48
-			// just use the ratio from the input
-			av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-				rint(10000*venc->aspect_ratio*venc->height),rint(10000*venc->width),10000);
-			// or we use ratio for the output
-			if(this->output_height){
-				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-					rint(venc->aspect_ratio*10000*this->output_height),
-					rint(10000*this->output_width),10000);
-#else
 			// just use the ratio from the input
 			this->aspect_numerator=venc->sample_aspect_ratio.num;
 			this->aspect_denominator=venc->sample_aspect_ratio.den;
 			// or we use ratio for the output
 			if(this->output_height){
+				int width=venc->width-this->frame_leftBand-this->frame_rightBand;
+				int height=venc->height-this->frame_topBand-this->frame_bottomBand;
 				av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-				venc->sample_aspect_ratio.num*venc->width*this->output_height,
-				venc->sample_aspect_ratio.den*venc->height*this->output_width,10000);
-#endif	
+				venc->sample_aspect_ratio.num*width*this->output_height,
+				venc->sample_aspect_ratio.den*height*this->output_width,10000);
 				frame_aspect=(float)(this->aspect_numerator*this->output_width)/
 								(this->aspect_denominator*this->output_height);
 			}
@@ -213,33 +223,32 @@ void ff2theora_output(ff2theora this) {
 			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
 			
 		}
-		if(this->output_height>0){
+		if(this->output_height>0 || this->output_width>0 ||
+			this->frame_topBand || this->frame_bottomBand ||
+			this->frame_leftBand || this->frame_rightBand
+			){
 			// we might need that for values other than /16?
-			int frame_topBand=0;
-			int frame_bottomBand=0;
-			int frame_leftBand=0;
-			int frame_rightBand=0;
 			int frame_padtop=0, frame_padbottom=0;
 			int frame_padleft=0, frame_padright=0;
-			/* ffmpeg cvs version */
-#if LIBAVCODEC_BUILD<=4680 // ffmpeg-0.48
-			this->img_resample_ctx = img_resample_full_init(
-                                      this->output_width, this->output_height,
-                                      venc->width, venc->height,
-                                      frame_topBand, frame_bottomBand,
-                                      frame_leftBand, frame_rightBand
-		    );
-#else
+
 			this->img_resample_ctx = img_resample_full_init(
 						  this->output_width, this->output_height,
 						  venc->width, venc->height,
-						  frame_topBand, frame_bottomBand,
-						  frame_leftBand, frame_rightBand,
+						  this->frame_topBand, this->frame_bottomBand,
+						  this->frame_leftBand, this->frame_rightBand,
 						  frame_padtop, frame_padbottom,
 						  frame_padleft, frame_padright
 		  );
-#endif
-			fprintf(stderr,"  Resize: %dx%d => %dx%d\n",venc->width,venc->height,this->output_width,this->output_height);
+			fprintf(stderr,"  Resize: %dx%d",venc->width,venc->height);
+			if(this->frame_topBand || this->frame_bottomBand ||
+			this->frame_leftBand || this->frame_rightBand){
+				fprintf(stderr," => %dx%d",venc->width-this->frame_leftBand- this->frame_rightBand,venc->height-this->frame_topBand-this->frame_bottomBand);
+			}
+			if(this->output_width!=(venc->width-this->frame_leftBand-this->frame_rightBand) ||
+				this->output_height!=(venc->height-this->frame_topBand-this->frame_bottomBand))
+				fprintf(stderr," => %dx%d\n",this->output_width,this->output_height);
+			fprintf(stderr,"\n");
+			
 		}
 		else{
 			this->output_height=venc->height;
@@ -367,11 +376,7 @@ void ff2theora_output(ff2theora this) {
 	
 		/* main decoding loop */
 		do{
-#if LIBAVFORMAT_BUILD<=4608 // ffmpeg-0.48
-			ret = av_read_packet(this->context,&pkt);
-#else
 			ret = av_read_frame(this->context,&pkt);
-#endif
 			if(ret<0){
 				e_o_s=1;
 			}
@@ -509,6 +514,27 @@ void ff2theora_close (ff2theora this){
 	av_free (this);
 }
 
+int crop_check(ff2theora this, char *name, const char *arg)
+{
+	int crop_value = atoi(arg); 
+    if (crop_value < 0) {
+        fprintf(stderr, "Incorrect %s crop size\n",name);
+        exit(1);
+    }
+    if ((crop_value % 2) != 0) {
+        fprintf(stderr, "%s crop size must be a multiple of 2\n",name);
+        exit(1);
+    }
+	/*
+    if ((crop_value) >= this->height){
+    	fprintf(stderr, "Vertical crop dimensions are outside the range of the original image.\nRemember to crop first and scale second.\n");
+        exit(1);
+    }
+	*/
+    return crop_value;
+}
+
+
 void print_presets_info() {
 	fprintf (stderr, 
 	//  "v2v presets - more info at http://wiki.v2v.cc/presets"
@@ -531,12 +557,14 @@ void print_usage (){
 		"\t --format,-f\t\tspecify input format\n"
 		"\t --width, -x\t\tscale to given size\n"
 		"\t --height,-y\t\tscale to given size\n"
+		"\t --crop[top|bottom|left|right]\tcrop input before resizing\n"
+		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"		
+		"\t\t\t\t\tenabled by default right now\n"
 		"\t --videoquality,-v\t[0 to 10]  encoding quality for video\n"
 		"\t --audioquality,-a\t[-1 to 10] encoding quality for audio\n"
-		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"
-		"\t\t\t\t\tenabled by default right now\n"
 		"\t --samplerate,-H\t\tset output samplerate in Hz\n"
 		"\t --nosound\t\tdisable the sound from input\n"
+		"\n"
 		"\t --v2v-preset,-p\tencode file with v2v preset, \n"
 		"\t\t\t\t right now there is preview and pro,\n"
 		"\t\t\t\t '"PACKAGE" -p info' for more informations\n"
@@ -564,12 +592,19 @@ int main (int argc, char **argv){
 	int  outputfile_set=0;
 	char outputfile_name[255];
 	char inputfile_name[255];
+	
+	static int croptop_flag=0;
+	static int cropbottom_flag=0;
+	static int cropright_flag=0;
+	static int cropleft_flag=0;	
+	static int nosound_flag=0;	
+	
 	AVInputFormat *input_fmt=NULL;
 	ff2theora convert = ff2theora_init ();
 	av_register_all ();
 	
 	int c,long_option_index;
-	const char *optstring = "o:f:x:y:v:a:d:H:c:n:p:N:D:h::";
+	const char *optstring = "o:f:x:y:v:a:d:H:c:p:N:D:h::";
 	struct option options [] = {
 	  {"output",required_argument,NULL,'o'},
 	  {"format",required_argument,NULL,'f'},
@@ -580,9 +615,14 @@ int main (int argc, char **argv){
 	  {"deinterlace",required_argument,NULL,'d'},
 	  {"samplerate",required_argument,NULL,'H'},
 	  {"channels",required_argument,NULL,'c'},
-	  {"nosound",0,NULL,'n'},
+	  {"nosound",0,&nosound_flag,1},
 	  {"v2v-preset",required_argument,NULL,'p'},
 	  {"nice",required_argument,NULL,'N'},
+	  {"croptop",required_argument,&croptop_flag,1},
+	  {"cropbottom",required_argument,&cropbottom_flag,1},
+	  {"cropright",required_argument,&cropright_flag,1},
+	  {"cropleft",required_argument,&cropleft_flag,1},
+	  
 	  {"debug",0,NULL,'D'},
 	  {"help",0,NULL,'h'},
 	  {NULL,0,NULL,0}
@@ -593,9 +633,32 @@ int main (int argc, char **argv){
 	// set some variables;
 	info.debug=0;
 	
-	while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF){
+	while((c=getopt_long_only(argc,argv,optstring,options,&long_option_index))!=EOF){
 		switch(c)
 	    {
+			case 0:
+				if (nosound_flag){
+					convert->disable_audio=1;
+					nosound_flag=0;
+				}
+				/* crop */
+				if (croptop_flag){
+					convert->frame_topBand=crop_check(convert,"top",optarg);
+					croptop_flag=0;
+				}
+				if (cropbottom_flag){
+					convert->frame_bottomBand=crop_check(convert,"bottom",optarg);
+					cropbottom_flag=0;
+				}
+				if (cropright_flag){
+					convert->frame_rightBand=crop_check(convert,"right",optarg);
+					cropleft_flag=0;
+				}
+				if (cropleft_flag){
+					convert->frame_leftBand=crop_check(convert,"left",optarg);
+					cropleft_flag=0;
+				}
+				break;
 			case 'o':
 				sprintf(outputfile_name,optarg);
 				outputfile_set=1;
@@ -635,9 +698,6 @@ int main (int argc, char **argv){
 			/* does not work right now */
 			case 'c':
 				convert->channels=atoi(optarg);
-				break;
-			case 'n':
-				convert->disable_audio=1;
 				break;
 			case 'p':
 				//v2v presets
@@ -701,6 +761,7 @@ int main (int argc, char **argv){
 		}
 		optind++;
 	}
+	
 	//FIXME: is using_stdin still neded? is it needed as global variable?
 	using_stdin |= !strcmp(inputfile_name, "pipe:" ) ||
                    !strcmp( inputfile_name, "/dev/stdin" );
@@ -709,7 +770,7 @@ int main (int argc, char **argv){
 		fprintf(stderr,"you have to specifie an output file with -o output.ogg.\n");	
 		exit(1);
 	}
-	
+
 	if(convert->output_width % 16 ||  convert->output_height % 16){
 		fprintf(stderr,"output size must be a multiple of 16 for now.\n");
 		exit(1);
