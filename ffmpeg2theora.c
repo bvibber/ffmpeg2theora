@@ -534,7 +534,6 @@ int crop_check(ff2theora this, char *name, const char *arg)
     return crop_value;
 }
 
-
 void print_presets_info() {
 	fprintf (stderr, 
 	//  "v2v presets - more info at http://wiki.v2v.cc/presets"
@@ -633,7 +632,7 @@ int main (int argc, char **argv){
 	// set some variables;
 	info.debug=0;
 	
-	while((c=getopt_long_only(argc,argv,optstring,options,&long_option_index))!=EOF){
+	while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF){
 		switch(c)
 	    {
 			case 0:

@@ -18,17 +18,23 @@ AC_ARG_WITH(ffmpegprefix,
 
 dnl only check for libavcodec.a and libformat.a if not crosscompiling
 dnl
+LIBPREF=lib
+LIBSUF=.a
 if test "$cross_compiling" = yes; then
   HAVE_FFMPEG=yes
+  LIBPREF=
+  LIBSUF=.lib
 else
-  AC_CHECK_FILES([$ffmpegprefix $ffmpegprefix/libavcodec/libavcodec.a $ffmpegprefix/libavformat/libavformat.a],[HAVE_FFMPEG=yes])
+  AC_CHECK_FILES([$ffmpegprefix/libavcodec/${LIBPREF}avcodec$LIBSUF $ffmpegprefix/libavformat/${LIBPREF}avformat$LIBSUF],[HAVE_FFMPEG=yes])
 fi
 
 dnl if not using ffmpegprefix try to look for shared files
 if test "x$HAVE_FFMPEG" != xyes; then
-	AC_CHECK_HEADER(ffmpeg/avcodec.h,[HAVE_SHARED_AVCODEC=yes])
-	AC_CHECK_HEADER(ffmpeg/avformat.h, [HAVE_SHARED_AVFORMAT=yes])
-	AC_CHECK_FILE(/usr/local/include/ffmpeg, [HAVE_FFMPEG_LOCAL=yes])
+	if test "$ffmpegprefix" == ffmpeg; then
+		AC_CHECK_HEADER(ffmpeg/avcodec.h,[HAVE_SHARED_AVCODEC=yes])
+		AC_CHECK_HEADER(ffmpeg/avformat.h, [HAVE_SHARED_AVFORMAT=yes])
+		AC_CHECK_FILE(/usr/local/include/ffmpeg, [HAVE_FFMPEG_LOCAL=yes])
+	fi
 	if test "x$HAVE_SHARED_AVCODEC$HAVE_SHARED_AVCODEC" != xyesyes; then
 		AC_MSG_ERROR([
 	you need libavcodec and libavformat from ffmpeg cvs
@@ -50,7 +56,7 @@ if test "x$HAVE_FFMPEG" != xyes; then
 else
 	FFMPEG_CFLAGS="-I$ffmpegprefix/libavformat -I$ffmpegprefix/libavcodec"
 	FFMPEG_EXTLIBS="-lm -lz"
-	FFMPEG_LIBS="$ffmpegprefix/libavformat/libavformat.a $ffmpegprefix/libavcodec/libavcodec.a $FFMPEG_EXTLIBS"
+	FFMPEG_LIBS="$ffmpegprefix/libavformat/${LIBPREF}avformat$LIBSUF $ffmpegprefix/libavcodec/${LIBPREF}avcodec$LIBSUF $FFMPEG_EXTLIBS"
 fi
 
 

@@ -1,6 +1,8 @@
-0.xx 	2004-0x-xx
+0.10.2 	2004-07-17
 	- add cropping support
 	- remove support for ffmpeg<0.4.9-pre1
+	- change configure.ac and Makefile.am to better build with
+	  mingw32
 
 0.10.1 	2004-07-15 21:03:15
 	- fix problems with mpeg files using ffmpeg from cvs or versions
