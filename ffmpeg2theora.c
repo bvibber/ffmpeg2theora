@@ -62,6 +62,7 @@ typedef struct ff2theora{
 	ogg_uint32_t aspect_denominator;
 	double	frame_aspect;
 	int video_quality;
+	int video_bitrate;
 	
 	/* cropping */
 	int frame_topBand;
@@ -113,6 +114,7 @@ ff2theora ff2theora_init (){
 		this->output_width=0;	  // set to 0 to not resize the output
 		this->output_height=0;	  // set to 0 to not resize the output
 		this->video_quality=31.5; // video quality 5
+		this->video_bitrate=0;
 		this->audio_quality=0.297;// audio quality 3
 		this->aspect_numerator=0;
 		this->aspect_denominator=0;
@@ -164,8 +166,11 @@ void ff2theora_output(ff2theora this) {
 		if (fps > 10000)
 			fps /= 1000;
 		
-		if (vcodec == NULL || avcodec_open (venc, vcodec) < 0)
+		
+		if (vcodec == NULL || avcodec_open (venc, vcodec) < 0){
 			this->video_index = -1;
+			
+		}
 		this->fps = fps;
 		
 		if(info.preset == V2V_PRESET_PREVIEW){
@@ -315,6 +320,7 @@ void ff2theora_output(ff2theora this) {
 	}
 	
 	if (this->video_index >= 0 || this->audio_index >=0){
+		fprintf(stderr,"unknown type: %d\n",this->video_index);
 		AVFrame *frame=NULL;
 		AVFrame *frame_tmp=NULL;
 		AVFrame *output=NULL;
@@ -390,16 +396,14 @@ void ff2theora_output(ff2theora this) {
 				info.ti.colorspace = OC_CS_ITU_REC_470M;
 			else
 				info.ti.colorspace = OC_CS_UNSPECIFIED;
-			//FIXME: allow target_bitrate as an alternative mode
-			//only use quality mode for now.
-			//info.ti.target_bitrate=1200; 
+			info.ti.target_bitrate = this->video_bitrate;
 			info.ti.quality = this->video_quality;
 			info.ti.dropframes_p = 0;
 			info.ti.quick_p = 1;
 			info.ti.keyframe_auto_p = 1;
 			info.ti.keyframe_frequency = 64;
 			info.ti.keyframe_frequency_force = 64;
-			//info.ti.keyframe_data_target_bitrate = info.ti.target_bitrate * 1.5;
+			info.ti.keyframe_data_target_bitrate = info.ti.target_bitrate * 1.5;
 			info.ti.keyframe_auto_threshold = 80;
 			info.ti.keyframe_mindistance = 8;
 			info.ti.noise_sensitivity = 1;
@@ -627,8 +631,9 @@ void print_usage (){
 		"\t --crop[top|bottom|left|right]\tcrop input before resizing\n"
 		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"		
 		"\t\t\t\t\tenabled by default right now\n"
-		"\t --videoquality,-v\t[0 to 10]  encoding quality for video\n"
-		"\t --audioquality,-a\t[-1 to 10] encoding quality for audio\n"
+		"\t --videobitrate,-V\t[45 to 2000] encoding bitrate for video\n"
+		"\t --videoquality,-v\t[0 to 10]    encoding quality for video\n"
+		"\t --audioquality,-a\t[-1 to 10]   encoding quality for audio\n"
 		"\t --samplerate,-H\t\tset output samplerate in Hz\n"
 		"\t --nosound\t\tdisable the sound from input\n"
 		"\n"
@@ -638,7 +643,7 @@ void print_usage (){
 #ifndef _WIN32
 		"\t --nice\t\t\tset niceness to n\n"
 #endif
-		"\t --debug\t\toutputt some more information during encoding\n"
+		"\t --debug\t\toutput some more information during encoding\n"
 		"\t --help,-h\t\tthis message\n"
 		"\n Examples:\n"
 	
@@ -672,12 +677,13 @@ int main (int argc, char **argv){
 	av_register_all ();
 	
 	int c,long_option_index;
-	const char *optstring = "o:f:x:y:v:a:d:H:c:p:N:D:h::";
+	const char *optstring = "o:f:x:y:v:V:a:d:H:c:p:N:D:h::";
 	struct option options [] = {
 	  {"output",required_argument,NULL,'o'},
 	  {"format",required_argument,NULL,'f'},
 	  {"width",required_argument,NULL,'x'},
 	  {"height",required_argument,NULL,'y'},
+	  {"videobitrate",required_argument,NULL,'V'},
 	  {"videoquality",required_argument,NULL,'v'},
 	  {"audioquality",required_argument,NULL,'a'},
 	  {"deinterlace",required_argument,NULL,'d'},
@@ -751,6 +757,15 @@ int main (int argc, char **argv){
 				        fprintf(stderr,"video quality out of range (choose 0 through 10)\n");
 				        exit(1);
 				}
+                                convert->video_bitrate = 0;
+				break;
+			case 'V':
+				convert->video_bitrate = rint(1000*atof(optarg));
+				if(convert->video_bitrate <45000 || convert->video_bitrate >2000000){
+				        fprintf(stderr,"video bitrate out of range (choose 45kbps through 2000kbps)\n");
+				        exit(1);
+				}
+                                convert->video_quality = 0;
 				break;
 			case 'a':
 				convert->audio_quality=atof(optarg)*.099;
