@@ -32,8 +32,6 @@
 #include "theorautils.h"
 
 
-theoraframes_info info;
-
 static double rint(double x)
 {
   if (x < 0.0)
@@ -42,30 +40,30 @@ static double rint(double x)
     return (double)(int)(x + 0.5);
 }
 
-void theoraframes_init (){
-	info.audio_bytesout = 0;
-	info.video_bytesout = 0;
+void theoraframes_init (theoraframes_info *info){
+	info->audio_bytesout = 0;
+	info->video_bytesout = 0;
 
 	/* yayness.  Set up Ogg output stream */
 	srand (time (NULL));
-	ogg_stream_init (&info.vo, rand ());	
+	ogg_stream_init (&info->vo, rand ());	
 	
-	if(!info.audio_only){
-		ogg_stream_init (&info.to, rand ());	/* oops, add one ot the above */
-		theora_encode_init (&info.td, &info.ti);
-		theora_info_clear (&info.ti);
+	if(!info->audio_only){
+		ogg_stream_init (&info->to, rand ());	/* oops, add one ot the above */
+		theora_encode_init (&info->td, &info->ti);
+		theora_info_clear (&info->ti);
 	}
 	/* init theora done */
 
 	/* initialize Vorbis too, if we have audio. */
-	if(!info.video_only){
-		vorbis_info_init (&info.vi);
+	if(!info->video_only){
+		vorbis_info_init (&info->vi);
 		/* Encoding using a VBR quality mode.  */
 		int ret;
-		if(info.vorbis_quality>-99) 
-			ret =vorbis_encode_init_vbr (&info.vi, info.channels,info.sample_rate,info.vorbis_quality);
+		if(info->vorbis_quality>-99) 
+			ret =vorbis_encode_init_vbr (&info->vi, info->channels,info->sample_rate,info->vorbis_quality);
 		else
-			ret=vorbis_encode_init(&info.vi,info.channels,info.sample_rate,-1,info.vorbis_bitrate,-1); 
+			ret=vorbis_encode_init(&info->vi,info->channels,info->sample_rate,-1,info->vorbis_bitrate,-1); 
 
 		if (ret){
 			fprintf (stderr,
@@ -74,11 +72,11 @@ void theoraframes_init (){
 			exit (1);
 		}
 
-		vorbis_comment_init (&info.vc);
-		vorbis_comment_add_tag (&info.vc, "ENCODER",PACKAGE_STRING);
+		vorbis_comment_init (&info->vc);
+		vorbis_comment_add_tag (&info->vc, "ENCODER",PACKAGE_STRING);
 		/* set up the analysis state and auxiliary encoding storage */
-		vorbis_analysis_init (&info.vd, &info.vi);
-		vorbis_block_init (&info.vd, &info.vb);
+		vorbis_analysis_init (&info->vd, &info->vi);
+		vorbis_block_init (&info->vd, &info->vb);
 
 	}
 	/* audio init done */
@@ -86,50 +84,50 @@ void theoraframes_init (){
 	/* write the bitstream header packets with proper page interleave */
 
 	/* first packet will get its own page automatically */
-	if(!info.audio_only){
-		theora_encode_header (&info.td, &info.op);
-		ogg_stream_packetin (&info.to, &info.op);
-		if (ogg_stream_pageout (&info.to, &info.og) != 1){
+	if(!info->audio_only){
+		theora_encode_header (&info->td, &info->op);
+		ogg_stream_packetin (&info->to, &info->op);
+		if (ogg_stream_pageout (&info->to, &info->og) != 1){
 			fprintf (stderr, "Internal Ogg library error.\n");
 			exit (1);
 		}
-		fwrite (info.og.header, 1, info.og.header_len, info.outfile);
-		fwrite (info.og.body, 1, info.og.body_len, info.outfile);
+		fwrite (info->og.header, 1, info->og.header_len, info->outfile);
+		fwrite (info->og.body, 1, info->og.body_len, info->outfile);
 
 		/* create the remaining theora headers */
-		theora_comment_init (&info.tc);
-		theora_comment_add_tag (&info.tc, "ENCODER",PACKAGE_STRING);
-		theora_encode_comment (&info.tc, &info.op);
-		ogg_stream_packetin (&info.to, &info.op);
-		theora_encode_tables (&info.td, &info.op);
-		ogg_stream_packetin (&info.to, &info.op);
+		/* theora_comment_init (&info->tc); is called in main() prior to parsing options */
+		theora_comment_add_tag (&info->tc, "ENCODER",PACKAGE_STRING);
+		theora_encode_comment (&info->tc, &info->op);
+		ogg_stream_packetin (&info->to, &info->op);
+		theora_encode_tables (&info->td, &info->op);
+		ogg_stream_packetin (&info->to, &info->op);
 	}
-	if(!info.video_only){
+	if(!info->video_only){
 		ogg_packet header;
 		ogg_packet header_comm;
 		ogg_packet header_code;
 
-		vorbis_analysis_headerout (&info.vd, &info.vc, &header,
+		vorbis_analysis_headerout (&info->vd, &info->vc, &header,
 					   &header_comm, &header_code);
-		ogg_stream_packetin (&info.vo, &header);	/* automatically placed in its own
+		ogg_stream_packetin (&info->vo, &header);	/* automatically placed in its own
 								 * page */
-		if (ogg_stream_pageout (&info.vo, &info.og) != 1){
+		if (ogg_stream_pageout (&info->vo, &info->og) != 1){
 			fprintf (stderr, "Internal Ogg library error.\n");
 			exit (1);
 		}
-		fwrite (info.og.header, 1, info.og.header_len, info.outfile);
-		fwrite (info.og.body, 1, info.og.body_len, info.outfile);
+		fwrite (info->og.header, 1, info->og.header_len, info->outfile);
+		fwrite (info->og.body, 1, info->og.body_len, info->outfile);
 
 		/* remaining vorbis header packets */
-		ogg_stream_packetin (&info.vo, &header_comm);
-		ogg_stream_packetin (&info.vo, &header_code);
+		ogg_stream_packetin (&info->vo, &header_comm);
+		ogg_stream_packetin (&info->vo, &header_code);
 	}
 
 	/* Flush the rest of our headers. This ensures
 	 * the actual data in each stream will start
 	 * on a new page, as per spec. */
-	while (1 && !info.audio_only){
-		int result = ogg_stream_flush (&info.to, &info.og);
+	while (1 && !info->audio_only){
+		int result = ogg_stream_flush (&info->to, &info->og);
 		if (result < 0){
 			/* can't get here */
 			fprintf (stderr, "Internal Ogg library error.\n");
@@ -137,11 +135,11 @@ void theoraframes_init (){
 		}
 		if (result == 0)
 			break;
-		fwrite (info.og.header, 1, info.og.header_len, info.outfile);
-		fwrite (info.og.body, 1, info.og.body_len, info.outfile);
+		fwrite (info->og.header, 1, info->og.header_len, info->outfile);
+		fwrite (info->og.body, 1, info->og.body_len, info->outfile);
 	}
-	while (1 && !info.video_only){
-		int result = ogg_stream_flush (&info.vo, &info.og);
+	while (1 && !info->video_only){
+		int result = ogg_stream_flush (&info->vo, &info->og);
 		if (result < 0){
 			/* can't get here */
 			fprintf (stderr,
@@ -150,8 +148,8 @@ void theoraframes_init (){
 		}
 		if (result == 0)
 			break;
-		fwrite (info.og.header, 1, info.og.header_len,info.outfile);
-		fwrite (info.og.body, 1, info.og.body_len, info.outfile);
+		fwrite (info->og.header, 1, info->og.header_len,info->outfile);
+		fwrite (info->og.body, 1, info->og.body_len, info->outfile);
 	}
 
 }
@@ -166,7 +164,7 @@ void theoraframes_init (){
  * @param linesize of data
  * @param e_o_s 1 indicates ond of stream
  */
-int theoraframes_add_video (uint8_t * data, int width, int height, int linesize,int e_o_s){
+int theoraframes_add_video (theoraframes_info *info, uint8_t * data, int width, int height, int linesize,int e_o_s){
 	/* map some things from info struk to local variables, 
 	 * just to understand the code better */
 	/* pysical pages */
@@ -186,10 +184,10 @@ int theoraframes_add_video (uint8_t * data, int width, int height, int linesize,
 		yuv.u = data + width * height;
 		yuv.v = data + width * height * 5 / 4;
 	}
-	theora_encode_YUVin (&info.td, &yuv);
-	theora_encode_packetout (&info.td, e_o_s, &info.op);
-	ogg_stream_packetin (&info.to, &info.op);
-	info.videoflag=1;
+	theora_encode_YUVin (&info->td, &yuv);
+	theora_encode_packetout (&info->td, e_o_s, &info->op);
+	ogg_stream_packetin (&info->to, &info->op);
+	info->videoflag=1;
 	return 0;
 }
 	
@@ -200,71 +198,71 @@ int theoraframes_add_video (uint8_t * data, int width, int height, int linesize,
  * @param samples samples in buffer
  * @param e_o_s 1 indicates end of stream.
  */
-int theoraframes_add_audio (int16_t * buffer, int bytes, int samples, int e_o_s){
+int theoraframes_add_audio (theoraframes_info *info, int16_t * buffer, int bytes, int samples, int e_o_s){
 	int i,j, count = 0;
 	float **vorbis_buffer;
 	if (bytes <= 0 && samples <= 0){
 		/* end of audio stream */
 		if(e_o_s)
-			vorbis_analysis_wrote (&info.vd, 0);
+			vorbis_analysis_wrote (&info->vd, 0);
 	}
 	else{
-		vorbis_buffer = vorbis_analysis_buffer (&info.vd, samples);
+		vorbis_buffer = vorbis_analysis_buffer (&info->vd, samples);
 		/* uninterleave samples */
 		for (i = 0; i < samples; i++){
-			for(j=0;j<info.channels;j++){
+			for(j=0;j<info->channels;j++){
 				vorbis_buffer[j][i] = buffer[count++] / 32768.f;
 			}
 		}
-		vorbis_analysis_wrote (&info.vd, samples);
+		vorbis_analysis_wrote (&info->vd, samples);
 	}
-	while(vorbis_analysis_blockout (&info.vd, &info.vb) == 1){
+	while(vorbis_analysis_blockout (&info->vd, &info->vb) == 1){
 		
 		/* analysis, assume we want to use bitrate management */
-		vorbis_analysis (&info.vb, NULL);
-		vorbis_bitrate_addblock (&info.vb);
+		vorbis_analysis (&info->vb, NULL);
+		vorbis_bitrate_addblock (&info->vb);
 		
 		/* weld packets into the bitstream */
-		while (vorbis_bitrate_flushpacket (&info.vd, &info.op)){
-			ogg_stream_packetin (&info.vo, &info.op);
+		while (vorbis_bitrate_flushpacket (&info->vd, &info->op)){
+			ogg_stream_packetin (&info->vo, &info->op);
 		}
 
 	}
-	info.audioflag=1;
+	info->audioflag=1;
 	/*
-	if (ogg_stream_eos (&info.vo)){
-		info.audioflag = 0;
+	if (ogg_stream_eos (&info->vo)){
+		info->audioflag = 0;
 		return 0;
 	}
 	*/
 	return 0;
 }
 
-void print_stats(double timebase){
+static void print_stats(theoraframes_info *info, double timebase){
 	int hundredths = timebase * 100 - (long) timebase * 100;
 	int seconds = (long) timebase % 60;
 	int minutes = ((long) timebase / 60) % 60;
 	int hours = (long) timebase / 3600;
 
-	if(info.vkbps<0)
-		info.vkbps=0;
-	if(info.akbps<0)
-		info.akbps=0;
+	if(info->vkbps<0)
+		info->vkbps=0;
+	if(info->akbps<0)
+		info->akbps=0;
 
-	if(info.debug==1 && !info.video_only && !info.audio_only){
+	if(info->debug==1 && !info->video_only && !info->audio_only){
 		fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps diff: %.4f             ",
-		 hours, minutes, seconds, hundredths,info.akbps, info.vkbps,info.audiotime-info.videotime);
+		 hours, minutes, seconds, hundredths,info->akbps, info->vkbps,info->audiotime-info->videotime);
 	}
 	else{
 		fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps                  ",
-		 hours, minutes, seconds, hundredths,info.akbps, info.vkbps);
+		 hours, minutes, seconds, hundredths,info->akbps, info->vkbps);
 	}
 
 }
 
 
-void theoraframes_flush (int e_o_s){
-	/* flush out the ogg pages to info.outfile */
+void theoraframes_flush (theoraframes_info *info, int e_o_s){
+	/* flush out the ogg pages to info->outfile */
 	
 	int flushloop=1;
 
@@ -272,48 +270,48 @@ void theoraframes_flush (int e_o_s){
 		int video = -1;
 		flushloop=0;
 		//some debuging 
-		//fprintf(stderr,"\ndiff: %f\n",info.audiotime-info.videotime);
-		while(!info.audio_only && (e_o_s || 
-			((info.videotime <= info.audiotime || info.video_only) && info.videoflag == 1))){
+		//fprintf(stderr,"\ndiff: %f\n",info->audiotime-info->videotime);
+		while(!info->audio_only && (e_o_s || 
+			((info->videotime <= info->audiotime || info->video_only) && info->videoflag == 1))){
 				
-			info.videoflag = 0;
-			while(ogg_stream_pageout (&info.to, &info.videopage) > 0){
-				info.videotime=
-					theora_granule_time (&info.td,ogg_page_granulepos(&info.videopage));
+			info->videoflag = 0;
+			while(ogg_stream_pageout (&info->to, &info->videopage) > 0){
+				info->videotime=
+					theora_granule_time (&info->td,ogg_page_granulepos(&info->videopage));
 				/* flush a video page */
-				info.video_bytesout +=
-					fwrite (info.videopage.header, 1,info.videopage.header_len, info.outfile);
-				info.video_bytesout +=
-					fwrite (info.videopage.body, 1,info.videopage.body_len, info.outfile);
+				info->video_bytesout +=
+					fwrite (info->videopage.header, 1,info->videopage.header_len, info->outfile);
+				info->video_bytesout +=
+					fwrite (info->videopage.body, 1,info->videopage.body_len, info->outfile);
 				
-				info.vkbps = rint (info.video_bytesout * 8. / info.videotime * .001);
+				info->vkbps = rint (info->video_bytesout * 8. / info->videotime * .001);
 
-				print_stats(info.videotime);
+				print_stats(info, info->videotime);
 				video=1;
-				info.videoflag = 1;
+				info->videoflag = 1;
 				flushloop=1;
 			}
 			if(e_o_s)
 				break;
 		}
 
-		while (!info.video_only && (e_o_s || 
-			((info.audiotime < info.videotime || info.audio_only) && info.audioflag==1))){
+		while (!info->video_only && (e_o_s || 
+			((info->audiotime < info->videotime || info->audio_only) && info->audioflag==1))){
 			
-			info.audioflag = 0;
-			while(ogg_stream_pageout (&info.vo, &info.audiopage) > 0){	
+			info->audioflag = 0;
+			while(ogg_stream_pageout (&info->vo, &info->audiopage) > 0){	
 				/* flush an audio page */
-				info.audiotime=
-					vorbis_granule_time (&info.vd,ogg_page_granulepos(&info.audiopage));
-				info.audio_bytesout +=
-					fwrite (info.audiopage.header, 1,info.audiopage.header_len, info.outfile);
-				info.audio_bytesout +=
-					fwrite (info.audiopage.body, 1,info.audiopage.body_len, info.outfile);
+				info->audiotime=
+					vorbis_granule_time (&info->vd,ogg_page_granulepos(&info->audiopage));
+				info->audio_bytesout +=
+					fwrite (info->audiopage.header, 1,info->audiopage.header_len, info->outfile);
+				info->audio_bytesout +=
+					fwrite (info->audiopage.body, 1,info->audiopage.body_len, info->outfile);
 
-				info.akbps = rint (info.audio_bytesout * 8. / info.audiotime * .001);
-				print_stats(info.audiotime);
+				info->akbps = rint (info->audio_bytesout * 8. / info->audiotime * .001);
+				print_stats(info, info->audiotime);
 				video=0;
-				info.audioflag = 1;
+				info->audioflag = 1;
 				flushloop=1;
 			}
 			if(e_o_s)
@@ -322,16 +320,16 @@ void theoraframes_flush (int e_o_s){
 	}
 }
 
-void theoraframes_close (){
-	ogg_stream_clear (&info.vo);
-	vorbis_block_clear (&info.vb);
-	vorbis_dsp_clear (&info.vd);
-	vorbis_comment_clear (&info.vc);
-	vorbis_info_clear (&info.vi);
+void theoraframes_close (theoraframes_info *info){
+	ogg_stream_clear (&info->vo);
+	vorbis_block_clear (&info->vb);
+	vorbis_dsp_clear (&info->vd);
+	vorbis_comment_clear (&info->vc);
+	vorbis_info_clear (&info->vi);
 
-	ogg_stream_clear (&info.to);
-	theora_clear (&info.td);
+	ogg_stream_clear (&info->to);
+	theora_clear (&info->td);
 
-	if (info.outfile && info.outfile != stdout)
-		fclose (info.outfile);
+	if (info->outfile && info->outfile != stdout)
+		fclose (info->outfile);
 }

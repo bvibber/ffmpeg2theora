@@ -425,7 +425,7 @@ void ff2theora_output(ff2theora this) {
 		info.sample_rate = this->sample_rate;
 		info.vorbis_quality = this->audio_quality;
 		info.vorbis_bitrate = this->audio_bitrate;
-		theoraframes_init ();
+		theoraframes_init (&info);
 	
 		/* main decoding loop */
 		do{
@@ -491,7 +491,7 @@ void ff2theora_output(ff2theora this) {
 					}	
 					first=0;
 					//now output_resized
-					if(theoraframes_add_video(output_resized->data[0],
+					if(theoraframes_add_video(&info, output_resized->data[0],
 					this->video_x,this->video_y,output_resized->linesize[0],e_o_s)){
 				//this->output_width,this->output_height,output_resized->linesize[0],e_o_s)){
 						ret = -1;
@@ -529,7 +529,7 @@ void ff2theora_output(ff2theora this) {
 								resampled=audio_buf;
 						}
 					}
-					if (theoraframes_add_audio(resampled, 
+					if (theoraframes_add_audio(&info, resampled, 
 						samples_out *(this->channels),samples_out,e_o_s)){
 						ret = -1;
 						fprintf (stderr,"No audio frames available\n");
@@ -541,7 +541,7 @@ void ff2theora_output(ff2theora this) {
 
 			}
 			/* flush out the file */
-			theoraframes_flush (e_o_s);
+			theoraframes_flush (&info, e_o_s);
 			av_free_packet (&pkt);
 		}
 		while (ret >= 0);
@@ -557,7 +557,7 @@ void ff2theora_output(ff2theora this) {
 		if (this->audio_resample_ctx)
 		    audio_resample_close(this->audio_resample_ctx);
 
-		theoraframes_close ();
+		theoraframes_close (&info);
 	}
 	else{
 		fprintf (stderr, "No video or audio stream found\n");
@@ -631,31 +631,45 @@ void print_usage (){
 	fprintf (stderr, 
 		PACKAGE " " PACKAGE_VERSION "\n\n"
 		" usage: " PACKAGE " [options] input\n\n"
-		" Options:\n"
+	
+		"Output options:\n"
 		"\t --output,-o\t\talternative output\n"
-		"\t --format,-f\t\tspecify input format\n"
 		"\t --width, -x\t\tscale to given size\n"
 		"\t --height,-y\t\tscale to given size\n"
 		"\t --aspect\t\tdefine frame aspect ratio: i.e. 4:3 or 16:9\n"
-		"\t --crop[top|bottom|left|right]\tcrop input before resizing\n"
-		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"		
-		"\t\t\t\t\tenabled by default right now\n"
-		"\t --videoquality,-v\t[0 to 10]  encoding quality for video\n"
-		"\t --videobitrate,-V\t[45 to 2000]  encoding bitrate for video [recommended for streaming]\n"
-		"\t --audioquality,-a\t[-1 to 10] encoding quality for audio\n"
-		"\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio [recommended for streaming]\n"
-		"\t --samplerate,-H\t\tset output samplerate in Hz\n"
+		"\t --crop[top|bottom|left|right]\tcrop input before resizing\n"		
+		"\t --videoquality,-v\t[0 to 10]    encoding quality for video\n"
+		"\t --videobitrate,-V\t[45 to 2000] encoding bitrate for video\n"
+		"\t --audioquality,-a\t[-1 to 10]   encoding quality for audio\n"
+		"\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio\n"
+		"\t --samplerate,-H\tset output samplerate in Hz\n"
 		"\t --nosound\t\tdisable the sound from input\n"
-		"\t --inputfps [fps]\t\toverride input fps\n"
-		"\n"
 		"\t --v2v-preset,-p\tencode file with v2v preset, \n"
 		"\t\t\t\t right now there is preview and pro,\n"
 		"\t\t\t\t '"PACKAGE" -p info' for more informations\n"
+	
+		"\nInput options:\n"
+		"\t --deinterlace,-d \t[off|on] disable deinterlace, \n"
+		"\t\t\t\t\t enabled by default right now\n"
+		"\t --format,-f\t\tspecify input format\n"
+		"\t --inputfps [fps]\toverride input fps\n"
+		
+		"\nMetadata options:\n"
+		"\t --artist\tName of artist\n"
+		"\t --title\tTitle\n"
+		"\t --date\t\tDate\n"
+		"\t --location\tLocation\n"
+		"\t --organizaion\tName of organization\n"
+		"\t --copyright\tCopyright\n"
+		"\t --license\tLicence\n"
+		"\nOther options:\n"
 #ifndef _WIN32
 		"\t --nice\t\t\tset niceness to n\n"
 #endif
 		"\t --debug\t\toutput some more information during encoding\n"
 		"\t --help,-h\t\tthis message\n"
+
+
 		"\n Examples:\n"
 	
 		"\tffmpeg2theora videoclip.avi (will write output to videoclip.avi.ogg)\n\n"
@@ -683,6 +697,7 @@ int main (int argc, char **argv){
 	static int nosound_flag=0;	
 	static int aspect_flag=0;
 	static int inputfps_flag=0;
+	static int metadata_flag=0;
 	
 	AVInputFormat *input_fmt=NULL;
 	ff2theora convert = ff2theora_init ();
@@ -711,7 +726,15 @@ int main (int argc, char **argv){
 	  {"cropright",required_argument,&cropright_flag,1},
 	  {"cropleft",required_argument,&cropleft_flag,1},
 	  {"inputfps",required_argument,&inputfps_flag,1},
-	  
+
+	  {"artist",required_argument,&metadata_flag,10},
+	  {"title",required_argument,&metadata_flag,11},
+	  {"date",required_argument,&metadata_flag,12},
+	  {"location",required_argument,&metadata_flag,13},
+	  {"organization",required_argument,&metadata_flag,14},
+	  {"copyright",required_argument,&metadata_flag,15},
+	  {"license",required_argument,&metadata_flag,16},
+
 	  {"debug",0,NULL,'D'},
 	  {"help",0,NULL,'h'},
 	  {NULL,0,NULL,0}
@@ -721,6 +744,7 @@ int main (int argc, char **argv){
 	}
 	// set some variables;
 	info.debug=0;
+	theora_comment_init (&info.tc);
 	
 	while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF){
 		switch(c)
@@ -754,6 +778,33 @@ int main (int argc, char **argv){
 				if (inputfps_flag){
 					convert->force_input_fps=atof(optarg);
 					aspect_flag=0;
+				}
+				/* metadata */
+				if (metadata_flag){
+					switch(metadata_flag) {
+						case 10:
+							theora_comment_add_tag(&info.tc, "ARTIST", optarg);
+							break;
+						case 11:
+							theora_comment_add_tag(&info.tc, "TITLE", optarg);
+							break;
+						case 12:
+							theora_comment_add_tag(&info.tc, "DATE", optarg);
+							break;
+						case 13:
+							theora_comment_add_tag(&info.tc, "LOCATION", optarg);
+							break;
+						case 14:
+							theora_comment_add_tag(&info.tc, "ORGANIZATION", optarg);
+							break;
+						case 15:
+							theora_comment_add_tag(&info.tc, "COPYRIGHT", optarg);
+							break;
+						case 16:
+							theora_comment_add_tag(&info.tc, "LICENSE", optarg);
+							break;
+					}
+					metadata_flag=0;
 				}
 				break;
 			case 'o':

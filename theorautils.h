@@ -73,11 +73,10 @@ typedef struct
 }
 theoraframes_info;
 
-
-extern void theoraframes_init ();
-extern int theoraframes_add_video (uint8_t * data, int width, int height,
+extern void theoraframes_init (theoraframes_info *info);
+extern int theoraframes_add_video (theoraframes_info *info, uint8_t * data, int width, int height,
 				   int linesize,int e_o_s);
-extern int theoraframes_add_audio (int16_t * readbuffer, int bytesread,
+extern int theoraframes_add_audio (theoraframes_info *info, int16_t * readbuffer, int bytesread,
 				   int samplesread,int e_o_s);
-extern void theoraframes_flush (int e_o_s);
-extern void theoraframes_close ();
+extern void theoraframes_flush (theoraframes_info *info, int e_o_s);
+extern void theoraframes_close (theoraframes_info *info);
