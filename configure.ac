@@ -63,4 +63,7 @@ PKG_CHECK_MODULES(XIPH,ogg >= 1.1 vorbis vorbisenc theora )
 
 AC_SUBST(XIPH_CFLAGS)
 AC_SUBST(XIPH_LIBS)
-AC_OUTPUT([Makefile])
+AC_OUTPUT([
+	Makefile
+	kino_export/Makefile
+])

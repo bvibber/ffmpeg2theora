@@ -1,5 +1,9 @@
 AUTOMAKE_OPTIONS = 1.6 dist-zip
 
+SUBDIRS = kino_export
+
+EXTRA_DIST = Makefile.mingw32
+
 EXTRA="-D_FILE_OFFSET_BITS=64"
 
 bin_PROGRAMS = ffmpeg2theora
