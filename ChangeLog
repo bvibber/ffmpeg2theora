@@ -1,5 +1,5 @@
 svn 	2005-??-??
-	- add new command line options, starttime, endtime
+	- add new command line options, starttime, endtime, sharpness, keyint
 	- fix compile issues with new version of faad
 	- better support for stdout on win32,
 	   to allow ezstream streaming non-theora source types

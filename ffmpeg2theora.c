@@ -1,3 +1,4 @@
+/* -*- tab-width:4;c-file-style:"cc-mode"; -*- */
 /*
  * ffmpeg2theora.c -- Convert ffmpeg supported a/v files to  Ogg Theora
  * Copyright (C) 2003-2004 <j@v2v.cc>
@@ -38,10 +39,10 @@
 
 static double rint(double x)
 {
-  if (x < 0.0)
-    return (double)(int)(x - 0.5);
-  else
-    return (double)(int)(x + 0.5);
+	if (x < 0.0)
+		return (double)(int)(x - 0.5);
+	else
+		return (double)(int)(x + 0.5);
 }
 
 theoraframes_info info;
@@ -52,12 +53,14 @@ typedef struct ff2theora{
 	AVFormatContext *context;
 	int video_index;
 	int audio_index;
+	
 	int deinterlace;
 	int sample_rate;
 	int channels;
 	int disable_audio;
 	float audio_quality;
 	int audio_bitrate;
+	
 	int output_width;
 	int output_height;
 	double fps;
@@ -66,8 +69,12 @@ typedef struct ff2theora{
 	ogg_uint32_t aspect_numerator;
 	ogg_uint32_t aspect_denominator;
 	double	frame_aspect;
+
 	int video_quality;
 	int video_bitrate;
+	int sharpness;
+	int keyint;
+
 	double force_input_fps;
 	
 	/* cropping */
@@ -119,25 +126,31 @@ ff2theora ff2theora_init (){
 		this->disable_audio=0;
 		this->video_index = -1;
 		this->audio_index = -1;
+		this->start_time=0;
+		this->end_time=0; /* 0 denotes no end time set */
+
+		// audio
 		this->sample_rate = 44100;  // samplerate hmhmhm
 		this->channels = 2;
+		this->audio_quality=0.297;// audio quality 3
+		this->audio_bitrate=0;
+		// video
 		this->output_width=0;	  // set to 0 to not resize the output
 		this->output_height=0;	  // set to 0 to not resize the output
 		this->video_quality=31.5; // video quality 5
 		this->video_bitrate=0;
-		this->audio_quality=0.297;// audio quality 3
-		this->audio_bitrate=0;
+		this->sharpness=2;
+		this->keyint=64;
 		this->force_input_fps=0;
 		this->aspect_numerator=0;
 		this->aspect_denominator=0;
 		this->frame_aspect=0;
 		this->deinterlace=1;
+		
 		this->frame_topBand=0;
 		this->frame_bottomBand=0;
 		this->frame_leftBand=0;
 		this->frame_rightBand=0;
-		this->start_time=0;
-		this->end_time=0; /* ZERO denotes no end time set */
 	}
 	return this;
 }
@@ -262,7 +275,6 @@ void ff2theora_output(ff2theora this) {
 		}
 
 		if(this->aspect_denominator && frame_aspect){
-			//fprintf(stderr,"  Pixel Aspect Ratio: %d/%d ",this->aspect_numerator,this->aspect_denominator);
 			fprintf(stderr,"  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
 			fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
 		}
@@ -383,7 +395,6 @@ void ff2theora_output(ff2theora this) {
 			/* video settings here */
 			/* config file? commandline options? v2v presets? */
 			
-
 			theora_info_init (&info.ti);
 			
 			info.ti.width = this->video_x;
@@ -418,15 +429,15 @@ void ff2theora_output(ff2theora this) {
 			info.ti.dropframes_p = 0;
 			info.ti.quick_p = 1;
 			info.ti.keyframe_auto_p = 1;
-			info.ti.keyframe_frequency = 64;
-			info.ti.keyframe_frequency_force = 64;
+ 			info.ti.keyframe_frequency = this->keyint;
+ 			info.ti.keyframe_frequency_force = this->keyint;
 			info.ti.keyframe_data_target_bitrate = info.ti.target_bitrate * 1.5;
 			info.ti.keyframe_auto_threshold = 80;
 			info.ti.keyframe_mindistance = 8;
 			info.ti.noise_sensitivity = 1;
 			// range 0-2, 0 sharp, 2 less sharp,less bandwidth
 			// if(info.preset == V2V_PRESET_PREVIEW)
-			info.ti.sharpness=2;
+			info.ti.sharpness = this->sharpness;
 			
 		}
 		/* audio settings here */
@@ -650,7 +661,7 @@ int crop_check(ff2theora this, char *name, const char *arg)
 
 void print_presets_info() {
 	fprintf (stderr, 
-	//  "v2v presets - more info at http://wiki.v2v.cc/presets"
+		//  "v2v presets - more info at http://wiki.v2v.cc/presets"
 		"v2v presets\n"
 		"preview\t\thalf size DV video. encoded with Ogg Theora/Ogg Vorbis\n"
 		"\t\t\tVideo: Quality 5;\n"
@@ -674,6 +685,9 @@ void print_usage (){
 		"\t --crop[top|bottom|left|right]\tcrop input before resizing\n"		
 		"\t --videoquality,-v\t[0 to 10]    encoding quality for video\n"
 		"\t --videobitrate,-V\t[45 to 2000] encoding bitrate for video\n"
+		"\t --sharpness,-S  \t[0 to 2]     sharpness of images(default 2)\n"
+		"\t                 \t   { lower values make the video sharper. }\n"
+		"\t --keyint,-K      \t[8 to 65536] keyframe interval (default: 64)\n"
 		"\t --audioquality,-a\t[-1 to 10]   encoding quality for audio\n"
 		"\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio\n"
 		"\t --samplerate,-H\tset output samplerate in Hz\n"
@@ -740,7 +754,7 @@ int main (int argc, char **argv){
 	av_register_all ();
 	
 	int c,long_option_index;
-	const char *optstring = "o:f:x:y:v:V:a:s:e:A:d:H:c:p:N:D:h::";
+	const char *optstring = "o:f:x:y:v:V:a:A:S:K:d:H:c:p:N:s:e:D:h::";
 	struct option options [] = {
 	  {"output",required_argument,NULL,'o'},
 	  {"format",required_argument,NULL,'f'},
@@ -750,6 +764,8 @@ int main (int argc, char **argv){
 	  {"videobitrate",required_argument,NULL,'V'},
 	  {"audioquality",required_argument,NULL,'a'},
 	  {"audiobitrate",required_argument,NULL,'A'},
+	  {"sharpness",required_argument,NULL,'S'},
+	  {"keyint",required_argument,NULL,'K'},
 	  {"deinterlace",required_argument,NULL,'d'},
 	  {"samplerate",required_argument,NULL,'H'},
 	  {"channels",required_argument,NULL,'c'},
@@ -803,7 +819,7 @@ int main (int argc, char **argv){
 				}
 				if (cropright_flag){
 					convert->frame_rightBand=crop_check(convert,"right",optarg);
-					cropleft_flag=0;
+					cropright_flag=0;
 				}
 				if (cropleft_flag){
 					convert->frame_leftBand=crop_check(convert,"left",optarg);
@@ -867,15 +883,15 @@ int main (int argc, char **argv){
 			case 'v':
 				convert->video_quality = rint(atof(optarg)*6.3);
 				if(convert->video_quality <0 || convert->video_quality >63){
-				        fprintf(stderr,"video quality out of range (choose 0 through 10)\n");
+				        fprintf(stderr,"only values from 0 to 10 are valid for video quality\n");
 				        exit(1);
 				}
 				convert->video_bitrate=0;
 				break;
 			case 'V':
 				convert->video_bitrate=rint(atof(optarg)*1000);
-				if(convert->video_bitrate<45000 || convert->video_bitrate>2000000){
-					fprintf(stderr,"Illegal video bitrate (choose 45kbps through 2000kbps)\n");
+				if(convert->video_bitrate<0 || convert->video_bitrate>2000000){
+					fprintf(stderr,"only values from 0 to 2000000 are valid for video bitrate(in kbps)\n");
 					exit(1);
 				}
 				convert->video_quality=0;
@@ -883,7 +899,7 @@ int main (int argc, char **argv){
 			case 'a':
 				convert->audio_quality=atof(optarg)*.099;
 				if(convert->audio_quality<-.1 || convert->audio_quality>1){
-					fprintf(stderr,"audio quality out of range (choose -1 through 10)\n");
+					fprintf(stderr,"only values from -1 to 10 are valid for audio quality\n");
 					exit(1);
 				}
 				convert->audio_bitrate=0;
@@ -891,11 +907,25 @@ int main (int argc, char **argv){
 			case 'A':
 				convert->audio_bitrate=atof(optarg)*1000;
 				if(convert->audio_bitrate<0){
-					fprintf(stderr,"Illegal audio bitrate (choose > 0 please)\n");
+					fprintf(stderr,"only values >0 are valid for audio bitrate\n");
 					exit(1);
 				}
 				convert->audio_quality=-99;
-				break; 
+				break;
+			case 'S':
+				convert->sharpness = atoi(optarg);
+				if (convert->sharpness < 0 || convert->sharpness > 2) {
+					fprintf (stderr, "only values from 0 to 2 are valid for sharpness\n");
+					exit(1);
+				}
+				break;
+			case 'K':
+				convert->keyint = atoi(optarg);
+				if (convert->keyint < 8 || convert->keyint > 65536) {
+					fprintf (stderr, "only values from 8 to 65536 are valid for keyframe interval\n");
+					exit(1);
+				}
+				break;						
 			case 'd':
 				if(!strcmp(optarg,"off"))
 					convert->deinterlace=0;
@@ -905,7 +935,7 @@ int main (int argc, char **argv){
 			case 'H':
 				convert->sample_rate=atoi(optarg);
 				break;
-			/* does not work right now */
+			/* does this work? */
 			case 'c':
 				convert->channels=atoi(optarg);
 				break;
@@ -922,6 +952,7 @@ int main (int argc, char **argv){
 					convert->audio_quality=3*.099;
 					convert->channels=2;
 					convert->sample_rate=48000;
+					convert->sharpness=0;
 				}
 				else if(!strcmp(optarg,"preview")){
 					//need a way to set resize here. and not later
@@ -930,6 +961,7 @@ int main (int argc, char **argv){
 					convert->audio_quality=1*.099;
 					convert->channels=2;
 					convert->sample_rate=44100;
+					convert->sharpness=2;
 				}
 				else{
 					fprintf(stderr,"\nunknown preset.\n\n");
