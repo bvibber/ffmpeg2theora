@@ -1,0 +1,5 @@
+- remove global variable info and outfile
+- more commandline options
+- fix bug that results in bad ogg packages than
+  using mpeg1/2 files as input with ffmpeg-0.48
+

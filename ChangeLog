@@ -1,0 +1,42 @@
+0.8 	2004-06-19 18:47:14
+	- use ffmpeg aspect ration if possible
+	- normalize quality options to 0-10
+	- fix skipping issues with a/v sync
+
+0.7.1 	2004-05-31 01:55:40
+	- added --enable-ffmpegcvs to link against ffmpeg from cvs
+	- try to find and link to shared avcodec/avformat 
+	  if source not found
+
+0.7 	2004-05-30 18:40:40
+	- add comandline options for audio/video quality
+	- fix bug causing crashes with DV files, without resizing
+	- use autotools
+
+0.6 	2004-05-06 13:47:30
+	- added resize option
+
+0.5.1   2004-03-27 21:59:40
+	- fix kino export
+	- add -f fmt do define input format.
+
+0.5 	2004-03-27 19:59:40
+	- link against shared library on linux
+	- kino export module and support to read from stdin
+	   [works only to some extend for now]
+
+0.4
+	- fix wrong deinterlaceing
+	- change memory allocation to work with mingw32
+
+0.3
+	- make encoding of audio only files possible. 
+	  can be used to transcode audio files[mp4,wav,ac3...] to ogg vorbis now
+	  time to call if ffmpeg2ogg?
+	- some code cleanup
+
+0.2
+	- added deinterlace support
+	
+0.1
+	- initial version

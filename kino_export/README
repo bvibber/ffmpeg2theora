@@ -1,0 +1,3 @@
+put ffmpeg2theora.sh into /usr/share/kino/scripts/exports
+ffmpeg2theora needs to be in PATH
+

@@ -1,0 +1,16 @@
+ffmpeg2theora
+
+with ffmpeg2theora you can convert any file that ffmpeg can
+decode to theora. right now the settings are hardcoded into
+the binary. the idea is to provide ffmpeg2theora as a binary
+along sites like v2v.cc to enable as many people as possible
+to encode video clips with the same settings.
+
+
+usage right now:
+ ./ffmpeg2theora clip.avi
+ will produce clip.avi.ogg
+ for more options run ffmpeg2theora -h
+
+ there is a export plugin for kino (http://kino.schirmacher.de/)
+ more info in kino_export/README
