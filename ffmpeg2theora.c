@@ -479,10 +479,11 @@ void print_usage (){
 		"\t --deinterlace,-d \t\t[off|on] disable deinterlace, \n"
 		"\t\t\t\t\tenabled by default right now\n"
 		"\t --samplerate,-H\t\tset output samplerate in Hz\n"
-		"\t --nosound,-n\t\tdisable the sound from input\n"
+		"\t --nosound\t\tdisable the sound from input\n"
 		"\t --v2v-preset,-p\tencode file with v2v preset, \n"
 		"\t\t\t\t right now there is preview and pro,\n"
 		"\t\t\t\t '"PACKAGE" -p info' for more informations\n"
+		"\t --nice\t\tset niceness to n\n"
 		"\t --debug\t\toutputt some more information during encoding\n"
 		"\t --help,-h\t\tthis message\n"
 		"\n Examples:\n"
@@ -500,6 +501,7 @@ void print_usage (){
 }
 
 int main (int argc, char **argv){
+	int  n;
 	int  outputfile_set=0;
 	char outputfile_name[255];
 	char inputfile_name[255];
@@ -508,7 +510,7 @@ int main (int argc, char **argv){
 	av_register_all ();
 	
 	int c,long_option_index;
-	const char *optstring = "o:f:x:y:v:a:d:H:c:n:p:D:h::";
+	const char *optstring = "o:f:x:y:v:a:d:H:c:n:p:N:D:h::";
 	struct option options [] = {
 	  {"output",required_argument,NULL,'o'},
 	  {"format",required_argument,NULL,'f'},
@@ -521,6 +523,7 @@ int main (int argc, char **argv){
 	  {"channels",required_argument,NULL,'c'},
 	  {"nosound",0,NULL,'n'},
 	  {"v2v-preset",required_argument,NULL,'p'},
+	  {"nice",required_argument,NULL,'N'},
 	  {"debug",0,NULL,'D'},
 	  {"help",0,NULL,'h'},
 	  {NULL,0,NULL,0}
@@ -605,6 +608,14 @@ int main (int argc, char **argv){
 					fprintf(stderr,"\nunknown preset.\n\n");
 					print_presets_info();
 					exit(1);
+				}
+				break;
+			case 'N':
+				n = atoi(optarg);
+				if (n) {
+					if (nice(n)<0) {
+						fprintf(stderr,"error setting %d for niceness", n);
+					}
 				}
 				break;
 			case 'D':
