@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
-AC_INIT(ffmpeg2theora,0.11)
+AC_INIT(ffmpeg2theora,0.12)
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE([dist-bzip2])
 
@@ -18,8 +18,16 @@ AC_ARG_WITH(ffmpegprefix,
 
 dnl only check for libavcodec.a and libformat.a if not crosscompiling
 dnl
+dnl so LIBPREF and LIBSUF are configured by default,
+
 LIBPREF=lib
 LIBSUF=.a
+case "$host" in
+	*mingw*)
+		LIBPREF=
+		LIBSUF=.lib
+	;;
+esac
 if test "$cross_compiling" = yes; then
   HAVE_FFMPEG=yes
   LIBPREF=

@@ -1,4 +1,4 @@
-AUTOMAKE_OPTIONS = 1.6 dist-zip
+AUTOMAKE_OPTIONS = 1.6 dist-bzip2 no-dist-gzip
 
 SUBDIRS = kino_export
 
