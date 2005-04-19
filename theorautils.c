@@ -1,3 +1,4 @@
+/* -*- tab-width:4;c-file-style:"cc-mode"; -*- */
 /*
  * theorautils.c - Ogg Theora abstraction layer
  * Copyright (C) 2003-2004 <j@v2v.cc>

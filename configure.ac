@@ -81,12 +81,13 @@ fi
 AC_SUBST(FFMPEG_CFLAGS)
 AC_SUBST(FFMPEG_LIBS)
 
-PKG_CHECK_MODULES(DTS, libdts, HAVE_DTS=yes, HAVE_DTS=no)
-if test "x$HAVE_DTS" = "xyes" 
-then
-    FFMPEG_LIBS="$FFMPEG_LIBS $DTS_LIBS"
-fi
 
+AC_CHECK_LIB(dts,dts_init, [
+  AC_CHECK_HEADER(dts.h, [HAVE_DTS=yes])
+    ],,[-lm -lz])
+if test "x$HAVE_DTS" = xyes; then
+	FFMPEG_LIBS="$FFMPEG_LIBS -ldts"
+fi
 
 PKG_CHECK_MODULES(XIPH,ogg >= 1.1 vorbis vorbisenc theora )
 
