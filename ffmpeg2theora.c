@@ -239,8 +239,10 @@ void ff2theora_output(ff2theora this) {
             this->picture_width = venc->width;
         if(!this->picture_height)
             this->picture_height = venc->height;
-        this->frame_width = this->picture_width + (this->picture_width % 16);        
-        this->frame_height = this->picture_height + (this->picture_height % 16);
+        /* Theora has a divisible-by-sixteen restriction for the encoded video size */
+        /* scale the frame size up to the nearest /16 and calculate offsets */
+        this->frame_width = ((this->picture_width + 15) >>4)<<4;
+        this->frame_height = ((this->picture_height + 15) >>4)<<4;
 
         this->frame_x_offset = 0;
         this->frame_y_offset = 0;
