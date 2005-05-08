@@ -759,11 +759,12 @@ int main (int argc, char **argv){
       {"help",0,NULL,'h'},
       {NULL,0,NULL,0}
     };
+
     if (argc == 1){
         print_usage ();
     }
     // set some variables;
-    info.debug=0;
+    init_info(&info);
     theora_comment_init (&info.tc);
     
     while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF){

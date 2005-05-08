@@ -41,6 +41,15 @@ static double rint(double x)
     return (double)(int)(x + 0.5);
 }
 
+void init_info(theoraframes_info *info) {
+    info->videotime =  0;
+    info->audiotime = 0;
+    info->videoflag = 0;
+    info->audioflag = 0;
+    info->debug = 0;
+}
+
+
 void theoraframes_init (theoraframes_info *info){
     info->audio_bytesout = 0;
     info->video_bytesout = 0;

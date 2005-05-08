@@ -124,6 +124,7 @@ typedef struct
 }
 theoraframes_info;
 
+extern void init_info(theoraframes_info *info);
 extern void theoraframes_init (theoraframes_info *info);
 extern int theoraframes_add_video (ff2theora this, theoraframes_info *info, AVFrame *avframe, int e_o_s);
 extern int theoraframes_add_audio (theoraframes_info *info, int16_t * readbuffer, int bytesread, int samplesread,int e_o_s);
