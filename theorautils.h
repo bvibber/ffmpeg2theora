@@ -52,6 +52,7 @@ typedef struct ff2theora{
     int keyint;
 
     double force_input_fps;
+    int sync;
     
     /* cropping */
     int frame_topBand;

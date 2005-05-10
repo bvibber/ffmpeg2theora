@@ -98,6 +98,7 @@ ff2theora ff2theora_init (){
         this->sharpness=2;
         this->keyint=64;
         this->force_input_fps=0;
+        this->sync=0;
         this->aspect_numerator=0;
         this->aspect_denominator=0;
         this->frame_aspect=0;
@@ -440,24 +441,27 @@ void ff2theora_output(ff2theora this) {
                                         frame,&got_picture, ptr, len))>0) {
                                         
                         if(got_picture){
-                            double delta = ((double) pkt.dts / 
-                                AV_TIME_BASE - this->pts_offset) * 
-                                this->fps - this->frame_count;
-                            /* 0.7 is an arbitrary value */
-                            /* it should be larger than half a frame to 
-                             avoid excessive dropping and duplicating */
-                            if (delta < -0.7) {
-                                fprintf(stderr,
-                                      "Frame dropped to maintain sync\n");
-                                break;
+                            // this is disabled by default since it does not work
+                            // for all input formats the way it should.
+                            if(this->sync == 1) {
+                                double delta = ((double) pkt.dts / 
+                                    AV_TIME_BASE - this->pts_offset) * 
+                                    this->fps - this->frame_count;
+                                /* 0.7 is an arbitrary value */
+                                /* it should be larger than half a frame to 
+                                 avoid excessive dropping and duplicating */
+                                if (delta < -0.7) {
+                                    fprintf(stderr,
+                                          "Frame dropped to maintain sync\n");
+                                    break;
+                                }
+                                if (delta > 0.7) {
+                                    dups = lrintf(delta);
+                                    fprintf(stderr,
+                                      "%d duplicate %s added to maintain sync\n",
+                                      dups, (dups == 1) ? "frame" : "frames");
+                                }
                             }
-                            if (delta > 0.7) {
-                                dups = lrintf(delta);
-                                fprintf(stderr,
-                                  "%d duplicate %s added to maintain sync\n",
-                                  dups, (dups == 1) ? "frame" : "frames");
-                            }
-
                             //For audio only files command line option"-e" will not work
                             //as we don't increment frame_count in audio section.
                             if(venc->pix_fmt != PIX_FMT_YUV420P) {
@@ -668,6 +672,10 @@ void print_usage (){
         "\t\t\t\t will be deinterlaced\n"
         "\t --format,-f\t\tspecify input format\n"
         "\t --inputfps [fps]\toverride input fps\n"
+        "\t --sync\t\t\tUse A/V Sync from input container.\n"
+        "\t       \t\tsince this does not work with all input format\n"
+        "\t       \t\tyou have to manualy enable it if you have issues\n"
+        "\t       \t\twith A/V sync.\n"
         
         "\nMetadata options:\n"
         "\t --artist\tName of artist (director)\n"
@@ -714,6 +722,7 @@ int main (int argc, char **argv){
     static int inputfps_flag=0;
     static int metadata_flag=0;
     static int deinterlace_flag=0;
+    static int sync_flag=0;
     
     AVInputFormat *input_fmt=NULL;
     ff2theora convert = ff2theora_init ();
@@ -746,7 +755,8 @@ int main (int argc, char **argv){
       {"inputfps",required_argument,&inputfps_flag,1},
       {"starttime",required_argument,NULL,'s'},
       {"endtime",required_argument,NULL,'e'},
-
+      {"sync",0,&sync_flag,1},
+  
       {"artist",required_argument,&metadata_flag,10},
       {"title",required_argument,&metadata_flag,11},
       {"date",required_argument,&metadata_flag,12},
@@ -771,6 +781,11 @@ int main (int argc, char **argv){
         switch(c)
         {
             case 0:
+                if (sync_flag){
+                    convert->sync=1;
+                    sync_flag=0;
+                }
+
                 if (nosound_flag){
                     convert->disable_audio=1;
                     nosound_flag=0;
@@ -1027,6 +1042,10 @@ int main (int argc, char **argv){
                 if(convert->disable_audio){
                     fprintf(stderr,"  [audio disabled].\n");
                 }
+                if(convert->sync){
+                    fprintf(stderr,"  Use A/V Sync from input container.\n");
+                }
+
                 convert->pts_offset = 
                     (double) convert->context->start_time / AV_TIME_BASE;
                 ff2theora_output (convert);
