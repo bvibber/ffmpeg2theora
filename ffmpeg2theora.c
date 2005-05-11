@@ -144,13 +144,16 @@ void ff2theora_output(ff2theora this) {
         venc = &this->context->streams[this->video_index]->codec;
         vcodec = avcodec_find_decoder (venc->codec_id);
 
+#if LIBAVFORMAT_BUILD <= 4623
         fps = (double) venc->frame_rate / venc->frame_rate_base;
+#else
+        fps = (double) vstream->r_frame_rate.num / vstream->r_frame_rate.den;
+#endif
         if (fps > 10000)
             fps /= 1000;
 
         if(this->force_input_fps)
             fps=this->force_input_fps;
-
         if (vcodec == NULL || avcodec_open (venc, vcodec) < 0)
             this->video_index = -1;
 
@@ -277,6 +280,7 @@ void ff2theora_output(ff2theora this) {
             
         }
     }
+
     if (this->audio_index >= 0){
         astream = this->context->streams[this->audio_index];
         aenc = &this->context->streams[this->audio_index]->codec;
@@ -300,7 +304,7 @@ void ff2theora_output(ff2theora this) {
             this->audio_index = -1;
         }
     }
-    
+
     if (this->video_index >= 0 || this->audio_index >=0){
         AVFrame *frame=NULL;
         AVFrame *frame_tmp=NULL;
@@ -362,8 +366,13 @@ void ff2theora_output(ff2theora this) {
                 info.ti.fps_denominator = 1000000;
             }
             else {
+#if LIBAVFORMAT_BUILD <= 4623
                 info.ti.fps_numerator=venc->frame_rate;
                 info.ti.fps_denominator = venc->frame_rate_base;
+#else
+                info.ti.fps_numerator=vstream->r_frame_rate.num;
+                info.ti.fps_denominator = vstream->r_frame_rate.den;
+#endif
             }
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
