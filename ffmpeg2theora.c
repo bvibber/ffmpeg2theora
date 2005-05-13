@@ -649,7 +649,7 @@ void print_presets_info() {
 }
 
 void print_usage (){
-    fprintf (stderr, 
+    fprintf (stdout, 
         PACKAGE " " PACKAGE_VERSION "\n\n"
         " usage: " PACKAGE " [options] input\n\n"
     
