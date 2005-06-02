@@ -31,6 +31,7 @@ typedef struct ff2theora{
     int audio_index;
     
     int deinterlace;
+    int audiostream;
     int sample_rate;
     int channels;
     int disable_audio;

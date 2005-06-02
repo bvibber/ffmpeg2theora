@@ -37,8 +37,7 @@
 
 #include "theorautils.h"
 
-static double rint(double x)
-{
+static double rint(double x) {
     if (x < 0.0)
         return (double)(int)(x - 0.5);
     else
@@ -53,7 +52,7 @@ static int using_stdin = 0;
 /**
  * Allocate and initialise an AVFrame. 
  */
-AVFrame *alloc_picture (int pix_fmt, int width, int height){
+AVFrame *alloc_picture (int pix_fmt, int width, int height) {
     AVFrame *picture;
     uint8_t *picture_buf;
     int size;
@@ -90,6 +89,8 @@ ff2theora ff2theora_init (){
         this->channels = 2;
         this->audio_quality=0.297;// audio quality 3
         this->audio_bitrate=0;
+        this->audiostream = -1;
+        
         // video
         this->picture_width=0;      // set to 0 to not resize the output
         this->picture_height=0;      // set to 0 to not resize the output
@@ -108,6 +109,7 @@ ff2theora ff2theora_init (){
         this->frame_bottomBand=0;
         this->frame_leftBand=0;
         this->frame_rightBand=0;
+        
     }
     return this;
 }
@@ -122,7 +124,17 @@ void ff2theora_output(ff2theora this) {
     AVCodec *vcodec = NULL;
     float frame_aspect;
     double fps = 0.0;
-
+    
+    if(this->context->nb_streams > this->audiostream >= 0) {
+        AVCodecContext *enc = &this->context->streams[this->audiostream]->codec;
+        if (enc->codec_type == CODEC_TYPE_AUDIO) {
+            this->audio_index = this->audiostream;
+        }
+        else {
+            fprintf(stderr,"  The selected stream is not audio, falling back to automatic selection\n");
+        }
+    }
+    
     for (i = 0; i < this->context->nb_streams; i++){
         AVCodecContext *enc = &this->context->streams[i]->codec;
         switch (enc->codec_type){
@@ -567,6 +579,13 @@ void ff2theora_output(ff2theora this) {
         }
         while (ret >= 0);
 
+        if(frame) av_free(frame);
+        if(frame_tmp) av_free(frame_tmp);
+        if(output) av_free(output);
+        if(output_tmp) av_free(output_tmp);
+        if(output_resized) av_free(output_resized);
+        if(output_buffered) av_free(output_buffered);
+        
         if(audio_buf){
             if(audio_buf!=resampled)
                 av_free(resampled);
@@ -681,6 +700,8 @@ void print_usage (){
         "\t\t\t\t will be deinterlaced\n"
         "\t --format,-f\t\tspecify input format\n"
         "\t --inputfps [fps]\toverride input fps\n"
+        "\t --audiostream streamid\tby default the last audiostream is selected,\n"
+        "\t                 \tuse this to select another audio stream\n"
         "\t --sync\t\t\tUse A/V Sync from input container.\n"
         "\t       \t\tsince this does not work with all input format\n"
         "\t       \t\tyou have to manualy enable it if you have issues\n"
@@ -731,6 +752,7 @@ int main (int argc, char **argv){
     static int inputfps_flag=0;
     static int metadata_flag=0;
     static int deinterlace_flag=0;
+    static int audiostream_flag=0;
     static int sync_flag=0;
     
     AVInputFormat *input_fmt=NULL;
@@ -762,6 +784,7 @@ int main (int argc, char **argv){
       {"cropright",required_argument,&cropright_flag,1},
       {"cropleft",required_argument,&cropleft_flag,1},
       {"inputfps",required_argument,&inputfps_flag,1},
+      {"audiostream",required_argument,&audiostream_flag,1},
       {"starttime",required_argument,NULL,'s'},
       {"endtime",required_argument,NULL,'e'},
       {"sync",0,&sync_flag,1},
@@ -827,6 +850,10 @@ int main (int argc, char **argv){
                 if (inputfps_flag){
                     convert->force_input_fps=atof(optarg);
                     inputfps_flag=0;
+                }
+                if (audiostream_flag){
+                    convert->audiostream=1;
+                    audiostream_flag=0;
                 }
                 /* metadata */
                 if (metadata_flag){
