@@ -125,10 +125,13 @@ void ff2theora_output(ff2theora this) {
     float frame_aspect;
     double fps = 0.0;
     
-    if(this->context->nb_streams > this->audiostream >= 0) {
+    
+    
+    if(this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = &this->context->streams[this->audiostream]->codec;
         if (enc->codec_type == CODEC_TYPE_AUDIO) {
             this->audio_index = this->audiostream;
+            fprintf(stderr,"  Using stream #0.%d as audio input\n",this->audio_index);
         }
         else {
             fprintf(stderr,"  The selected stream is not audio, falling back to automatic selection\n");
@@ -852,7 +855,7 @@ int main (int argc, char **argv){
                     inputfps_flag=0;
                 }
                 if (audiostream_flag){
-                    convert->audiostream=1;
+                    convert->audiostream=atoi(optarg);;
                     audiostream_flag=0;
                 }
                 /* metadata */
