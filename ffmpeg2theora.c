@@ -267,8 +267,8 @@ void ff2theora_output(ff2theora this) {
         this->frame_y_offset = 0;
         
         if(this->frame_width > 0 || this->frame_height > 0){
-            int frame_padtop = this->frame_width-this->picture_width;
-            int frame_padbottom = this->frame_y_offset;
+            int frame_padtop = this->frame_y_offset;
+            int frame_padbottom = this->frame_height-this->picture_height;
             int frame_padleft = this->frame_x_offset;
             int frame_padright = this->frame_width-this->picture_width;
 
