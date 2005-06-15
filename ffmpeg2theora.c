@@ -702,6 +702,8 @@ void print_usage (){
         "\t\t\t\t otherwise only material marked as interlaced \n"
         "\t\t\t\t will be deinterlaced\n"
         "\t --format,-f\t\tspecify input format\n"
+        "\t --v4l   /dev/video0\tread data from v4l device /dev/video0\n"
+        "\t            \t\tyou have to specifiy an output file with -o\n"
         "\t --inputfps [fps]\toverride input fps\n"
         "\t --audiostream streamid\tby default the last audiostream is selected,\n"
         "\t                 \tuse this to select another audio stream\n"
@@ -757,8 +759,11 @@ int main (int argc, char **argv){
     static int deinterlace_flag=0;
     static int audiostream_flag=0;
     static int sync_flag=0;
+    static int v4l_flag=0;
     
-    AVInputFormat *input_fmt=NULL;
+    AVInputFormat *input_fmt = NULL;
+    AVFormatParameters *formatParams = NULL;
+
     ff2theora convert = ff2theora_init ();
     av_register_all ();
     
@@ -779,6 +784,7 @@ int main (int argc, char **argv){
       {"samplerate",required_argument,NULL,'H'},
       {"channels",required_argument,NULL,'c'},
       {"nosound",0,&nosound_flag,1},
+      {"v4l",required_argument,&v4l_flag,1},
       {"aspect",required_argument,&aspect_flag,1},
       {"v2v-preset",required_argument,NULL,'p'},
       {"nice",required_argument,NULL,'N'},
@@ -824,6 +830,11 @@ int main (int argc, char **argv){
                 if (nosound_flag){
                     convert->disable_audio=1;
                     nosound_flag=0;
+                }
+                if (v4l_flag) {
+                    formatParams = malloc(sizeof(AVFormatParameters));
+                    formatParams->device = optarg;
+                    v4l_flag = 0;
                 }
                 if (deinterlace_flag){
                     convert->deinterlace=1;
@@ -1036,6 +1047,29 @@ int main (int argc, char **argv){
         optind++;
     }
 
+
+    if(formatParams != NULL) {
+        formatParams->channel = 0;
+        formatParams->width = 384;
+        formatParams->height = 288;
+
+        if(convert->picture_width)
+            formatParams->width = convert->picture_width;
+        if(convert->picture_height)
+            formatParams->height = convert->picture_height;
+
+        formatParams->time_base.den = 25;
+        formatParams->time_base.num = 1;
+        if(convert->force_input_fps) {
+            formatParams->time_base.den = convert->force_input_fps * 1000;
+            formatParams->time_base.num = 1000;
+        }
+        formatParams->standard = "pal";        
+
+        input_fmt = av_find_input_format("video4linux");
+        sprintf(inputfile_name,"");
+    }
+
     //FIXME: is using_stdin still neded? is it needed as global variable?
     using_stdin |= !strcmp(inputfile_name, "pipe:" ) ||
                    !strcmp( inputfile_name, "/dev/stdin" );
@@ -1061,8 +1095,8 @@ int main (int argc, char **argv){
         exit(1);
     }
 
-    if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, NULL) >= 0){
-            if (av_find_stream_info (convert->context) >= 0){
+    if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0){
+        if (av_find_stream_info (convert->context) >= 0){
 #ifdef WIN32
                 if(!strcmp(outputfile_name,"-") || !strcmp(outputfile_name,"/dev/stdout")){
                     _setmode(_fileno(stdout), _O_BINARY);
