@@ -38,29 +38,34 @@ fi
 
 dnl if not using ffmpegprefix try to look for shared files
 if test "x$HAVE_FFMPEG" != xyes; then
-	if test "$ffmpegprefix" == ffmpeg; then
-		AC_CHECK_HEADER(ffmpeg/avcodec.h,[HAVE_SHARED_AVCODEC=yes])
-		AC_CHECK_HEADER(ffmpeg/avformat.h, [HAVE_SHARED_AVFORMAT=yes])
-		AC_CHECK_FILE(/usr/local/include/ffmpeg, [HAVE_FFMPEG_LOCAL=yes])
-	fi
-	if test "x$HAVE_SHARED_AVCODEC$HAVE_SHARED_AVCODEC" != xyesyes; then
-		AC_MSG_ERROR([
-	you need libavcodec and libavformat from ffmpeg cvs
-	to get it run get_ffmpeg_cvs.sh or point configure to
-	your local copy with i.e.
-	./configure --with-ffmpegprefix=/usr/local/src/ffmpeg
-	(see INSTALL for more information)
-	])
+	AC_CHECK_PROG(HAVE_FFMPEG_CONFIG, ffmpeg-config, yes)
+	if test "x$HAVE_FFMPEG_CONFIG" == xyes; then
+		FFMPEG_CFLAGS=`ffmpeg-config --cflags`
+		FFMPEG_LIBS=`ffmpeg-config --libs avformat`
 	else
-		if test "x$HAVE_FFMPEG_LOCAL" != xyes; then
-			FFMPEG_CFLAGS="-I/usr/include/ffmpeg"
-		else
-			FFMPEG_CFLAGS="-I/usr/local/include/ffmpeg"
+		if test "$ffmpegprefix" == ffmpeg; then
+			AC_CHECK_HEADER(ffmpeg/avcodec.h,[HAVE_SHARED_AVCODEC=yes])
+			AC_CHECK_HEADER(ffmpeg/avformat.h, [HAVE_SHARED_AVFORMAT=yes])
+			AC_CHECK_FILE(/usr/local/include/ffmpeg, [HAVE_FFMPEG_LOCAL=yes])
 		fi
-		FFMPEG_EXTLIBS="-lm -lz"
-		FFMPEG_LIBS="-L/usr/local/lib -L/usr/lib -lavformat -lavcodec $FFMPEG_EXTLIBS"
+		if test "x$HAVE_SHARED_AVCODEC$HAVE_SHARED_AVCODEC" != xyesyes; then
+			AC_MSG_ERROR([
+		you need libavcodec and libavformat from ffmpeg cvs
+		to get it run get_ffmpeg_cvs.sh or point configure to
+		your local copy with i.e.
+		./configure --with-ffmpegprefix=/usr/local/src/ffmpeg
+		(see INSTALL for more information)
+		])
+		else
+			if test "x$HAVE_FFMPEG_LOCAL" != xyes; then
+				FFMPEG_CFLAGS="-I/usr/include/ffmpeg"
+			else
+				FFMPEG_CFLAGS="-I/usr/local/include/ffmpeg"
+			fi
+			FFMPEG_EXTLIBS="-lm -lz"
+			FFMPEG_LIBS="-L/usr/local/lib -L/usr/lib -lavformat -lavcodec $FFMPEG_EXTLIBS"
+		fi
 	fi
-	
 else
 	FFMPEG_CFLAGS="-I$ffmpegprefix/libavformat -I$ffmpegprefix/libavcodec"
 	FFMPEG_EXTLIBS="-lm -lz"
