@@ -1,0 +1,134 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.TH FFMPEG2THEORA 1 "June 14, 2005"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+ffmpeg2theora \- command-line converter to create Ogg Theora files
+.SH SYNOPSIS
+.B ffmpeg2theora
+.RI [ options ] " inputfile" 
+.SH DESCRIPTION
+This manual page documents briefly the \fBffmpeg2theora\fP command.
+.PP
+\fBffmpeg2theora\fP is a program that converts any video file that ffmpeg can
+decode to Ogg Theora.
+.SH OPTIONS
+To read from standard input, specify `\-' as the input filename.
+
+These programs follow the usual GNU command line syntax, with long
+options starting with two dashes (`-').
+A summary of options is included below.
+.SS Output options:
+.TP
+.B \-o, \-\-output
+Specify the output filename.  If no output filename is specified, output will
+be written to \fIinputfile\fP.ogg.  To output to standard output, specify
+/dev/stdout as the output file.
+.TP
+.B \-x, \-\-width
+Scale to given width.
+.TP
+.B \-y, \-\-height
+Scale to given height.
+.TP
+.B \-\-aspect
+Define frame aspect ratio (e.g. 4:3, 16:9).
+.TP
+.B \-\-crop[top|bottom|left|right]
+Crop input before resizing.
+.TP
+.B \-v, \-\-videoquality
+[0 to 10] Set encoding quality for video.
+.TP
+.B \-V, \-\-videobitrate
+[45 to 2000] Set encoding bitrate for video.
+.TP
+.B \-S, \-\-sharpness
+[0 to 2] Sharpness of images (default 2).  Note: lower values make the video
+sharper.
+.TP
+.B \-K, \-\-keyint
+[8 to 65536] Set keyframe interval (default 64).
+.TP
+.B \-a, \-\-audioquality
+[-1 to 10] Set encoding quality for audio.
+.TP
+.B \-A, \-\-audiobitrate
+[45 to 2000] Set encoding bitrate for audio.
+.TP
+.B \-H, \-\-samplerate
+Set output samplerate in Hz.
+.TP
+.B \-c, \-\-channels
+Set number of output channels.
+.TP
+.B \-\-nosound
+Disable the sound from input.
+.TP
+.B \-e, \-\-endtime
+End encoding at this time (in seconds).
+.TP
+.B \-s, \-\-starttime
+Start encoding at this time (in seconds).
+.TP
+.B \-p, \-\-v2v-preset
+Encode file with v2v preset.  Right now, there is preview and pro.  Run
+\*(lqffmpeg2theora -p info\*(rq for more information.
+.SS Input options:
+.TP
+.B \-d, \-\-deinterlace
+Force deinterlace.  Otherwise only material marked as interlaced will be
+deinterlaced.
+.TP
+.B \-f, \-\-format
+Specify input format.
+.TP
+.B \-\-inputfps
+Override input fps.
+.SS Metadata options:
+.TP
+.B \-\-artist
+Name of artist (director)
+.TP
+.B \-\-title
+Title
+.TP
+.B \-\-date
+Date
+.TP
+.B \-\-location
+Location
+.TP
+.B \-\-organization
+Name of organization (studio).
+.TP
+.B \-\-copyright
+Copyright.
+.TP
+.B \-\-license
+License.
+.SS Other options:
+.TP
+.B \-\-nice
+Set niceness to n.
+.TP
+.B \-\-debug
+Output some more information during encoding.
+.TP
+.B \-h, \-\-help
+Output a help message.
+.SH AUTHOR
+ffmpeg2theora was written by jan gerber <j@v2v.cc>.
+.PP
+This manual page was written by Hubert Chan <hubert@uhoreg.ca>,
+for the Debian project (but may be used by others).
