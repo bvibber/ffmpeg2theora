@@ -67,9 +67,9 @@ void theoraframes_init (theoraframes_info *info){
 
     /* initialize Vorbis too, if we have audio. */
     if(!info->video_only){
+        int ret;
         vorbis_info_init (&info->vi);
         /* Encoding using a VBR quality mode.  */
-        int ret;
         if(info->vorbis_quality>-99) 
             ret =vorbis_encode_init_vbr (&info->vi, info->channels,info->sample_rate,info->vorbis_quality);
         else

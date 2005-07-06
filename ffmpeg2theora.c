@@ -97,7 +97,7 @@ ff2theora ff2theora_init (){
         this->video_quality=31.5; // video quality 5
         this->video_bitrate=0;
         this->sharpness=2;
-        this->keyint=64;
+        this->keyint=1111;
         this->force_input_fps=0;
         this->sync=0;
         this->aspect_numerator=0;
@@ -338,6 +338,7 @@ void ff2theora_output(ff2theora this) {
         uint8_t *ptr;
         int16_t *audio_buf= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int16_t *resampled= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
+        int no_frames;
 
         if(this->video_index >= 0)
             info.audio_only=0;
@@ -403,7 +404,7 @@ void ff2theora_output(ff2theora this) {
 
             info.ti.target_bitrate = this->video_bitrate; 
             info.ti.quality = this->video_quality;
-            info.ti.dropframes_p = 0;
+            info.ti.dropframes_p = 1;
             info.ti.quick_p = 1;
             info.ti.keyframe_auto_p = 1;
             info.ti.keyframe_frequency = this->keyint;
@@ -429,7 +430,7 @@ void ff2theora_output(ff2theora this) {
         av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
 #endif
         /*check for end time and caclulate number of frames to encode*/
-        int no_frames = fps*(this->end_time - this->start_time);
+        no_frames = fps*(this->end_time - this->start_time);
         if(this->end_time > 0 && no_frames <= 0){
             fprintf(stderr,"end time has to be bigger than start time\n");
             exit(1);
@@ -763,9 +764,6 @@ int main (int argc, char **argv){
     
     AVInputFormat *input_fmt = NULL;
     AVFormatParameters *formatParams = NULL;
-
-    ff2theora convert = ff2theora_init ();
-    av_register_all ();
     
     int c,long_option_index;
     const char *optstring = "o:f:x:y:v:V:a:A:S:K:d:H:c:p:N:s:e:D:h::";
@@ -810,6 +808,9 @@ int main (int argc, char **argv){
       {"help",0,NULL,'h'},
       {NULL,0,NULL,0}
     };
+
+    ff2theora convert = ff2theora_init ();
+    av_register_all ();
 
     if (argc == 1){
         print_usage ();
@@ -1052,7 +1053,6 @@ int main (int argc, char **argv){
         formatParams->channel = 0;
         formatParams->width = 384;
         formatParams->height = 288;
-
         if(convert->picture_width)
             formatParams->width = convert->picture_width;
         if(convert->picture_height)
@@ -1061,11 +1061,12 @@ int main (int argc, char **argv){
         formatParams->time_base.den = 25;
         formatParams->time_base.num = 1;
         if(convert->force_input_fps) {
+
             formatParams->time_base.den = convert->force_input_fps * 1000;
             formatParams->time_base.num = 1000;
+
         }
         formatParams->standard = "pal";        
-
         input_fmt = av_find_input_format("video4linux");
         sprintf(inputfile_name,"");
     }
