@@ -123,12 +123,10 @@ void ff2theora_output(ff2theora this) {
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
     float frame_aspect;
-    double fps = 0.0;
-    
-    
+    double fps = 0.0;    
     
     if(this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
-        AVCodecContext *enc = &this->context->streams[this->audiostream]->codec;
+        AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
         if (enc->codec_type == CODEC_TYPE_AUDIO) {
             this->audio_index = this->audiostream;
             fprintf(stderr,"  Using stream #0.%d as audio input\n",this->audio_index);
@@ -139,7 +137,7 @@ void ff2theora_output(ff2theora this) {
     }
     
     for (i = 0; i < this->context->nb_streams; i++){
-        AVCodecContext *enc = &this->context->streams[i]->codec;
+        AVCodecContext *enc = this->context->streams[i]->codec;
         switch (enc->codec_type){
         case CODEC_TYPE_VIDEO:
             if (this->video_index < 0)
@@ -156,14 +154,10 @@ void ff2theora_output(ff2theora this) {
 
     if (this->video_index >= 0){
         vstream = this->context->streams[this->video_index];
-        venc = &this->context->streams[this->video_index]->codec;
+        venc = this->context->streams[this->video_index]->codec;
         vcodec = avcodec_find_decoder (venc->codec_id);
 
-#if LIBAVFORMAT_BUILD <= 4623
-        fps = (double) venc->frame_rate / venc->frame_rate_base;
-#else
         fps = (double) vstream->r_frame_rate.num / vstream->r_frame_rate.den;
-#endif
         if (fps > 10000)
             fps /= 1000;
 
@@ -298,7 +292,7 @@ void ff2theora_output(ff2theora this) {
 
     if (this->audio_index >= 0){
         astream = this->context->streams[this->audio_index];
-        aenc = &this->context->streams[this->audio_index]->codec;
+        aenc = this->context->streams[this->audio_index]->codec;
         acodec = avcodec_find_decoder (aenc->codec_id);
         if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
             aenc->channels = this->channels;
@@ -351,14 +345,14 @@ void ff2theora_output(ff2theora this) {
             info.video_only=1;
         
         if(!info.audio_only){
-            frame = alloc_picture(vstream->codec.pix_fmt,
-                            vstream->codec.width,vstream->codec.height);
-            frame_tmp = alloc_picture(vstream->codec.pix_fmt,
-                            vstream->codec.width,vstream->codec.height);
+            frame = alloc_picture(vstream->codec->pix_fmt,
+                            vstream->codec->width,vstream->codec->height);
+            frame_tmp = alloc_picture(vstream->codec->pix_fmt,
+                            vstream->codec->width,vstream->codec->height);
             output_tmp =alloc_picture(PIX_FMT_YUV420P, 
-                            vstream->codec.width,vstream->codec.height);
+                            vstream->codec->width,vstream->codec->height);
             output =alloc_picture(PIX_FMT_YUV420P, 
-                            vstream->codec.width,vstream->codec.height);
+                            vstream->codec->width,vstream->codec->height);
             output_resized =alloc_picture(PIX_FMT_YUV420P, 
                             this->frame_width, this->frame_height);
             output_buffered =alloc_picture(PIX_FMT_YUV420P,
@@ -382,13 +376,9 @@ void ff2theora_output(ff2theora this) {
                 info.ti.fps_denominator = 1000000;
             }
             else {
-#if LIBAVFORMAT_BUILD <= 4623
-                info.ti.fps_numerator=venc->frame_rate;
-                info.ti.fps_denominator = venc->frame_rate_base;
-#else
                 info.ti.fps_numerator=vstream->r_frame_rate.num;
                 info.ti.fps_denominator = vstream->r_frame_rate.den;
-#endif
+                info.fps = (double) vstream->r_frame_rate.num / vstream->r_frame_rate.den;
             }
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
@@ -462,7 +452,7 @@ void ff2theora_output(ff2theora this) {
                 while(e_o_s || len > 0){
                     int dups = 0;
                     if(len >0 &&
-                        (len1 = avcodec_decode_video(&vstream->codec,
+                        (len1 = avcodec_decode_video(vstream->codec,
                                         frame,&got_picture, ptr, len))>0) {
                                         
                         if(got_picture){
@@ -481,7 +471,8 @@ void ff2theora_output(ff2theora this) {
                                     break;
                                 }
                                 if (delta > 0.7) {
-                                    dups = lrintf(delta);
+                                    //dups = lrintf(delta);
+                                    dups = (int)delta;
                                     fprintf(stderr,
                                       "%d duplicate %s added to maintain sync\n",
                                       dups, (dups == 1) ? "frame" : "frames");
@@ -547,7 +538,7 @@ void ff2theora_output(ff2theora this) {
                     int samples_out=0;
                     int data_size;
                     if(len > 0){
-                        len1 = avcodec_decode_audio(&astream->codec, audio_buf,&data_size, ptr, len);
+                        len1 = avcodec_decode_audio(astream->codec, audio_buf,&data_size, ptr, len);
                         if (len1 < 0){
                             /* if error, we skip the frame */
                             break;

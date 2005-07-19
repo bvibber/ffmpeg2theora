@@ -90,9 +90,9 @@ typedef struct
     int vorbis_bitrate;
     int scale;
     int wide;
+    double fps;
     double start;
     double end;
-    int fps;
     ogg_page videopage;
     ogg_page audiopage;
     int audioflag;

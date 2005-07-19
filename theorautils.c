@@ -283,8 +283,9 @@ void theoraframes_flush (theoraframes_info *info, int e_o_s){
                 
             info->videoflag = 0;
             while(ogg_stream_pageout (&info->to, &info->videopage) > 0){
-                info->videotime=
+                info->videotime =
                     theora_granule_time (&info->td,ogg_page_granulepos(&info->videopage));
+                
                 /* flush a video page */
                 info->video_bytesout +=
                     fwrite (info->videopage.header, 1,info->videopage.header_len, info->outfile);
