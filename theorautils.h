@@ -43,8 +43,8 @@ typedef struct ff2theora{
     double fps;
     ImgReSampleContext *img_resample_ctx; /* for image resampling/resizing */
     ReSampleContext *audio_resample_ctx;
-    ogg_uint32_t aspect_numerator;
-    ogg_uint32_t aspect_denominator;
+    ogg_int32_t aspect_numerator;
+    ogg_int32_t aspect_denominator;
     double    frame_aspect;
 
     int video_quality;
@@ -93,8 +93,6 @@ typedef struct
     double fps;
     double start;
     double end;
-    ogg_page videopage;
-    ogg_page audiopage;
     int audioflag;
     int videoflag;
     double audiotime;

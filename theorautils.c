@@ -192,8 +192,9 @@ int theoraframes_add_video (ff2theora this, theoraframes_info *info, AVFrame * a
 
     }
     theora_encode_YUVin (&info->td, &yuv);
-    theora_encode_packetout (&info->td, e_o_s, &info->op);
-    ogg_stream_packetin (&info->to, &info->op);
+    while(theora_encode_packetout (&info->td, e_o_s, &info->op)) {
+      ogg_stream_packetin (&info->to, &info->op);
+    }
     info->videoflag=1;
     return 0;
 }
@@ -272,25 +273,25 @@ void theoraframes_flush (theoraframes_info *info, int e_o_s){
     /* flush out the ogg pages to info->outfile */
     
     int flushloop=1;
+    ogg_page videopage;
+    ogg_page audiopage;
 
     while(flushloop){
         int video = -1;
         flushloop=0;
-        //some debuging 
-        //fprintf(stderr,"\ndiff: %f\n",info->audiotime-info->videotime);
         while(!info->audio_only && (e_o_s || 
             ((info->videotime <= info->audiotime || info->video_only) && info->videoflag == 1))){
                 
             info->videoflag = 0;
-            while(ogg_stream_pageout (&info->to, &info->videopage) > 0){
+            while(ogg_stream_pageout (&info->to, &videopage) > 0){
                 info->videotime =
-                    theora_granule_time (&info->td,ogg_page_granulepos(&info->videopage));
+                    theora_granule_time (&info->td,ogg_page_granulepos(&videopage));
                 
                 /* flush a video page */
                 info->video_bytesout +=
-                    fwrite (info->videopage.header, 1,info->videopage.header_len, info->outfile);
+                    fwrite (videopage.header, 1,videopage.header_len, info->outfile);
                 info->video_bytesout +=
-                    fwrite (info->videopage.body, 1,info->videopage.body_len, info->outfile);
+                    fwrite (videopage.body, 1,videopage.body_len, info->outfile);
                 
                 info->vkbps = rint (info->video_bytesout * 8. / info->videotime * .001);
 
@@ -307,14 +308,14 @@ void theoraframes_flush (theoraframes_info *info, int e_o_s){
             ((info->audiotime < info->videotime || info->audio_only) && info->audioflag==1))){
             
             info->audioflag = 0;
-            while(ogg_stream_pageout (&info->vo, &info->audiopage) > 0){    
+            while(ogg_stream_pageout (&info->vo, &audiopage) > 0){    
                 /* flush an audio page */
                 info->audiotime=
-                    vorbis_granule_time (&info->vd,ogg_page_granulepos(&info->audiopage));
+                    vorbis_granule_time (&info->vd,ogg_page_granulepos(&audiopage));
                 info->audio_bytesout +=
-                    fwrite (info->audiopage.header, 1,info->audiopage.header_len, info->outfile);
+                    fwrite (audiopage.header, 1,audiopage.header_len, info->outfile);
                 info->audio_bytesout +=
-                    fwrite (info->audiopage.body, 1,info->audiopage.body_len, info->outfile);
+                    fwrite (audiopage.body, 1,audiopage.body_len, info->outfile);
 
                 info->akbps = rint (info->audio_bytesout * 8. / info->audiotime * .001);
                 print_stats(info, info->audiotime);
