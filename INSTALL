@@ -2,16 +2,22 @@ compiling with configure/make
 ---------------------------------
 you need
 - the latest version of libtheora ( http://www.theora.org/files )
-- ffmpeg 0.4.9-pre1 or cvs ( http://ffmpeg.sf.net ) / by running ./get_ffmpeg_cvs.sh
+- ffmpeg-cvs ( http://ffmpeg.sf.net ) / by running ./get_ffmpeg_cvs.sh
   configure it with i.e.
-  ./configure --enable-faad --enable-vorbis --disable-mp3lame --enable-pp --enable-a52  --enable-dts --enable-pthreads --disable-vhook --disable-v4l --disable-audio-oss --disable-dv1394  --disable-ffmpeg --disable-ffserver --disable-network --enable-gpl --enable-libogg --enable-vorbis --enable-theora
+  ./configure --enable-faad --disable-mp3lame --enable-pp --enable-a52  --enable-dts --enable-pthreads --disable-vhook --disable-v4l --disable-audio-oss --disable-dv1394  --disable-ffmpeg --disable-ffserver --disable-network --enable-gpl --enable-libogg --enable-vorbis --enable-theora
 
-now run:
-./configure [--with-ffmpegprefix=/path/to/ffmpeg_src]
+if you did not install ffmpeg but want to staticly link it
+(recomended by ffmpeg developers) update PKG_CONFIG_PATH to
+point to your ffmpeg source:
+
+ export PKG_CONFIG_PATH=/path/to/ffmpeg_src:$PKG_CONFIG_PATH
+
+now you can build ffmpeg2theora:
+./configure
 make
 
 
-cross compiling with mingw32
+cross compiling with mingw32(out of date)
 ----------------------------------------------
 
  you need to crosscompiled libvorbis,libogg,libtheora
