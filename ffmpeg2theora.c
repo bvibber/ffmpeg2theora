@@ -37,6 +37,19 @@
 
 #include "theorautils.h"
 
+#define DEINTERLACE_FLAG     1
+#define DEBUG_FLAG           2
+#define SYNC_FLAG            3
+#define NOSOUND_FLAG         4
+#define V4L_FLAG             5
+#define CROPTOP_FLAG         6
+#define CROPBOTTOM_FLAG      7
+#define CROPRIGHT_FLAG       8
+#define CROPLEFT_FLAG        9
+#define ASPECT_FLAG         10
+#define INPUTFPS_FLAG       11
+#define AUDIOSTREAM_FLAG    12
+
 static double rint(double x) {
     if (x < 0.0)
         return (double)(int)(x - 0.5);
@@ -690,7 +703,7 @@ void print_usage (){
         "\t\t\t\t '"PACKAGE" -p info' for more informations\n"
     
         "\nInput options:\n"
-        "\t --deinterlace,-d \tforce deinterlace\n"
+        "\t --deinterlace \tforce deinterlace\n"
         "\t\t\t\t otherwise only material marked as interlaced \n"
         "\t\t\t\t will be deinterlaced\n"
         "\t --format,-f\t\tspecify input format\n"
@@ -739,20 +752,11 @@ int main (int argc, char **argv){
     int  outputfile_set=0;
     char outputfile_name[255];
     char inputfile_name[255];
+    char *str_ptr;
     
-    static int croptop_flag=0;
-    static int cropbottom_flag=0;
-    static int cropright_flag=0;
-    static int cropleft_flag=0;    
-    static int nosound_flag=0;    
-    static int aspect_flag=0;
-    static int inputfps_flag=0;
+    static int flag=-1;
     static int metadata_flag=0;
-    static int deinterlace_flag=0;
-    static int audiostream_flag=0;
-    static int sync_flag=0;
-    static int v4l_flag=0;
-    
+
     AVInputFormat *input_fmt = NULL;
     AVFormatParameters *formatParams = NULL;
     
@@ -769,23 +773,23 @@ int main (int argc, char **argv){
       {"audiobitrate",required_argument,NULL,'A'},
       {"sharpness",required_argument,NULL,'S'},
       {"keyint",required_argument,NULL,'K'},
-      {"deinterlace",0,&deinterlace_flag,'d'},
+      {"deinterlace",0,&flag,DEINTERLACE_FLAG},
       {"samplerate",required_argument,NULL,'H'},
       {"channels",required_argument,NULL,'c'},
-      {"nosound",0,&nosound_flag,1},
-      {"v4l",required_argument,&v4l_flag,1},
-      {"aspect",required_argument,&aspect_flag,1},
+      {"nosound",0,&flag,NOSOUND_FLAG},
+      {"v4l",required_argument,&flag,V4L_FLAG},
+      {"aspect",required_argument,&flag,ASPECT_FLAG},
       {"v2v-preset",required_argument,NULL,'p'},
       {"nice",required_argument,NULL,'N'},
-      {"croptop",required_argument,&croptop_flag,1},
-      {"cropbottom",required_argument,&cropbottom_flag,1},
-      {"cropright",required_argument,&cropright_flag,1},
-      {"cropleft",required_argument,&cropleft_flag,1},
-      {"inputfps",required_argument,&inputfps_flag,1},
-      {"audiostream",required_argument,&audiostream_flag,1},
+      {"croptop",required_argument,&flag,CROPTOP_FLAG},
+      {"cropbottom",required_argument,&flag,CROPBOTTOM_FLAG},
+      {"cropright",required_argument,&flag,CROPRIGHT_FLAG},
+      {"cropleft",required_argument,&flag,CROPLEFT_FLAG},
+      {"inputfps",required_argument,&flag,INPUTFPS_FLAG},
+      {"audiostream",required_argument,&flag,AUDIOSTREAM_FLAG},
       {"starttime",required_argument,NULL,'s'},
       {"endtime",required_argument,NULL,'e'},
-      {"sync",0,&sync_flag,1},
+      {"sync",0,&flag,SYNC_FLAG},
   
       {"artist",required_argument,&metadata_flag,10},
       {"title",required_argument,&metadata_flag,11},
@@ -795,7 +799,7 @@ int main (int argc, char **argv){
       {"copyright",required_argument,&metadata_flag,15},
       {"license",required_argument,&metadata_flag,16},
 
-      {"debug",0,NULL,'D'},
+      {"debug",0,&flag,DEBUG_FLAG},
       {"help",0,NULL,'h'},
       {NULL,0,NULL,0}
     };
@@ -814,53 +818,62 @@ int main (int argc, char **argv){
         switch(c)
         {
             case 0:
-                if (sync_flag){
-                    convert->sync=1;
-                    sync_flag=0;
+                if (flag) {
+                    switch (flag) 
+                    {
+                        case DEINTERLACE_FLAG:
+                            convert->deinterlace=1;
+                            flag=-1;
+                            break;
+                        case DEBUG_FLAG:
+                            info.debug=1;
+                            flag=-1;
+                            break;
+                        case SYNC_FLAG:
+                            convert->sync=1;
+                            flag=-1;
+                            break;
+                        case NOSOUND_FLAG:
+                            convert->disable_audio=1;
+                            flag=-1;
+                            break;
+                        case V4L_FLAG:
+                            formatParams = malloc(sizeof(AVFormatParameters));
+                            formatParams->device = optarg;
+                            flag=-1;
+                            break;
+                /* crop */
+                        case CROPTOP_FLAG:
+                            convert->frame_topBand=crop_check(convert,"top",optarg);
+                            flag=-1;
+                            break;
+                        case CROPBOTTOM_FLAG:
+                            convert->frame_bottomBand=crop_check(convert,"bottom",optarg);
+                            flag=-1;
+                            break;
+                        case CROPRIGHT_FLAG:
+                            convert->frame_rightBand=crop_check(convert,"right",optarg);
+                            flag=-1;
+                            break;
+                        case CROPLEFT_FLAG:
+                            convert->frame_leftBand=crop_check(convert,"left",optarg);
+                            flag=-1;
+                            break;
+                        case ASPECT_FLAG:
+                            convert->frame_aspect=aspect_check(optarg);
+                            flag=-1;
+                            break;
+                        case INPUTFPS_FLAG:
+                            convert->force_input_fps=atof(optarg);
+                            flag=-1;
+                            break;
+                        case AUDIOSTREAM_FLAG:
+                            convert->audiostream=atoi(optarg);;
+                            flag=-1;
+                            break;
+                    }
                 }
 
-                if (nosound_flag){
-                    convert->disable_audio=1;
-                    nosound_flag=0;
-                }
-                if (v4l_flag) {
-                    formatParams = malloc(sizeof(AVFormatParameters));
-                    formatParams->device = optarg;
-                    v4l_flag = 0;
-                }
-                if (deinterlace_flag){
-                    convert->deinterlace=1;
-                    deinterlace_flag=0;
-                }
-                /* crop */
-                if (croptop_flag){
-                    convert->frame_topBand=crop_check(convert,"top",optarg);
-                    croptop_flag=0;
-                }
-                if (cropbottom_flag){
-                    convert->frame_bottomBand=crop_check(convert,"bottom",optarg);
-                    cropbottom_flag=0;
-                }
-                if (cropright_flag){
-                    convert->frame_rightBand=crop_check(convert,"right",optarg);
-                    cropright_flag=0;
-                }
-                if (cropleft_flag){
-                    convert->frame_leftBand=crop_check(convert,"left",optarg);
-                    cropleft_flag=0;
-                }
-                if (aspect_flag){
-                    convert->frame_aspect=aspect_check(optarg);
-                    aspect_flag=0;
-                }
-                if (inputfps_flag){
-                    convert->force_input_fps=atof(optarg);
-                    inputfps_flag=0;
-                }
-                if (audiostream_flag){
-                    convert->audiostream=atoi(optarg);;
-                    audiostream_flag=0;
-                }
                 /* metadata */
                 if (metadata_flag){
                     switch(metadata_flag) {
@@ -954,12 +967,6 @@ int main (int argc, char **argv){
                     exit(1);
                 }
                 break;                        
-            case 'd':
-                if(!strcmp(optarg,"off"))
-                    convert->deinterlace=0;
-                else
-                    convert->deinterlace=1;
-                break;
             case 'H':
                 convert->sample_rate=atoi(optarg);
                 break;
@@ -1007,10 +1014,6 @@ int main (int argc, char **argv){
 #endif
                 }
                 break;
-            case 'D':
-                //enable debug informations
-                info.debug=1;
-                break;
             case 'h':
                 print_usage ();
                 exit(1);
@@ -1033,7 +1036,13 @@ int main (int argc, char **argv){
             sprintf(inputfile_name,"pipe:");
         }
         if(outputfile_set!=1){
-            sprintf(outputfile_name,"%s.ogg",argv[optind]);
+            sprintf(outputfile_name, "%s", argv[optind]);
+            if(str_ptr = rindex(outputfile_name, '.')) {
+                sprintf(str_ptr, ".ogg");
+            }
+           else {
+                sprintf(outputfile_name, "%s.ogg", outputfile_name);
+            }
             outputfile_set=1;
         }
         optind++;

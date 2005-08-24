@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS = 1.6 dist-bzip2 no-dist-gzip
 
 SUBDIRS = kino_export
 
-EXTRA_DIST = Makefile.mingw32 theorautils.h get_ffmpeg_cvs.sh
+EXTRA_DIST = Makefile.mingw32 theorautils.h get_ffmpeg_cvs.sh ffmpeg2theora.1
 
 EXTRA=-D_FILE_OFFSET_BITS=64 -I$(prefix)/include
 

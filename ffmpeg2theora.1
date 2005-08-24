@@ -86,12 +86,16 @@ Encode file with v2v preset.  Right now, there is preview and pro.  Run
 \*(lqffmpeg2theora -p info\*(rq for more information.
 .SS Input options:
 .TP
-.B \-d, \-\-deinterlace
+.B \-\-deinterlace
 Force deinterlace.  Otherwise only material marked as interlaced will be
 deinterlaced.
 .TP
 .B \-f, \-\-format
 Specify input format.
+.TP
+.B \-\-v4l  /dev/video0
+read data from v4l device /dev/video0, 
+you have to specify an output file with -0
 .TP
 .B \-\-inputfps
 Override input fps.

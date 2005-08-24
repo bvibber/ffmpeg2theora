@@ -1,81 +1,87 @@
-0.13 	2005-03-12
-	- add new command line options, starttime, endtime, sharpness, keyint
-	- fix compile issues with new version of faad
-	- better support for stdout on win32,
-	   to allow ezstream streaming non-theora source types
-	- deinterlace only input marked as interlaced by default
-	- handle input files with frame sizes that are not a multiple of 16
-	- document --channels to resample audio to i.e. 1 channel
+0.14     2005-08-15
+    - add support for v4l input devices
+    - update to latest version of ffmpeg-cvs(now uses pkg-config)
+    - --audiostream id, new option to select an audio stream if 
+      input has more than one audio stream
 
-0.12 	2004-11-18
-	- add more command line options, for bitrate modes, metadata
-	- update kino plugin
+0.13     2005-03-12
+    - add new command line options, starttime, endtime, sharpness, keyint
+    - fix compile issues with new version of faad
+    - better support for stdout on win32,
+       to allow ezstream streaming non-theora source types
+    - deinterlace only input marked as interlaced by default
+    - handle input files with frame sizes that are not a multiple of 16
+    - document --channels to resample audio to i.e. 1 channel
 
-0.11 	2004-09-04
-	- changed default, then called without parameters to -p preview mode
-	- changed PREVIEW(PAL) settings to 384x288 to make pixel aspect ratio 1:1
-	- performance improvement if compiled with theora-mmx 
-	  [http://svn.xiph.org/branches/theora-mmx]
-	- new option: --aspect to define frame aspect ratio: i.e. 4:3 or 16:9
+0.12     2004-11-18
+    - add more command line options, for bitrate modes, metadata
+    - update kino plugin
 
-0.10.2 	2004-07-17
-	- add cropping support
-	- remove support for ffmpeg<0.4.9-pre1
-	- change configure.ac and Makefile.am to better build with
-	  mingw32
+0.11     2004-09-04
+    - changed default, then called without parameters to -p preview mode
+    - changed PREVIEW(PAL) settings to 384x288 to make pixel aspect ratio 1:1
+    - performance improvement if compiled with theora-mmx 
+      [http://svn.xiph.org/branches/theora-mmx]
+    - new option: --aspect to define frame aspect ratio: i.e. 4:3 or 16:9
 
-0.10.1 	2004-07-15 21:03:15
-	- fix problems with mpeg files using ffmpeg from cvs or versions
-	  newer than 0.4.8.
-	- remove --with-ffmpegcvs and detect changes by LIBAVCODEC_BUILD
+0.10.2     2004-07-17
+    - add cropping support
+    - remove support for ffmpeg<0.4.9-pre1
+    - change configure.ac and Makefile.am to better build with
+      mingw32
 
-0.10 	2004-07-10 18:14:15
-	- write eos at the end of the file.
-	- fix memleak due to not enough calls of ogg_stream_pageout
+0.10.1     2004-07-15 21:03:15
+    - fix problems with mpeg files using ffmpeg from cvs or versions
+      newer than 0.4.8.
+    - remove --with-ffmpegcvs and detect changes by LIBAVCODEC_BUILD
 
-0.9 	2004-07-04 13:14:15
-	- add presets
-	- add more comandline options
+0.10     2004-07-10 18:14:15
+    - write eos at the end of the file.
+    - fix memleak due to not enough calls of ogg_stream_pageout
 
-0.8 	2004-06-19 18:47:14
-	- use ffmpeg aspect ration if possible
-	- normalize quality options to 0-10
-	- fix skipping issues with a/v sync
+0.9     2004-07-04 13:14:15
+    - add presets
+    - add more comandline options
 
-0.7.1 	2004-05-31 01:55:40
-	- added --enable-ffmpegcvs to link against ffmpeg from cvs
-	- try to find and link to shared avcodec/avformat 
-	  if source not found
+0.8     2004-06-19 18:47:14
+    - use ffmpeg aspect ration if possible
+    - normalize quality options to 0-10
+    - fix skipping issues with a/v sync
 
-0.7 	2004-05-30 18:40:40
-	- add comandline options for audio/video quality
-	- fix bug causing crashes with DV files, without resizing
-	- use autotools
+0.7.1     2004-05-31 01:55:40
+    - added --enable-ffmpegcvs to link against ffmpeg from cvs
+    - try to find and link to shared avcodec/avformat 
+      if source not found
 
-0.6 	2004-05-06 13:47:30
-	- added resize option
+0.7     2004-05-30 18:40:40
+    - add comandline options for audio/video quality
+    - fix bug causing crashes with DV files, without resizing
+    - use autotools
+
+0.6     2004-05-06 13:47:30
+    - added resize option
 
 0.5.1   2004-03-27 21:59:40
-	- fix kino export
-	- add -f fmt do define input format.
+    - fix kino export
+    - add -f fmt do define input format.
 
-0.5 	2004-03-27 19:59:40
-	- link against shared library on linux
-	- kino export module and support to read from stdin
-	   [works only to some extend for now]
+0.5     2004-03-27 19:59:40
+    - link against shared library on linux
+    - kino export module and support to read from stdin
+       [works only to some extend for now]
 
 0.4
-	- fix wrong deinterlaceing
-	- change memory allocation to work with mingw32
+    - fix wrong deinterlaceing
+    - change memory allocation to work with mingw32
 
 0.3
-	- make encoding of audio only files possible. 
-	  can be used to transcode audio files[mp4,wav,ac3...] to ogg vorbis now
-	  time to call if ffmpeg2ogg?
-	- some code cleanup
+    - make encoding of audio only files possible. 
+      can be used to transcode audio files[mp4,wav,ac3...] to ogg vorbis now
+      time to call if ffmpeg2ogg?
+    - some code cleanup
 
 0.2
-	- added deinterlace support
-	
+    - added deinterlace support
+    
 0.1
-	- initial version
+    - initial version
