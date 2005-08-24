@@ -21,6 +21,7 @@
 #include "theora/theora.h"
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
+#include "ogg/ogg.h"
 
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
@@ -93,8 +94,6 @@ typedef struct
     double fps;
     double start;
     double end;
-    int audioflag;
-    int videoflag;
     double audiotime;
     double videotime;
     int vkbps;
@@ -121,6 +120,15 @@ typedef struct
     vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
     vorbis_block vb;     /* local working space for packet->PCM decode */
     FILE *outfile;
+
+    int audiopage_valid;
+    int videopage_valid;
+    unsigned char *audiopage;
+    unsigned char *videopage;
+    int videopage_len;
+    int audiopage_len;
+    int videopage_buffer_length;
+    int audiopage_buffer_length;
 }
 theoraframes_info;
 

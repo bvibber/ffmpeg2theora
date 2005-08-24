@@ -9,7 +9,7 @@ to encode video clips with the same settings.
 
 usage right now:
  ./ffmpeg2theora clip.avi
- will produce clip.avi.ogg
+ will produce clip.ogg
  for more options run ffmpeg2theora -h
 
  there is a export plugin for kino (http://kino.schirmacher.de/)
