@@ -735,7 +735,7 @@ void print_usage (){
 
         "\n Examples:\n"
     
-        "\tffmpeg2theora videoclip.avi (will write output to videoclip.avi.ogg)\n\n"
+        "\tffmpeg2theora videoclip.avi (will write output to videoclip.ogg)\n\n"
         "\tcat something.dv | ffmpeg2theora -f dv -o output.ogg -\n\n"
         "\tLive encoding from a DV camcorder (needs a fast machine)\n"
         "\tdvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
