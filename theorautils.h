@@ -105,7 +105,6 @@ typedef struct
                              * stream of packets */
     ogg_stream_state vo;    /* take physical pages, weld into a logical
                              * stream of packets */
-    ogg_page og;    /* one Ogg bitstream page.  Vorbis packets are inside */
     ogg_packet op;  /* one raw packet of data for decode */
 
     theora_info ti;

@@ -55,6 +55,8 @@ void init_info(theoraframes_info *info) {
 
 
 void theoraframes_init (theoraframes_info *info){
+    ogg_page og;
+
     info->audio_bytesout = 0;
     info->video_bytesout = 0;
 
@@ -101,12 +103,12 @@ void theoraframes_init (theoraframes_info *info){
     if(!info->audio_only){
         theora_encode_header (&info->td, &info->op);
         ogg_stream_packetin (&info->to, &info->op);
-        if (ogg_stream_pageout (&info->to, &info->og) != 1){
+        if (ogg_stream_pageout (&info->to, &og) != 1){
             fprintf (stderr, "Internal Ogg library error.\n");
             exit (1);
         }
-        fwrite (info->og.header, 1, info->og.header_len, info->outfile);
-        fwrite (info->og.body, 1, info->og.body_len, info->outfile);
+        fwrite (og.header, 1, og.header_len, info->outfile);
+        fwrite (og.body, 1, og.body_len, info->outfile);
 
         /* create the remaining theora headers */
         /* theora_comment_init (&info->tc); is called in main() prior to parsing options */
@@ -125,12 +127,12 @@ void theoraframes_init (theoraframes_info *info){
                        &header_comm, &header_code);
         ogg_stream_packetin (&info->vo, &header);    /* automatically placed in its own
                                  * page */
-        if (ogg_stream_pageout (&info->vo, &info->og) != 1){
+        if (ogg_stream_pageout (&info->vo, &og) != 1){
             fprintf (stderr, "Internal Ogg library error.\n");
             exit (1);
         }
-        fwrite (info->og.header, 1, info->og.header_len, info->outfile);
-        fwrite (info->og.body, 1, info->og.body_len, info->outfile);
+        fwrite (og.header, 1, og.header_len, info->outfile);
+        fwrite (og.body, 1, og.body_len, info->outfile);
 
         /* remaining vorbis header packets */
         ogg_stream_packetin (&info->vo, &header_comm);
@@ -141,7 +143,7 @@ void theoraframes_init (theoraframes_info *info){
      * the actual data in each stream will start
      * on a new page, as per spec. */
     while (1 && !info->audio_only){
-        int result = ogg_stream_flush (&info->to, &info->og);
+        int result = ogg_stream_flush (&info->to, &og);
         if (result < 0){
             /* can't get here */
             fprintf (stderr, "Internal Ogg library error.\n");
@@ -149,11 +151,11 @@ void theoraframes_init (theoraframes_info *info){
         }
         if (result == 0)
             break;
-        fwrite (info->og.header, 1, info->og.header_len, info->outfile);
-        fwrite (info->og.body, 1, info->og.body_len, info->outfile);
+        fwrite (og.header, 1, og.header_len, info->outfile);
+        fwrite (og.body, 1, og.body_len, info->outfile);
     }
     while (1 && !info->video_only){
-        int result = ogg_stream_flush (&info->vo, &info->og);
+        int result = ogg_stream_flush (&info->vo, &og);
         if (result < 0){
             /* can't get here */
             fprintf (stderr, "Internal Ogg library error.\n");
@@ -161,8 +163,8 @@ void theoraframes_init (theoraframes_info *info){
         }
         if (result == 0)
             break;
-        fwrite (info->og.header, 1, info->og.header_len,info->outfile);
-        fwrite (info->og.body, 1, info->og.body_len, info->outfile);
+        fwrite (og.header, 1, og.header_len,info->outfile);
+        fwrite (og.body, 1, og.body_len, info->outfile);
     }
 
 }
@@ -289,40 +291,41 @@ static int write_video_page(theoraframes_info *info)
 void theoraframes_flush (theoraframes_info *info, int e_o_s)
 {
     int len;
+    ogg_page og;
 
     /* flush out the ogg pages to info->outfile */
     while(1) {
       /* Get pages for both streams, if not already present, and if available.*/
       if(!info->audio_only && !info->videopage_valid) {
-        if(ogg_stream_pageout(&info->to, &info->og) > 0) {
-          len = info->og.header_len + info->og.body_len;
+        if(ogg_stream_pageout(&info->to, &og) > 0) {
+          len = og.header_len + og.body_len;
           if(info->videopage_buffer_length < len) {
             info->videopage = realloc(info->videopage, len);
             info->videopage_buffer_length = len;
           }
           info->videopage_len = len;
-          memcpy(info->videopage, info->og.header, info->og.header_len);
-          memcpy(info->videopage+info->og.header_len , info->og.body, info->og.body_len);
+          memcpy(info->videopage, og.header, og.header_len);
+          memcpy(info->videopage+og.header_len , og.body, og.body_len);
 
           info->videopage_valid = 1;
           info->videotime = theora_granule_time (&info->td,
-                  ogg_page_granulepos(&info->og));
+                  ogg_page_granulepos(&og));
         }
       }
       if(!info->video_only && !info->audiopage_valid) {
-        if(ogg_stream_pageout(&info->vo, &info->og) > 0) {
-          len = info->og.header_len + info->og.body_len;
+        if(ogg_stream_pageout(&info->vo, &og) > 0) {
+          len = og.header_len + og.body_len;
           if(info->audiopage_buffer_length < len) {
             info->audiopage = realloc(info->audiopage, len);
             info->audiopage_buffer_length = len;
           }
           info->audiopage_len = len;
-          memcpy(info->audiopage, info->og.header, info->og.header_len);
-          memcpy(info->audiopage+info->og.header_len , info->og.body, info->og.body_len);
+          memcpy(info->audiopage, og.header, og.header_len);
+          memcpy(info->audiopage+og.header_len , og.body, og.body_len);
 
           info->audiopage_valid = 1;
           info->audiotime= vorbis_granule_time (&info->vd, 
-                  ogg_page_granulepos(&info->og));
+                  ogg_page_granulepos(&og));
         }
       }
 
