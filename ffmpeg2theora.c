@@ -649,7 +649,11 @@ void ff2theora_output(ff2theora this) {
             av_free_packet (&pkt);
         }
         while (ret >= 0);
+/*
+    lets takes this out for now, this way glic stops complaining.
+*/
 
+/*
         if(frame) av_free(frame);
         if(frame_tmp) av_free(frame_tmp);
         if(output) av_free(output);
@@ -662,12 +666,12 @@ void ff2theora_output(ff2theora this) {
                 av_free(resampled);
             av_free(audio_buf);
         }
-        
+
         if (this->img_resample_ctx)
             img_resample_close(this->img_resample_ctx);
         if (this->audio_resample_ctx)
             audio_resample_close(this->audio_resample_ctx);
-
+*/
         oggmux_close (&info);
     }
     else{

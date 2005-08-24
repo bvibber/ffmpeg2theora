@@ -3,6 +3,7 @@
     - update to latest version of ffmpeg-cvs(now uses pkg-config)
     - --audiostream id, new option to select an audio stream if 
       input has more than one audio stream
+    - fixed ogg muxer
 
 0.13     2005-03-12
     - add new command line options, starttime, endtime, sharpness, keyint
