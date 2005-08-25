@@ -803,8 +803,11 @@ void print_usage (){
     
         "\tffmpeg2theora videoclip.avi (will write output to videoclip.ogg)\n\n"
         "\tcat something.dv | ffmpeg2theora -f dv -o output.ogg -\n\n"
-        "\tLive encoding from a DV camcorder (needs a fast machine)\n"
-        "\tdvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
+        "\tLive streaming from V4L Device:\n"
+        "\t ffmpeg2theora --v4l /dev/video0 --inputfps 15 -x 160 -y 128 -o - \\ \n"
+        "\t\t | oggfwd iccast2server 8000 password /theora.ogg\n\n"
+        "\tLive encoding from a DV camcorder (needs a fast machine):\n"
+        "\t dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
         "\n\tLive encoding and streaming to icecast server:\n"
         "\t dvgrab --format raw - | \\\n"
         "\t  ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - | \\\n"
