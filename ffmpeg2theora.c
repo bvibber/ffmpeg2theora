@@ -168,7 +168,7 @@ ff2theora ff2theora_init (){
         this->video_quality=31.5; // video quality 5
         this->video_bitrate=0;
         this->sharpness=2;
-        this->keyint=1111;
+        this->keyint=64;
         this->force_input_fps=0;
         this->sync=0;
         this->aspect_numerator=0;
@@ -464,7 +464,7 @@ void ff2theora_output(ff2theora this) {
 
             info.ti.target_bitrate = this->video_bitrate; 
             info.ti.quality = this->video_quality;
-            info.ti.dropframes_p = 1;
+            info.ti.dropframes_p = 0;
             info.ti.quick_p = 1;
             info.ti.keyframe_auto_p = 1;
             info.ti.keyframe_frequency = this->keyint;
@@ -521,7 +521,7 @@ void ff2theora_output(ff2theora this) {
                     int dups = 0;
                     if(len >0 &&
                         (len1 = avcodec_decode_video(vstream->codec,
-                                        frame,&got_picture, ptr, len))>0) {
+                                        frame, &got_picture, ptr, len))>0) {
                                         
                         if(got_picture){
                             // this is disabled by default since it does not work
@@ -577,6 +577,8 @@ void ff2theora_output(ff2theora this) {
                                 output_resized=output;
                             }
                         }
+                        else
+                            fprintf(stderr,"did not get a pic\n");
                         ptr += len1;
                         len -= len1;
                     }    
