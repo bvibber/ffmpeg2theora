@@ -33,6 +33,7 @@
 
 #ifdef WIN32
 #include "fcntl.h"
+#define rindex  strrchr
 #endif
 
 #include "theorautils.h"
@@ -577,8 +578,6 @@ void ff2theora_output(ff2theora this) {
                                 output_resized=output;
                             }
                         }
-                        else
-                            fprintf(stderr,"did not get a pic\n");
                         ptr += len1;
                         len -= len1;
                     }    

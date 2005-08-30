@@ -1,3 +1,8 @@
+0.15     2005-08-31
+    - ti.dropframes_p = 0 so we do not loos half of the frames.
+    - also increase keyframe interval for better search support.
+    - this time the windows build als supports ac3 decoding again.
+
 0.14     2005-08-15
     - add support for v4l input devices
     - update to latest version of ffmpeg-cvs(now uses pkg-config)
