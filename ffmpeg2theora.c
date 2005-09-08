@@ -484,12 +484,10 @@ void ff2theora_output(ff2theora this) {
         info.vorbis_quality = this->audio_quality;
         info.vorbis_bitrate = this->audio_bitrate;
         oggmux_init (&info);
-        /*seek to start time*/    
-#if LIBAVFORMAT_BUILD <= 4616
-        av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time);
-#else
-        av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
-#endif
+        /*seek to start time*/
+        if(this->start_time) {
+          av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
+        }
         /*check for end time and caclulate number of frames to encode*/
         no_frames = fps*(this->end_time - this->start_time);
         if(this->end_time > 0 && no_frames <= 0){
