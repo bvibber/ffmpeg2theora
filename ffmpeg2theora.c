@@ -1103,10 +1103,13 @@ int main (int argc, char **argv){
         if(outputfile_set!=1){
             sprintf(outputfile_name, "%s", argv[optind]);
             if(str_ptr = rindex(outputfile_name, '.')) {
-                sprintf(str_ptr, ".ogg");
+              sprintf(str_ptr, ".ogg");
+              if(!strcmp(inputfile_name, outputfile_name)){
+                sprintf(outputfile_name, "%s.ogg", inputfile_name);
+              }
             }
-           else {
-                sprintf(outputfile_name, "%s.ogg", outputfile_name);
+            else {
+                 sprintf(outputfile_name, "%s.ogg", outputfile_name);
             }
             outputfile_set=1;
         }
