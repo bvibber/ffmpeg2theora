@@ -518,9 +518,8 @@ void ff2theora_output(ff2theora this) {
                 }
                 while(e_o_s || len > 0){
                     int dups = 0;
-                    if(len >0 &&
-                        (len1 = avcodec_decode_video(vstream->codec,
-                                        frame, &got_picture, ptr, len))>0) {
+                    len1 = avcodec_decode_video(vstream->codec, frame, &got_picture, ptr, len);
+                    if(len1>=0) {
                                         
                         if(got_picture){
                             // this is disabled by default since it does not work
@@ -597,11 +596,11 @@ void ff2theora_output(ff2theora this) {
                     yuv.u = output_resized->data[1];
                     yuv.v = output_resized->data[2];
 
-                    do {                        
+                    if(got_picture) do {                        
                         oggmux_add_video(&info, &yuv ,e_o_s);
                         this->frame_count++;
                     } while(dups--);
-                    if(e_o_s){
+                    if(!got_picture){
                         break;
                     }
                 }
