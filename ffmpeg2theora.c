@@ -54,6 +54,7 @@
 
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
+#define V2V_PRESET_DEFAULT 3
 
 
 typedef struct ff2theora{
@@ -157,8 +158,8 @@ ff2theora ff2theora_init (){
         this->end_time=0; /* 0 denotes no end time set */
 
         // audio
-        this->sample_rate = 44100;  // samplerate hmhmhm
-        this->channels = 2;
+        this->sample_rate = -1;  // samplerate hmhmhm
+        this->channels = -1;
         this->audio_quality=0.297;// audio quality 3
         this->audio_bitrate=0;
         this->audiostream = -1;
@@ -240,7 +241,22 @@ void ff2theora_output(ff2theora this) {
 
         this->fps = fps;
         
-        if(this->preset == V2V_PRESET_PREVIEW){
+        if(this->preset == V2V_PRESET_DEFAULT){
+            // possible sizes 384/288,320/240
+            int pal_width=384;
+            int pal_height=288;
+            int ntsc_width=320;
+            int ntsc_height=240;
+            if(this->fps==25 && (venc->width>pal_width && venc->height>pal_height) ){
+                this->picture_width=pal_width;
+                this->picture_height=pal_height;
+            }
+            else if(abs(this->fps-30)<1 && (venc->width>ntsc_width && venc->height>ntsc_height) ){
+                this->picture_width=ntsc_width;
+                this->picture_height=ntsc_height;
+            }
+        }
+        else if(this->preset == V2V_PRESET_PREVIEW){
             // possible sizes 384/288,320/240
             int pal_width=384;
             int pal_height=288;
@@ -366,6 +382,12 @@ void ff2theora_output(ff2theora this) {
         astream = this->context->streams[this->audio_index];
         aenc = this->context->streams[this->audio_index]->codec;
         acodec = avcodec_find_decoder (aenc->codec_id);
+        if(this->channels==-1) {
+            this->channels = aenc->channels;
+        }
+        if(this->sample_rate==-1) {
+            this->sample_rate = aenc->sample_rate;
+        }
         if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
             aenc->channels = this->channels;
 
@@ -580,10 +602,9 @@ void ff2theora_output(ff2theora this) {
                     }    
                     first=0;
                     //now output_resized
+
                     /* pysical pages */
                     yuv_buffer yuv;
-                    /* Theora is a one-frame-in,one-frame-out system; submit a frame
-                     * for compression and pull out the packet */
                     yuv.y_width = this->frame_width;
                     yuv.y_height = this->frame_height;
                     yuv.y_stride = output_resized->linesize[0];
@@ -595,8 +616,7 @@ void ff2theora_output(ff2theora this) {
                     yuv.y = output_resized->data[0];
                     yuv.u = output_resized->data[1];
                     yuv.v = output_resized->data[2];
-
-                    if(got_picture) do {                        
+                    if(got_picture || e_o_s) do {                        
                         oggmux_add_video(&info, &yuv ,e_o_s);
                         this->frame_count++;
                     } while(dups--);
@@ -1081,14 +1101,16 @@ int main (int argc, char **argv){
                 exit(1);
         }  
     }    
-    //use PREVIEW as default setting
+    //use PREVIEW quality settings, but do not upsample audio/video
     if(argc==2){
         //need a way to set resize here. and not later
-        convert->preset=V2V_PRESET_PREVIEW;
+        convert->preset=V2V_PRESET_DEFAULT;
         convert->video_quality = rint(5*6.3);
         convert->audio_quality=1*.099;
+/*
         convert->channels=2;
         convert->sample_rate=44100;
+*/
     }
     
     while(optind<argc){
