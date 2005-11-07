@@ -1,4 +1,15 @@
-compiling with configure/make
+Compiling from SVN
+------------------
+If you downloaded through SVN, you will not already have a ./configure 
+script. You will need to build one.
+You will need:
+automake 1.6 or later
+libtools
+then run ./autogen.sh
+Then build as you would from a tarball.
+
+
+Compiling from tarball:
 ---------------------------------
 you need
 - the latest version of libtheora ( http://www.theora.org/files )
@@ -17,7 +28,8 @@ now you can build ffmpeg2theora:
 make
 
 
-compinling on windows using mingw32:
+Compinling on windows using mingw32:
+---------------------------------
 you have to compile libvorbis, libogg, libtheora
 configure ffmpeg like this:
 ./configure --disable-encoder --enable-libogg --enable-vorbis --enable-theora \
