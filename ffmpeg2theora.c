@@ -160,14 +160,14 @@ ff2theora ff2theora_init (){
         // audio
         this->sample_rate = -1;  // samplerate hmhmhm
         this->channels = -1;
-        this->audio_quality=0.297;// audio quality 3
+        this->audio_quality=1*.099;// audio quality 1
         this->audio_bitrate=0;
         this->audiostream = -1;
         
         // video
         this->picture_width=0;      // set to 0 to not resize the output
         this->picture_height=0;      // set to 0 to not resize the output
-        this->video_quality=31.5; // video quality 5
+        this->video_quality=rint(5*6.3); // video quality 5
         this->video_bitrate=0;
         this->sharpness=2;
         this->keyint=64;
@@ -1105,9 +1105,11 @@ int main (int argc, char **argv){
     if(argc==2){
         //need a way to set resize here. and not later
         convert->preset=V2V_PRESET_DEFAULT;
+
+// this should not be changed from default if no arguments are given
+/*
         convert->video_quality = rint(5*6.3);
         convert->audio_quality=1*.099;
-/*
         convert->channels=2;
         convert->sample_rate=44100;
 */

@@ -226,11 +226,6 @@ static void print_stats(oggmux_info *info, double timebase){
     int minutes = ((long) timebase / 60) % 60;
     int hours = (long) timebase / 3600;
 
-    if(info->vkbps<0)
-        info->vkbps=0;
-    if(info->akbps<0)
-        info->akbps=0;
-
     fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps                  ",
          hours, minutes, seconds, hundredths,info->akbps, info->vkbps);
 }
@@ -249,6 +244,8 @@ static int write_audio_page(oggmux_info *info)
   info->audiopage_valid = 0;
 
   info->akbps = rint (info->audio_bytesout * 8. / info->audiotime * .001);
+  if(info->akbps<0)
+    info->akbps=0;
   print_stats(info, info->audiotime);
 }
 
@@ -266,6 +263,8 @@ static int write_video_page(oggmux_info *info)
   info->videopage_valid = 0;
 
   info->vkbps = rint (info->video_bytesout * 8. / info->videotime * .001);
+  if(info->vkbps<0)
+    info->vkbps=0;
   print_stats(info, info->videotime);
 }
 
@@ -289,8 +288,10 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
           memcpy(info->videopage+og.header_len , og.body, og.body_len);
 
           info->videopage_valid = 1;
-          info->videotime = theora_granule_time (&info->td,
+          if(ogg_page_granulepos(&og)>0) {
+            info->videotime = theora_granule_time (&info->td,
                   ogg_page_granulepos(&og));
+          }
         }
       }
       if(!info->video_only && !info->audiopage_valid) {
@@ -305,8 +306,10 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
           memcpy(info->audiopage+og.header_len , og.body, og.body_len);
 
           info->audiopage_valid = 1;
-          info->audiotime= vorbis_granule_time (&info->vd, 
+          if(ogg_page_granulepos(&og)>0) {
+            info->audiotime= vorbis_granule_time (&info->vd, 
                   ogg_page_granulepos(&og));
+          }
         }
       }
 
