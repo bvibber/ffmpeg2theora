@@ -20,8 +20,8 @@ ffmpeg2theora \- command-line converter to create Ogg Theora files
 .SH DESCRIPTION
 This manual page documents briefly the \fBffmpeg2theora\fP command.
 .PP
-\fBffmpeg2theora\fP is a program that converts any video file that ffmpeg can
-decode to Ogg Theora.
+\fBffmpeg2theora\fP is a program that converts any media file that ffmpeg can
+decode to Ogg Theora for video and Ogg Vorbis for audio.
 .SH OPTIONS
 To read from standard input, specify `\-' as the input filename.
 
@@ -35,6 +35,12 @@ Specify the output filename.  If no output filename is specified, output will
 be written to \fIinputfile\fP.ogg.  To output to standard output, specify
 /dev/stdout as the output file.
 .TP
+.B \-v, \-\-videoquality
+[0 to 10] Set encoding quality for video (default: 5).
+.TP
+.B \-V, \-\-videobitrate
+[45 to 2000] Set encoding bitrate for video.
+.TP
 .B \-x, \-\-width
 Scale to given width.
 .TP
@@ -47,21 +53,15 @@ Define frame aspect ratio (e.g. 4:3, 16:9).
 .B \-\-crop[top|bottom|left|right]
 Crop input before resizing.
 .TP
-.B \-v, \-\-videoquality
-[0 to 10] Set encoding quality for video.
-.TP
-.B \-V, \-\-videobitrate
-[45 to 2000] Set encoding bitrate for video.
-.TP
 .B \-S, \-\-sharpness
-[0 to 2] Sharpness of images (default 2).  Note: lower values make the video
+[0 to 2] Sharpness of images (default: 2).  Note: lower values make the video
 sharper.
 .TP
 .B \-K, \-\-keyint
-[8 to 65536] Set keyframe interval (default 64).
+[8 to 65536] Set keyframe interval (default: 64).
 .TP
 .B \-a, \-\-audioquality
-[-1 to 10] Set encoding quality for audio.
+[-1 to 10] Set encoding quality for audio (default: 1).
 .TP
 .B \-A, \-\-audiobitrate
 [45 to 2000] Set encoding bitrate for audio.

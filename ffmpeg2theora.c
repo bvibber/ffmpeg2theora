@@ -50,12 +50,18 @@
 #define INPUTFPS_FLAG       11
 #define AUDIOSTREAM_FLAG    12
 
-
-
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
-#define V2V_PRESET_DEFAULT 3
 
+#define PAL_HALF_WIDTH 384
+#define PAL_HALF_HEIGHT 288
+#define NTSC_HALF_WIDTH 320
+#define NTSC_HALF_HEIGHT 240
+
+#define PAL_FULL_WIDTH 720
+#define PAL_FULL_HEIGHT 576
+#define NTSC_FULL_WIDTH 720
+#define NTSC_FULL_HEIGHT 480
 
 typedef struct ff2theora{
     AVFormatContext *context;
@@ -160,7 +166,7 @@ ff2theora ff2theora_init (){
         // audio
         this->sample_rate = -1;  // samplerate hmhmhm
         this->channels = -1;
-        this->audio_quality=1*.099;// audio quality 1
+        this->audio_quality = 1.00;// audio quality 1
         this->audio_bitrate=0;
         this->audiostream = -1;
         
@@ -240,45 +246,25 @@ void ff2theora_output(ff2theora this) {
             this->video_index = -1;
 
         this->fps = fps;
-        
-        if(this->preset == V2V_PRESET_DEFAULT){
-            // possible sizes 384/288,320/240
-            int pal_width=384;
-            int pal_height=288;
-            int ntsc_width=320;
-            int ntsc_height=240;
-            if(this->fps==25 && (venc->width>pal_width && venc->height>pal_height) ){
-                this->picture_width=pal_width;
-                this->picture_height=pal_height;
+
+        if(this->preset == V2V_PRESET_PREVIEW){
+            if(this->fps==25 && (venc->width!=PAL_HALF_WIDTH || venc->height!=PAL_HALF_HEIGHT) ){
+                this->picture_width=PAL_HALF_WIDTH;
+                this->picture_height=PAL_HALF_HEIGHT;
             }
-            else if(abs(this->fps-30)<1 && (venc->width>ntsc_width && venc->height>ntsc_height) ){
-                this->picture_width=ntsc_width;
-                this->picture_height=ntsc_height;
-            }
-        }
-        else if(this->preset == V2V_PRESET_PREVIEW){
-            // possible sizes 384/288,320/240
-            int pal_width=384;
-            int pal_height=288;
-            int ntsc_width=320;
-            int ntsc_height=240;
-            if(this->fps==25 && (venc->width!=pal_width || venc->height!=pal_height) ){
-                this->picture_width=pal_width;
-                this->picture_height=pal_height;
-            }
-            else if(abs(this->fps-30)<1 && (venc->width!=ntsc_width || venc->height!=ntsc_height) ){
-                this->picture_width=ntsc_width;
-                this->picture_height=ntsc_height;
+            else if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
+                this->picture_width=NTSC_HALF_WIDTH;
+                this->picture_height=NTSC_HALF_HEIGHT;
             }
         }
         else if(this->preset == V2V_PRESET_PRO){
-            if(this->fps==25 && (venc->width!=720 || venc->height!=576) ){
-                this->picture_width=720;
-                this->picture_height=576;
+            if(this->fps==25 && (venc->width!=PAL_FULL_WIDTH || venc->height!=PAL_FULL_HEIGHT) ){
+                this->picture_width=PAL_FULL_WIDTH;
+                this->picture_height=PAL_FULL_HEIGHT;
             }
-            else if(abs(this->fps-30)<1 && (venc->width!=720 || venc->height!=480) ){
-                this->picture_width=720;
-                this->picture_height=480;
+            else if(abs(this->fps-30)<1 && (venc->width!=NTSC_FULL_WIDTH || venc->height!=NTSC_FULL_HEIGHT) ){
+                this->picture_width=NTSC_FULL_WIDTH;
+                this->picture_height=NTSC_FULL_HEIGHT;
             }
         }
         if (this->deinterlace==1)
@@ -333,13 +319,11 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
         }
 
-        
-        /* Theora has a divisible-by-sixteen restriction for the encoded video size */  /* scale the frame size up to the nearest /16 and calculate offsets */
-
         if(!this->picture_width) 
             this->picture_width = venc->width;
         if(!this->picture_height)
             this->picture_height = venc->height;
+
         /* Theora has a divisible-by-sixteen restriction for the encoded video size */
         /* scale the frame size up to the nearest /16 and calculate offsets */
         this->frame_width = ((this->picture_width + 15) >>4)<<4;
@@ -451,9 +435,7 @@ void ff2theora_output(ff2theora this) {
                             this->frame_width, this->frame_height);
             output_buffered =alloc_picture(PIX_FMT_YUV420P,
                             this->frame_width, this->frame_height);    
-        }
 
-        if(!info.audio_only){
             /* video settings here */
             /* config file? commandline options? v2v presets? */
             
@@ -503,7 +485,7 @@ void ff2theora_output(ff2theora this) {
         /* audio settings here */
         info.channels = this->channels;
         info.sample_rate = this->sample_rate;
-        info.vorbis_quality = this->audio_quality;
+        info.vorbis_quality = this->audio_quality * 0.1;
         info.vorbis_bitrate = this->audio_bitrate;
         oggmux_init (&info);
         /*seek to start time*/
@@ -766,17 +748,19 @@ void print_usage (){
         " usage: " PACKAGE " [options] input\n\n"
     
         "Output options:\n"
-        "\t --output,-o\t\talternative output\n"
+        "\t --output,-o\t\talternative output filename\n"
+        "\t --videoquality,-v\t[0 to 10] encoding quality for video\n"
+        "\t                 \t (default: 5)\n"
+        "\t --videobitrate,-V\t[45 to 2000] encoding bitrate for video\n"
         "\t --width, -x\t\tscale to given size\n"
         "\t --height,-y\t\tscale to given size\n"
         "\t --aspect\t\tdefine frame aspect ratio: i.e. 4:3 or 16:9\n"
         "\t --crop[top|bottom|left|right]\tcrop input before resizing\n"        
-        "\t --videoquality,-v\t[0 to 10]    encoding quality for video\n"
-        "\t --videobitrate,-V\t[45 to 2000] encoding bitrate for video\n"
-        "\t --sharpness,-S  \t[0 to 2]     sharpness of images(default 2)\n"
-        "\t                 \t   { lower values make the video sharper. }\n"
+        "\t --sharpness,-S  \t[0 to 2] sharpness of images (default: 2)\n"
+        "\t                 \t { lower values make the video sharper. }\n"
         "\t --keyint,-K      \t[8 to 65536] keyframe interval (default: 64)\n"
-        "\t --audioquality,-a\t[-1 to 10]   encoding quality for audio\n"
+        "\t --audioquality,-a\t[-1 to 10] encoding quality for audio\n"
+        "\t                 \t (default: 1)\n"
         "\t --audiobitrate,-A\t[45 to 2000] encoding bitrate for audio\n"
         "\t --samplerate,-H\tset output samplerate in Hz\n"
         "\t --channels,-c\t\tset number of output sound channels\n"
@@ -1020,8 +1004,8 @@ int main (int argc, char **argv){
                 convert->video_quality=0;
                 break; 
             case 'a':
-                convert->audio_quality=atof(optarg)*.099;
-                if(convert->audio_quality<-.2 || convert->audio_quality>1){
+                convert->audio_quality=atof(optarg);
+                if(convert->audio_quality<-2 || convert->audio_quality>10){
                     fprintf(stderr,"only values from -1 to 10 are valid for audio quality\n");
                     exit(1);
                 }
@@ -1033,7 +1017,7 @@ int main (int argc, char **argv){
                     fprintf(stderr,"only values >0 are valid for audio bitrate\n");
                     exit(1);
                 }
-                convert->audio_quality=-99;
+                convert->audio_quality=-990;
                 break;
             case 'S':
                 convert->sharpness = atoi(optarg);
@@ -1066,7 +1050,7 @@ int main (int argc, char **argv){
                     //need a way to set resize here. and not later
                     convert->preset=V2V_PRESET_PRO;
                     convert->video_quality = rint(7*6.3);
-                    convert->audio_quality=3*.099;
+                    convert->audio_quality = 3.00;
                     convert->channels=2;
                     convert->sample_rate=48000;
                     convert->sharpness=0;
@@ -1075,7 +1059,7 @@ int main (int argc, char **argv){
                     //need a way to set resize here. and not later
                     convert->preset=V2V_PRESET_PREVIEW;
                     convert->video_quality = rint(5*6.3);
-                    convert->audio_quality=1*.099;
+                    convert->audio_quality = 1.00;
                     convert->channels=2;
                     convert->sample_rate=44100;
                     convert->sharpness=2;
@@ -1101,19 +1085,6 @@ int main (int argc, char **argv){
                 exit(1);
         }  
     }    
-    //use PREVIEW quality settings, but do not upsample audio/video
-    if(argc==2){
-        //need a way to set resize here. and not later
-        convert->preset=V2V_PRESET_DEFAULT;
-
-// this should not be changed from default if no arguments are given
-/*
-        convert->video_quality = rint(5*6.3);
-        convert->audio_quality=1*.099;
-        convert->channels=2;
-        convert->sample_rate=44100;
-*/
-    }
     
     while(optind<argc){
         /* assume that anything following the options must be a filename */
@@ -1140,8 +1111,8 @@ int main (int argc, char **argv){
 
     if(formatParams != NULL) {
         formatParams->channel = 0;
-        formatParams->width = 384;
-        formatParams->height = 288;
+        formatParams->width = PAL_HALF_WIDTH;
+        formatParams->height = PAL_HALF_HEIGHT;
         if(convert->picture_width)
             formatParams->width = convert->picture_width;
         if(convert->picture_height)
