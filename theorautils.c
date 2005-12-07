@@ -277,7 +277,12 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
     while(1) {
       /* Get pages for both streams, if not already present, and if available.*/
       if(!info->audio_only && !info->videopage_valid) {
-        if(ogg_stream_pageout(&info->to, &og) > 0) {
+
+        // flush a page each frame;
+        // this way seeking is much better, possibly there is a way to 
+        // do this better, but for now this works.
+//        if(ogg_stream_pageout(&info->to, &og) > 0) {
+        if(ogg_stream_flush(&info->to, &og) > 0) {
           len = og.header_len + og.body_len;
           if(info->videopage_buffer_length < len) {
             info->videopage = realloc(info->videopage, len);
