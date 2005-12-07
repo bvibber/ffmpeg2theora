@@ -2,10 +2,12 @@ svn
     - support encoding from .ogg input file.
     - don't change samplerate and audio channel unless we use command line
       options.
-    - don't change the resolution image, unless we use the presets or the
-      -x or -y options. (old default was to encode to preset preview)
+    - don't change the image resolution, unless we use the presets or the
+      -x or -y options (old default was to encode to preset preview).
     - change the audio quality levels that were multiplied by 0.99, now 
       match the quality settings of oggenc, e.g. -a2 == -q2.
+    - add --optimize option: use a full search for motion vectors and
+      reduce Theora bitrate by about 5%, but it is slower.
 
 0.15     2005-08-31
     - ti.dropframes_p = 0 so we do not loos half of the frames.

@@ -13,9 +13,9 @@ Compiling from tarball:
 ---------------------------------
 you need
 - the latest version of libtheora ( http://www.theora.org/files )
-- ffmpeg-cvs ( http://ffmpeg.sf.net ) / by running ./get_ffmpeg_cvs.sh
-  configure it with i.e.
-  ./configure --disable-encoder --enable-faad --enable-pp --enable-a52  --enable-dts --enable-pthreads --disable-vhook --enable-gpl --enable-libogg --enable-vorbis --enable-theora
+- ffmpeg-cvs ( http://ffmpeg.sf.net ) by running ./get_ffmpeg_cvs.sh
+  (this script downloads current CVS ffmpeg, runs an appropriate
+  configure and builds ffmpeg)
 
 if you did not install ffmpeg but want to staticly link it
 (recomended by ffmpeg developers) update PKG_CONFIG_PATH to
@@ -28,7 +28,7 @@ now you can build ffmpeg2theora:
 make
 
 
-Compinling on windows using mingw32:
+Compiling on windows using mingw32:
 ---------------------------------
 you have to compile libvorbis, libogg, libtheora
 configure ffmpeg like this:
