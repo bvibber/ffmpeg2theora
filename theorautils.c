@@ -30,6 +30,8 @@
 
 #include "theorautils.h"
 
+
+
 static double rint(double x)
 {
   if (x < 0.0)
@@ -50,6 +52,12 @@ void init_info(oggmux_info *info) {
     info->videopage_buffer_length = 0;
     info->audiopage = NULL;
     info->videopage = NULL;
+    info->v_pkg=0;
+    info->a_pkg=0;
+#ifdef OGGMUX_DEBUG
+    info->a_page=0;
+    info->v_page=0;
+#endif
 }
 
 void oggmux_init (oggmux_info *info){
@@ -178,6 +186,7 @@ void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s){
     theora_encode_YUVin (&info->td, yuv);
     while(theora_encode_packetout (&info->td, e_o_s, &op)) {
       ogg_stream_packetin (&info->to, &op);
+      info->v_pkg++;
     }
 }
     
@@ -216,6 +225,7 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
         /* weld packets into the bitstream */
         while (vorbis_bitrate_flushpacket (&info->vd, &op)){
             ogg_stream_packetin (&info->vo, &op);
+            info->a_pkg++;
         }
     }
 }
@@ -242,6 +252,12 @@ static int write_audio_page(oggmux_info *info)
     info->audio_bytesout += ret;
   }
   info->audiopage_valid = 0;
+  info->a_pkg -=ogg_page_packets((ogg_page *)&info->audiopage);
+#ifdef OGGMUX_DEBUG
+  info->a_page++;
+  info->v_page=0;
+  fprintf(stderr,"\naudio page %d (%d pkgs) | pkg remaining %d\n",info->a_page,ogg_page_packets((ogg_page *)&info->audiopage),info->a_pkg);
+#endif
 
   info->akbps = rint (info->audio_bytesout * 8. / info->audiotime * .001);
   if(info->akbps<0)
@@ -261,6 +277,13 @@ static int write_video_page(oggmux_info *info)
     info->video_bytesout += ret;
   }
   info->videopage_valid = 0;
+  info->v_pkg -= ogg_page_packets((ogg_page *)&info->videopage);
+#ifdef OGGMUX_DEBUG
+  info->v_page++;
+  info->a_page=0;
+  fprintf(stderr,"\nvideo page %d (%d pkgs) | pkg remaining %d\n",info->v_page,ogg_page_packets((ogg_page *)&info->videopage),info->v_pkg);
+#endif
+
 
   info->vkbps = rint (info->video_bytesout * 8. / info->videotime * .001);
   if(info->vkbps<0)
@@ -277,12 +300,16 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
     while(1) {
       /* Get pages for both streams, if not already present, and if available.*/
       if(!info->audio_only && !info->videopage_valid) {
-
-        // flush a page each frame;
-        // this way seeking is much better, possibly there is a way to 
-        // do this better, but for now this works.
-//        if(ogg_stream_pageout(&info->to, &og) > 0) {
-        if(ogg_stream_flush(&info->to, &og) > 0) {
+        // this way seeking is much better,
+        // not sure if 23 packets  is a good value. it works though
+        int v_next=0;
+        if(info->v_pkg>22 && ogg_stream_flush(&info->to, &og) > 0) {
+          v_next=1;
+        }
+        else if(ogg_stream_pageout(&info->to, &og) > 0) {
+          v_next=1;
+        }
+        if(v_next) {
           len = og.header_len + og.body_len;
           if(info->videopage_buffer_length < len) {
             info->videopage = realloc(info->videopage, len);

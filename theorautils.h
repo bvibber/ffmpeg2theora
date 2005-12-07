@@ -24,6 +24,7 @@
 #include "vorbis/vorbisenc.h"
 #include "ogg/ogg.h"
 
+// #define OGGMUX_DEBUG
 
 typedef struct
 {
@@ -73,6 +74,14 @@ typedef struct
     int akbps;
     ogg_int64_t audio_bytesout;
     ogg_int64_t video_bytesout;
+
+    //to do some manual page flusing
+    int v_pkg;
+    int a_pkg;
+#ifdef OGGMUX_DEBUG
+    int a_page;
+    int v_page;
+#endif
 }
 oggmux_info;
 
