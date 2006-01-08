@@ -43,6 +43,7 @@
 #endif
 
 #define DEINTERLACE_FLAG     1
+#define OPTIMIZE_FLAG        2
 #define SYNC_FLAG            3
 #define NOSOUND_FLAG         4
 #ifdef VIDEO4LINUX_ENABLED
@@ -55,7 +56,6 @@
 #define ASPECT_FLAG         10
 #define INPUTFPS_FLAG       11
 #define AUDIOSTREAM_FLAG    12
-#define OPTIMIZE_FLAG       13
 
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
@@ -226,8 +226,10 @@ void ff2theora_output(ff2theora this) {
     
     for (i = 0; i < this->context->nb_streams; i++){
         AVCodecContext *enc = this->context->streams[i]->codec;
+
         switch (enc->codec_type){
         case CODEC_TYPE_VIDEO:
+
             if (this->video_index < 0)
                 this->video_index = i;
             break;
@@ -251,9 +253,9 @@ void ff2theora_output(ff2theora this) {
 
         if(this->force_input_fps)
             fps=this->force_input_fps;
-        if (vcodec == NULL || avcodec_open (venc, vcodec) < 0)
+        if (vcodec == NULL || avcodec_open (venc, vcodec) < 0) {
             this->video_index = -1;
-
+        }
         this->fps = fps;
 
         if(this->preset == V2V_PRESET_PREVIEW){
@@ -370,13 +372,15 @@ void ff2theora_output(ff2theora this) {
             
         }
     }
-
     if (this->audio_index >= 0){
         astream = this->context->streams[this->audio_index];
         aenc = this->context->streams[this->audio_index]->codec;
         acodec = avcodec_find_decoder (aenc->codec_id);
-        if(this->channels==-1) {
-            this->channels = aenc->channels;
+        if (this->channels == -1) {
+            if (aenc->channels > 2)
+                this->channels = 2;
+            else
+                this->channels = aenc->channels;
         }
         if(this->sample_rate==-1) {
             this->sample_rate = aenc->sample_rate;
@@ -501,7 +505,7 @@ void ff2theora_output(ff2theora this) {
         if(this->start_time) {
           av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
         }
-        /*check for end time and caclulate number of frames to encode*/
+        /*check for end time and calculate number of frames to encode*/
         no_frames = fps*(this->end_time - this->start_time);
         if(this->end_time > 0 && no_frames <= 0){
             fprintf(stderr,"end time has to be bigger than start time\n");
@@ -739,96 +743,107 @@ int crop_check(ff2theora this, char *name, const char *arg)
 
 
 void print_presets_info() {
-    fprintf (stderr, 
+    fprintf (stdout, 
         //  "v2v presets - more info at http://wiki.v2v.cc/presets"
-        "v2v presets\n"
-        "preview\t\thalf size DV video. encoded with Ogg Theora/Ogg Vorbis\n"
-        "\t\t\tVideo: Quality 5;\n"
-        "\t\t\tAudio: Quality 1 - Stereo\n\n"
-        "pro\t\tfull size DV video. encoded with Ogg Theora/Ogg Vorbis \n"
-        "\t\t\tVideo: Quality 7;\n"
-        "\t\t\tAudio: Quality 3 - Stereo\n"
-        "\n");
+        "v2v presets:\n"
+        "  preview        Video: 384x288 if fps ~ 25, 320x240 if fps ~ 30\n"
+        "                        Quality 5 - Sharpness 2\n"
+        "                 Audio: Max 2 channels - Quality 1\n"
+        "\n"
+        "  pro            Video: 720x576 if fps ~ 25, 720x480 if fps ~ 30\n"
+        "                        Quality 7 - Sharpness 0\n"
+        "                 Audio: Max 2 channels - Quality 3\n"
+        "\n"
+        );
 }
 
 void print_usage (){
     fprintf (stdout, 
-        PACKAGE " " PACKAGE_VERSION "\n\n"
-        " usage: " PACKAGE " [options] input\n\n"
-    
-        "Output options:\n"
-        "\t --output,-o\t\talternative output filename\n"
-        "\t --videoquality,-v\t[0 to 10] encoding quality for video\n"
-        "\t                 \t (default: 5)\n"
-        "\t --videobitrate,-V\t[45 to 2000] encoding bitrate for video\n"
-        "\t --width, -x\t\tscale to given size\n"
-        "\t --height,-y\t\tscale to given size\n"
-        "\t --aspect\t\tdefine frame aspect ratio: i.e. 4:3 or 16:9\n"
-        "\t --crop[top|bottom|left|right]\tcrop input before resizing\n"        
-        "\t --optimize      \toptimize video output filesize (very slow)\n"
-        "\t --sharpness,-S  \t[0 to 2] sharpness of images (default: 2)\n"
-        "\t                 \t { lower values make the video sharper. }\n"
-        "\t --keyint,-K      \t[8 to 65536] keyframe interval (default: 64)\n"
-        "\t --audioquality,-a\t[-2 to 10] encoding quality for audio\n"
-        "\t                 \t (default: 1)\n"
-        "\t --audiobitrate,-A\t[32 to 2000] encoding bitrate for audio\n"
-        "\t --samplerate,-H\tset output samplerate in Hz\n"
-        "\t --channels,-c\t\tset number of output sound channels\n"
-        "\t --nosound\t\tdisable the sound from input\n"
-        "\t --endtime,-e\t\tend encoding at this time (in sec)\n"
-        "\t --starttime,-s\t\tstart encoding at this time (in sec)\n"
-        "\t --v2v-preset,-p\tencode file with v2v preset, \n"
-        "\t\t\t\t right now there is preview and pro,\n"
-        "\t\t\t\t '"PACKAGE" -p info' for more informations\n"
-    
-        "\nInput options:\n"
-        "\t --deinterlace \t\tforce deinterlace\n"
-        "\t\t\t\totherwise only material marked as interlaced \n"
-        "\t\t\t\twill be deinterlaced\n"
-        "\t --format,-f\t\tspecify input format\n"
+        PACKAGE " " PACKAGE_VERSION "\n"
+        "\n"
+        "  Usage: " PACKAGE " [options] input\n"
+        "\n"
+        "General output options:\n"
+        "  -o, --output           alternative output filename\n"
+        "  -s, --starttime        start encoding at this time (in sec.)\n"
+        "  -e, --endtime          end encoding at this time (in sec.)\n"
+        "  -p, --v2v-preset       encode file with v2v preset.\n"
+        "                          Right now there is preview and pro. Run\n"
+        "                          '"PACKAGE" -p info' for more informations\n"
+        "\n"
+        "Video output options:\n"
+        "  -v, --videoquality     [0 to 10] encoding quality for video\n"
+        "                          (default: 5)\n"
+        "  -V, --videobitrate     [1 to 16000] encoding bitrate for video (kb/s)\n"
+        "      --optimize         optimize video output filesize (slower)\n"
+        "  -x, --width            scale to given width (in pixels)\n"
+        "  -y, --height           scale to given height (in pixels)\n"
+        "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
+        "      --croptop, --cropbottom, --cropleft, --cropright\n"        
+        "                         crop input by given pixels before resizing\n"        
+        "  -S, --sharpness        [0 to 2] sharpness of images (default: 2).\n"
+        "                          Note: lower values make the video sharper.\n"
+        "  -K, --keyint           [8 to 65536] keyframe interval (default: 64)\n"
+        "\n"
+        "Audio output options:\n"
+        "  -a, --audioquality     [-2 to 10] encoding quality for audio\n"
+        "                          (default: 1)\n"
+        "  -A, --audiobitrate     [32 to 500] encoding bitrate for audio (kb/s)\n"
+        "  -c, --channels         set number of output channels\n"
+        "  -H, --samplerate       set output samplerate (in Hz)\n"
+        "      --nosound          disable the sound from input\n"
+        "\n"
+        "Input options:\n"
+        "      --deinterlace      force deinterlace, otherwise only material\n"
+        "                          marked as interlaced will be deinterlaced\n"
+        "  -f, --format           specify input format\n"
 #ifdef VIDEO4LINUX_ENABLED
-        "\t --v4l   /dev/video0\tread data from v4l device /dev/video0\n"
-        "\t            \t\tyou have to specifiy an output file with -o\n"
+        "      --v4l /dev/video0  read data from v4l device /dev/video0\n"
+        "                          you have to specifiy an output file with -o\n"
 #endif
-        "\t --inputfps [fps]\toverride input fps\n"
-        "\t --audiostream streamid\tby default the last audiostream is selected,\n"
-        "\t                 \tuse this to select another audio stream\n"
-        "\t --sync\t\t\tUse A/V Sync from input container.\n"
-        "\t       \t\tsince this does not work with all input format\n"
-        "\t       \t\tyou have to manualy enable it if you have issues\n"
-        "\t       \t\twith A/V sync.\n"
-        
-        "\nMetadata options:\n"
-        "\t --artist\tName of artist (director)\n"
-        "\t --title\tTitle\n"
-        "\t --date\t\tDate\n"
-        "\t --location\tLocation\n"
-        "\t --organization\tName of organization (studio)\n"
-        "\t --copyright\tCopyright\n"
-        "\t --license\tLicence\n"
-        "\nOther options:\n"
+        "      --inputfps fps     override input fps\n"
+        "      --audiostream id   by default the last audio stream is selected,\n"
+        "                          use this to select another audio stream\n"
+        "      --sync             use A/V sync from input container.\n"
+        "                          Since this does not work with all input format\n"
+        "                          you have to manualy enable it if you have\n"
+        "                          issues with A/V sync\n"
+        "\n"
+        "Metadata options:\n"
+        "      --artist           Name of artist (director)\n"
+        "      --title            Title\n"
+        "      --date             Date\n"
+        "      --location         Location\n"
+        "      --organization     Name of organization (studio)\n"
+        "      --copyright        Copyright\n"
+        "      --license          License\n"
+        "\n"
+        "Other options:\n"
 #ifndef _WIN32
-        "\t --nice\t\t\tset niceness to n\n"
+        "      --nice n           set niceness to n\n"
 #endif
-        "\t --help,-h\t\tthis message\n"
-
-
-        "\n Examples:\n"
-    
-        "\tffmpeg2theora videoclip.avi (will write output to videoclip.ogg)\n\n"
-        "\tcat something.dv | ffmpeg2theora -f dv -o output.ogg -\n\n"
+        "  -h, --help             this message\n"
+        "\n"
+        "Examples:\n"
+        "  ffmpeg2theora videoclip.avi (will write output to videoclip.ogg)\n"
+        "\n"
+        "  cat something.dv | ffmpeg2theora -f dv -o output.ogg -\n"
+        "\n"
 #ifdef VIDEO4LINUX_ENABLED
-        "\tLive streaming from V4L Device:\n"
-        "\t ffmpeg2theora --v4l /dev/video0 --inputfps 15 -x 160 -y 128 -o - \\ \n"
-        "\t\t | oggfwd iccast2server 8000 password /theora.ogg\n\n"
+        "  Live streaming from V4L Device:\n"
+        "  ffmpeg2theora --v4l /dev/video0 --inputfps 15 -x 160 -y 128 -o - \\\n"
+        "   | oggfwd iccast2server 8000 password /theora.ogg\n"
+        "\n"
 #endif
-        "\tLive encoding from a DV camcorder (needs a fast machine):\n"
-        "\t dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
-        "\n\tLive encoding and streaming to icecast server:\n"
-        "\t dvgrab --format raw - | \\\n"
-        "\t  ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - | \\\n"
-        "\t  oggfwd iccast2server 8000 password /theora.ogg\n"
-        "\n");
+        "  Live encoding from a DV camcorder (needs a fast machine):\n"
+        "  dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
+        "\n"
+        "  Live encoding and streaming to icecast server:\n"
+        "  dvgrab --format raw - | \\\n"
+        "   ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - | \\\n"
+        "   oggfwd iccast2server 8000 password /theora.ogg\n"
+        "\n"
+        );
     exit (0);
 }
 
@@ -839,8 +854,8 @@ int main (int argc, char **argv){
     char inputfile_name[255];
     char *str_ptr;
     
-    static int flag=-1;
-    static int metadata_flag=0;
+    static int flag = -1;
+    static int metadata_flag = 0;
 
     AVInputFormat *input_fmt = NULL;
     AVFormatParameters *formatParams = NULL;
@@ -909,16 +924,16 @@ int main (int argc, char **argv){
                     switch (flag) 
                     {
                         case DEINTERLACE_FLAG:
-                            convert->deinterlace=1;
-                            flag=-1;
+                            convert->deinterlace = 1;
+                            flag = -1;
                             break;
                         case SYNC_FLAG:
-                            convert->sync=1;
-                            flag=-1;
+                            convert->sync = 1;
+                            flag = -1;
                             break;
                         case NOSOUND_FLAG:
-                            convert->disable_audio=1;
-                            flag=-1;
+                            convert->disable_audio = 1;
+                            flag = -1;
                             break;
                         case OPTIMIZE_FLAG:
                             convert->quick_p = 0;
@@ -928,37 +943,37 @@ int main (int argc, char **argv){
                         case V4L_FLAG:
                             formatParams = malloc(sizeof(AVFormatParameters));
                             formatParams->device = optarg;
-                            flag=-1;
+                            flag = -1;
                             break;
 #endif
                 /* crop */
                         case CROPTOP_FLAG:
-                            convert->frame_topBand=crop_check(convert,"top",optarg);
-                            flag=-1;
+                            convert->frame_topBand = crop_check(convert,"top",optarg);
+                            flag = -1;
                             break;
                         case CROPBOTTOM_FLAG:
-                            convert->frame_bottomBand=crop_check(convert,"bottom",optarg);
-                            flag=-1;
+                            convert->frame_bottomBand = crop_check(convert,"bottom",optarg);
+                            flag = -1;
                             break;
                         case CROPRIGHT_FLAG:
-                            convert->frame_rightBand=crop_check(convert,"right",optarg);
-                            flag=-1;
+                            convert->frame_rightBand = crop_check(convert,"right",optarg);
+                            flag = -1;
                             break;
                         case CROPLEFT_FLAG:
-                            convert->frame_leftBand=crop_check(convert,"left",optarg);
-                            flag=-1;
+                            convert->frame_leftBand = crop_check(convert,"left",optarg);
+                            flag = -1;
                             break;
                         case ASPECT_FLAG:
-                            convert->frame_aspect=aspect_check(optarg);
-                            flag=-1;
+                            convert->frame_aspect = aspect_check(optarg);
+                            flag = -1;
                             break;
                         case INPUTFPS_FLAG:
-                            convert->force_input_fps=atof(optarg);
-                            flag=-1;
+                            convert->force_input_fps = atof(optarg);
+                            flag = -1;
                             break;
                         case AUDIOSTREAM_FLAG:
-                            convert->audiostream=atoi(optarg);;
-                            flag=-1;
+                            convert->audiostream = atoi(optarg);;
+                            flag = -1;
                             break;
                     }
                 }
@@ -1020,8 +1035,8 @@ int main (int argc, char **argv){
                 break;
             case 'V':
                 convert->video_bitrate=rint(atof(optarg)*1000);
-                if(convert->video_bitrate<0 || convert->video_bitrate>2000000){
-                    fprintf(stderr,"only values from 0 to 2000000 are valid for video bitrate(in kb/s)\n");
+                if (convert->video_bitrate < 1000 || convert->video_bitrate > 16000000) {
+                    fprintf(stderr, "only values from 1 to 16000 are valid for video bitrate (in kb/s)\n");
                     exit(1);
                 }
                 convert->video_quality=0;
@@ -1040,7 +1055,7 @@ int main (int argc, char **argv){
                     fprintf(stderr,"only values >0 are valid for audio bitrate\n");
                     exit(1);
                 }
-                convert->audio_quality=-990;
+                convert->audio_quality = -990;
                 break;
             case 'S':
                 convert->sharpness = atoi(optarg);
@@ -1074,16 +1089,14 @@ int main (int argc, char **argv){
                     convert->preset=V2V_PRESET_PRO;
                     convert->video_quality = rint(7*6.3);
                     convert->audio_quality = 3.00;
-                    convert->channels=2;
-                    convert->sharpness=0;
+                    convert->sharpness = 0;
                 }
                 else if(!strcmp(optarg,"preview")){
                     //need a way to set resize here. and not later
                     convert->preset=V2V_PRESET_PREVIEW;
                     convert->video_quality = rint(5*6.3);
                     convert->audio_quality = 1.00;
-                    convert->channels=2;
-                    convert->sharpness=2;
+                    convert->sharpness = 2;
                 }
                 else{
                     fprintf(stderr,"\nunknown preset.\n\n");
