@@ -327,7 +327,16 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
         }
       }
       if(!info->video_only && !info->audiopage_valid) {
-        if(ogg_stream_pageout(&info->vo, &og) > 0) {
+        // this way seeking is much better,
+        // not sure if 23 packets  is a good value. it works though
+        int a_next=0;
+        if(info->a_pkg>22 && ogg_stream_flush(&info->vo, &og) > 0) {
+          a_next=1;
+        }
+        else if(ogg_stream_pageout(&info->vo, &og) > 0) {
+          a_next=1;
+        }
+        if(a_next) {
           len = og.header_len + og.body_len;
           if(info->audiopage_buffer_length < len) {
             info->audiopage = realloc(info->audiopage, len);
