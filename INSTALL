@@ -27,6 +27,15 @@ now you can build ffmpeg2theora:
 ./configure
 make
 
+Installation
+------------
+
+make install
+
+Unless you specify a different --prefix option to ./configure, you will
+need root privileges for this, ie.:
+
+sudo make install
 
 Compiling on windows using mingw32:
 ---------------------------------
