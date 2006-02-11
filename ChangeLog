@@ -1,4 +1,4 @@
-svn
+0.16  2006-02-11
     - support encoding from .ogg input file.
     - don't change samplerate and audio channels unless we use command
       line options -H or -c, or when the input channels are > 2

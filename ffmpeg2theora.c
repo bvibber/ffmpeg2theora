@@ -1217,16 +1217,22 @@ int main (int argc, char **argv){
 
                 convert->pts_offset = 
                     (double) convert->context->start_time / AV_TIME_BASE;
+                if(!info.outfile) {
+                    fprintf (stderr,"\nUnable to open output file %s\n", outputfile_name);
+                    return(1);
+                }
                 ff2theora_output (convert);
                 convert->audio_index =convert->video_index = -1;
             }
             else{
-                fprintf (stderr,"Unable to decode input\n");
+                fprintf (stderr,"\nUnable to decode input\n");
+                return(1);
             }
             av_close_input_file (convert->context);
         }
         else{
-            fprintf (stderr, "Unable to open file %s\n", inputfile_name);
+            fprintf (stderr, "\nFile %s has unknown data format\n", inputfile_name);
+            return(1);
         }
     ff2theora_close (convert);
     fprintf(stderr,"\n");
