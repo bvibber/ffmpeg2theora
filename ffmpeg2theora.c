@@ -20,6 +20,7 @@
  */
 #include "common.h"
 #include "avformat.h"
+#include "framehook.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,6 +57,7 @@
 #define ASPECT_FLAG         10
 #define INPUTFPS_FLAG       11
 #define AUDIOSTREAM_FLAG    12
+#define VHOOK_FLAG          13
 
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
@@ -76,6 +78,7 @@ typedef struct ff2theora{
     int audio_index;
     
     int deinterlace;
+    int vhook;
     int audiostream;
     int sample_rate;
     int channels;
@@ -192,7 +195,8 @@ ff2theora ff2theora_init (){
         this->aspect_denominator=0;
         this->frame_aspect=0;
         this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace. 
-        
+        this->vhook=0;
+
         this->frame_topBand=0;
         this->frame_bottomBand=0;
         this->frame_leftBand=0;
@@ -581,7 +585,6 @@ void ff2theora_output(ff2theora this) {
                             else{
                                 output=output_tmp;
                             }
-
                             // now output
                             if(this->img_resample_ctx){
                                 img_resample(this->img_resample_ctx, 
@@ -591,6 +594,9 @@ void ff2theora_output(ff2theora this) {
                             else{
                                 output_resized=output;
                             }
+                            if(this->vhook)
+                                frame_hook_process((AVPicture *)output_resized, PIX_FMT_YUV420P, this->frame_width, this->frame_height);
+
                         }
                         ptr += len1;
                         len -= len1;
@@ -719,6 +725,25 @@ double aspect_check(const char *arg)
     }
     return ar;
 }
+
+static void add_frame_hooker(const char *arg)
+{
+    int argc = 0;
+    char *argv[64];
+    int i;
+    char *args = av_strdup(arg);
+
+    argv[0] = strtok(args, " ");
+    while (argc < 62 && (argv[++argc] = strtok(NULL, " "))) {
+    }
+
+    i = frame_hook_add(argc, argv);
+    if (i != 0) {
+        fprintf(stderr, "Failed to add video hook function: %s\n", arg);
+        exit(1);
+    }
+}
+
 
 int crop_check(ff2theora this, char *name, const char *arg)
 {
@@ -877,6 +902,7 @@ int main (int argc, char **argv){
       {"samplerate",required_argument,NULL,'H'},
       {"channels",required_argument,NULL,'c'},
       {"nosound",0,&flag,NOSOUND_FLAG},
+      {"vhook",required_argument,&flag,VHOOK_FLAG},
 #ifdef VIDEO4LINUX_ENABLED
       {"v4l",required_argument,&flag,V4L_FLAG},
 #endif
@@ -927,6 +953,12 @@ int main (int argc, char **argv){
                             convert->deinterlace = 1;
                             flag = -1;
                             break;
+                        case VHOOK_FLAG:
+                            convert->vhook = 1;
+                            add_frame_hooker(optarg);
+                            flag = -1;
+                            break;
+
                         case SYNC_FLAG:
                             convert->sync = 1;
                             flag = -1;
