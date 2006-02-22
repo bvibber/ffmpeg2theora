@@ -98,6 +98,10 @@ Disable the sound from input.
 Force deinterlace.  Otherwise only material marked as interlaced will be
 deinterlaced.
 .TP
+.B \-\-vhook
+you can use ffmpeg's vhook system, example:
+ ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv
+.TP
 .B \-f, \-\-format
 Specify input format.
 .TP

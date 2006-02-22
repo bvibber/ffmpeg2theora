@@ -820,6 +820,8 @@ void print_usage (){
         "Input options:\n"
         "      --deinterlace      force deinterlace, otherwise only material\n"
         "                          marked as interlaced will be deinterlaced\n"
+        "      --vhook            you can use ffmpeg's vhook system, example:\n"
+        "        ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv\n"
         "  -f, --format           specify input format\n"
 #ifdef VIDEO4LINUX_ENABLED
         "      --v4l /dev/video0  read data from v4l device /dev/video0\n"
