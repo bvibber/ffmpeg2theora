@@ -43,3 +43,11 @@ you have to compile libvorbis, libogg, libtheora
 configure ffmpeg like this:
 ./configure --disable-encoder --enable-libogg --enable-vorbis --enable-theora \
  --enable-pp --enable-a52  --enable-gpl
+
+
+vhook suppport
+--------------
+
+right now vhooks only work if you install ffmpeg and use 
+the installed shared libs. otherwise i get errors like
+ undefined symbol: av_read_frame
