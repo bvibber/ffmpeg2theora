@@ -585,6 +585,9 @@ void ff2theora_output(ff2theora this) {
                                 output=output_tmp;
                             }
                             // now output
+                            if(this->vhook)
+                                frame_hook_process((AVPicture *)output, PIX_FMT_YUV420P, venc->width,venc->height);
+
                             if(this->img_resample_ctx){
                                 img_resample(this->img_resample_ctx, 
                                         (AVPicture *)output_resized, 
@@ -593,8 +596,6 @@ void ff2theora_output(ff2theora this) {
                             else{
                                 output_resized=output;
                             }
-                            if(this->vhook)
-                                frame_hook_process((AVPicture *)output_resized, PIX_FMT_YUV420P, this->frame_width, this->frame_height);
 
                         }
                         ptr += len1;
