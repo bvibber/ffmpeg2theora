@@ -262,23 +262,23 @@ void ff2theora_output(ff2theora this) {
         this->fps = fps;
 
         if(this->preset == V2V_PRESET_PREVIEW){
-            if((this->fps-25)<1 && (venc->width!=PAL_HALF_WIDTH || venc->height!=PAL_HALF_HEIGHT) ){
-                this->picture_width=PAL_HALF_WIDTH;
-                this->picture_height=PAL_HALF_HEIGHT;
-            }
-            else if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
+            if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
                 this->picture_width=NTSC_HALF_WIDTH;
                 this->picture_height=NTSC_HALF_HEIGHT;
             }
+            else {
+                this->picture_width=PAL_HALF_WIDTH;
+                this->picture_height=PAL_HALF_HEIGHT;
+            }
         }
         else if(this->preset == V2V_PRESET_PRO){
-            if((this->fps-25)<1 && (venc->width!=PAL_FULL_WIDTH || venc->height!=PAL_FULL_HEIGHT) ){
-                this->picture_width=PAL_FULL_WIDTH;
-                this->picture_height=PAL_FULL_HEIGHT;
-            }
-            else if(abs(this->fps-30)<1 && (venc->width!=NTSC_FULL_WIDTH || venc->height!=NTSC_FULL_HEIGHT) ){
+            if(abs(this->fps-30)<1 && (venc->width!=NTSC_FULL_WIDTH || venc->height!=NTSC_FULL_HEIGHT) ){
                 this->picture_width=NTSC_FULL_WIDTH;
                 this->picture_height=NTSC_FULL_HEIGHT;
+            }
+            else {
+                this->picture_width=PAL_FULL_WIDTH;
+                this->picture_height=PAL_FULL_HEIGHT;
             }
         }
         if (this->deinterlace==1)
