@@ -262,7 +262,7 @@ void ff2theora_output(ff2theora this) {
         this->fps = fps;
 
         if(this->preset == V2V_PRESET_PREVIEW){
-            if(this->fps==25 && (venc->width!=PAL_HALF_WIDTH || venc->height!=PAL_HALF_HEIGHT) ){
+            if((this->fps-25)<1 && (venc->width!=PAL_HALF_WIDTH || venc->height!=PAL_HALF_HEIGHT) ){
                 this->picture_width=PAL_HALF_WIDTH;
                 this->picture_height=PAL_HALF_HEIGHT;
             }
@@ -272,7 +272,7 @@ void ff2theora_output(ff2theora this) {
             }
         }
         else if(this->preset == V2V_PRESET_PRO){
-            if(this->fps==25 && (venc->width!=PAL_FULL_WIDTH || venc->height!=PAL_FULL_HEIGHT) ){
+            if((this->fps-25)<1 && (venc->width!=PAL_FULL_WIDTH || venc->height!=PAL_FULL_HEIGHT) ){
                 this->picture_width=PAL_FULL_WIDTH;
                 this->picture_height=PAL_FULL_HEIGHT;
             }
@@ -476,7 +476,7 @@ void ff2theora_output(ff2theora this) {
             info.ti.aspect_denominator=this->aspect_denominator;
             // FIXME: is all input material with fps==25 OC_CS_ITU_REC_470BG?
             // guess not, commandline option to select colorspace would be the best.
-            if(this->fps==25)
+            if((this->fps-25)<1)
                 info.ti.colorspace = OC_CS_ITU_REC_470BG;
             else if(abs(this->fps-30)<1)
                 info.ti.colorspace = OC_CS_ITU_REC_470M;
