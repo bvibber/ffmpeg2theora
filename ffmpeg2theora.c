@@ -849,6 +849,7 @@ void print_usage (){
 #ifndef _WIN32
         "      --nice n           set niceness to n\n"
 #endif
+        "  -P, --pid fname        write the process' id to a file\n"
         "  -h, --help             this message\n"
         "\n"
         "Examples:\n"
@@ -888,8 +889,9 @@ int main (int argc, char **argv){
     AVFormatParameters *formatParams = NULL;
     
     int c,long_option_index;
-    const char *optstring = "o:f:x:y:v:V:a:A:S:K:d:H:c:p:N:s:e:D:h::";
+    const char *optstring = "P:o:f:x:y:v:V:a:A:S:K:d:H:c:p:N:s:e:D:h::";
     struct option options [] = {
+      {"pid",required_argument,NULL, 'P'},
       {"output",required_argument,NULL,'o'},
       {"format",required_argument,NULL,'f'},
       {"width",required_argument,NULL,'x'},
@@ -933,6 +935,9 @@ int main (int argc, char **argv){
       {"help",0,NULL,'h'},
       {NULL,0,NULL,0}
     };
+    
+    char pidfile_name[255] = { '\0' };
+    FILE *fpid = NULL;
 
     ff2theora convert = ff2theora_init ();
     av_register_all ();
@@ -1049,6 +1054,9 @@ int main (int argc, char **argv){
             case 'o':
                 sprintf(outputfile_name,optarg);
                 outputfile_set=1;
+                break;
+            case 'P':
+                sprintf(pidfile_name,optarg);
                 break;
             case 'f':
                 input_fmt=av_find_input_format(optarg);
@@ -1225,6 +1233,16 @@ int main (int argc, char **argv){
         exit(1);
     }
 
+    if (*pidfile_name) 
+    {
+        fpid = fopen(pidfile_name, "w");
+        if (fpid != NULL)
+        {
+            fprintf(fpid, "%i", getpid());
+            fclose(fpid);
+        }    
+    }
+    
     if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0){
         if (av_find_stream_info (convert->context) >= 0){
 #ifdef WIN32
@@ -1270,5 +1288,10 @@ int main (int argc, char **argv){
         }
     ff2theora_close (convert);
     fprintf(stderr,"\n");
+    
+    if (*pidfile_name) 
+    {
+        unlink(pidfile_name);
+    }
     return(0);
 }
