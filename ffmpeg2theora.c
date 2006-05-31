@@ -771,11 +771,11 @@ void print_presets_info() {
     fprintf (stdout, 
         //  "v2v presets - more info at http://wiki.v2v.cc/presets"
         "v2v presets:\n"
-        "  preview        Video: 384x288 if fps ~ 25, 320x240 if fps ~ 30\n"
+        "  preview        Video: 320x240 if fps ~ 30, 384x288 otherwise\n"
         "                        Quality 5 - Sharpness 2\n"
         "                 Audio: Max 2 channels - Quality 1\n"
         "\n"
-        "  pro            Video: 720x576 if fps ~ 25, 720x480 if fps ~ 30\n"
+        "  pro            Video: 720x480 if fps ~ 30, 720x576 otherwise\n"
         "                        Quality 7 - Sharpness 0\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
@@ -797,9 +797,8 @@ void print_usage (){
         "                          '"PACKAGE" -p info' for more informations\n"
         "\n"
         "Video output options:\n"
-        "  -v, --videoquality     [0 to 10] encoding quality for video\n"
-        "                          (default: 5)\n"
-        "  -V, --videobitrate     [1 to 16000] encoding bitrate for video (kb/s)\n"
+        "  -v, --videoquality     [0 to 10] encoding quality for video (default: 5)\n"
+        "  -V, --videobitrate     [1 to 16778] encoding bitrate for video (kb/s)\n"
         "      --optimize         optimize video output filesize (slower)\n"
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
@@ -811,8 +810,7 @@ void print_usage (){
         "  -K, --keyint           [8 to 65536] keyframe interval (default: 64)\n"
         "\n"
         "Audio output options:\n"
-        "  -a, --audioquality     [-2 to 10] encoding quality for audio\n"
-        "                          (default: 1)\n"
+        "  -a, --audioquality     [-2 to 10] encoding quality for audio (default: 1)\n"
         "  -A, --audiobitrate     [32 to 500] encoding bitrate for audio (kb/s)\n"
         "  -c, --channels         set number of output channels\n"
         "  -H, --samplerate       set output samplerate (in Hz)\n"
@@ -831,10 +829,9 @@ void print_usage (){
         "      --inputfps fps     override input fps\n"
         "      --audiostream id   by default the last audio stream is selected,\n"
         "                          use this to select another audio stream\n"
-        "      --sync             use A/V sync from input container.\n"
-        "                          Since this does not work with all input format\n"
-        "                          you have to manualy enable it if you have\n"
-        "                          issues with A/V sync\n"
+        "      --sync             use A/V sync from input container. Since this does\n"
+        "                          not work with all input format you have to manually\n"
+        "                          enable it if you have issues with A/V sync\n"
         "\n"
         "Metadata options:\n"
         "      --artist           Name of artist (director)\n"
@@ -1077,8 +1074,8 @@ int main (int argc, char **argv){
                 break;
             case 'V':
                 convert->video_bitrate=rint(atof(optarg)*1000);
-                if (convert->video_bitrate < 1000 || convert->video_bitrate > 16000000) {
-                    fprintf(stderr, "only values from 1 to 16000 are valid for video bitrate (in kb/s)\n");
+                if (convert->video_bitrate < 1) {
+                    fprintf(stderr, "only values bigger than 1 are valid for video bitrate (in kb/s)\n");
                     exit(1);
                 }
                 convert->video_quality=0;
