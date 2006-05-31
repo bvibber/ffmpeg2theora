@@ -1,20 +1,16 @@
 Compiling from SVN
 ------------------
-If you downloaded through SVN, you will not already have a ./configure 
-script. You will need to build one.
-You will need:
-automake 1.6 or later
-libtools
-then run ./autogen.sh
+If you donwloaded ffmpeg2theora from svn you have
+need automake 1.6 or later to build the configure script.
+To do this run ./autogen.sh
 Then build as you would from a tarball.
 
-
 Compiling from tarball:
----------------------------------
+-----------------------
 you need
-- the latest version of libtheora ( http://www.theora.org/files )
-- ffmpeg-cvs ( http://ffmpeg.sf.net ) by running ./get_ffmpeg_cvs.sh
-  (this script downloads current CVS ffmpeg, runs an appropriate
+- the latest version of libtheora <http://downloads.xiph.org/releases/theora/>
+- ffmpeg-trunk <http://ffmpeg.sf.net> by running ./get_ffmpeg_svn.sh
+  (this script downloads current ffmpeg trunk, runs an appropriate
   configure and builds ffmpeg)
 
 if you did not install ffmpeg but want to staticly link it
@@ -49,5 +45,7 @@ vhook suppport
 --------------
 
 right now vhooks only work if you install ffmpeg and use 
-the installed shared libs. otherwise i get errors like
+the installed shared libs. otherwise one gets errors like this:
  undefined symbol: av_read_frame
+this is a known limitation of vhooks in ffmpeg.
+

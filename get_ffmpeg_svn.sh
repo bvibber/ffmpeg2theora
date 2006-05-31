@@ -11,5 +11,5 @@ options="$common --enable-pthreads $extra"
 #mingw32
 uname | grep MINGW && options="$common --enable-memalign-hack --enable-mingw32 --extra-cflags=-I/usr/local/include --extra-ldflags=-L/usr/local/lib $extra"
 
-cvs -z3 -d:pserver:anonymous@cvs.mplayerhq.hu:/cvsroot/ffmpeg co ffmpeg
+svn checkout svn://svn.mplayerhq.hu/ffmpeg/trunk ffmpeg
 cd ffmpeg && ./configure $options && make
