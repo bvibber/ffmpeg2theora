@@ -32,7 +32,7 @@ PKG_CHECK_MODULES(FFMPEG, libavformat libavcodec, HAVE_FFMPEG=yes,
         AC_MSG_ERROR([
 
 could not find ffmpeg. please update PKG_CONFIG_PATH to point to ffmpegs source
-folder or run ./get_ffmpeg_cvs.sh (for more information see INSTALL)
+folder or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
 ])
 )
 AC_SUBST(FFMPEG_CFLAGS)
