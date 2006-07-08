@@ -790,6 +790,7 @@ void print_usage (){
         "\n"
         "General output options:\n"
         "  -o, --output           alternative output filename\n"
+	"  -k, --skeleton         outputs ogg skeleton metadata\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --v2v-preset       encode file with v2v preset.\n"
@@ -886,10 +887,11 @@ int main (int argc, char **argv){
     AVFormatParameters *formatParams = NULL;
     
     int c,long_option_index;
-    const char *optstring = "P:o:f:x:y:v:V:a:A:S:K:d:H:c:p:N:s:e:D:h::";
+    const char *optstring = "P:o:k:f:x:y:v:V:a:A:S:K:d:H:c:p:N:s:e:D:h::";
     struct option options [] = {
       {"pid",required_argument,NULL, 'P'},
       {"output",required_argument,NULL,'o'},
+      {"skeleton",no_argument,NULL,'k'},
       {"format",required_argument,NULL,'f'},
       {"width",required_argument,NULL,'x'},
       {"height",required_argument,NULL,'y'},
@@ -1052,6 +1054,9 @@ int main (int argc, char **argv){
                 sprintf(outputfile_name,optarg);
                 outputfile_set=1;
                 break;
+	    case 'k':
+		info.with_skeleton=1;
+		break;
             case 'P':
                 sprintf(pidfile_name,optarg);
                 break;

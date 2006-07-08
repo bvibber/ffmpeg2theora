@@ -26,6 +26,13 @@
 
 // #define OGGMUX_DEBUG
 
+#define SKELETON_VERSION_MAJOR 3
+#define SKELETON_VERSION_MINOR 0
+#define FISHEAD_IDENTIFIER "fishead\0"
+#define FISBONE_IDENTIFIER "fisbone\0"
+#define FISBONE_SIZE 52
+#define FISBONE_MESSAGE_HEADER_OFFSET 44
+
 typedef struct
 {
     /* the file the mixed ogg stream is written to */
@@ -33,6 +40,7 @@ typedef struct
 
     int audio_only;
     int video_only;
+    int with_skeleton;
 
     /* vorbis settings */
     int sample_rate;
@@ -57,6 +65,8 @@ typedef struct
                              * stream of packets */
     ogg_stream_state vo;    /* take physical pages, weld into a logical
                              * stream of packets */
+    ogg_stream_state so;    /* take physical pages, weld into a logical
+			     * stream of packets, used for skeleton stream */
 
     int audiopage_valid;
     int videopage_valid;
