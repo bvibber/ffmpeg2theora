@@ -94,8 +94,8 @@ void add_fisbone_packet (oggmux_info *info) {
 
     if (!info->audio_only) {
 	memset (&op, 0, sizeof (op));	    
-        op.packet = _ogg_calloc (80, sizeof(unsigned char));
-        memset (op.packet, 0, 80);
+        op.packet = _ogg_calloc (82, sizeof(unsigned char));
+        memset (op.packet, 0, 82);
 	/* it will be the fisbone packet for the theora video */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
 	*((ogg_uint32_t*)(op.packet+8)) = FISBONE_MESSAGE_HEADER_OFFSET; /* offset of the message header fields */
@@ -107,11 +107,11 @@ void add_fisbone_packet (oggmux_info *info) {
         *((ogg_int64_t*)(op.packet+36)) = 0; /* start granule */
 	*((ogg_uint32_t*)(op.packet+44)) = 0; /* preroll, for theora its 0 */
         *(op.packet+48) = theora_granule_shift (&info->ti); /* granule shift */
-        memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/x-theora", 28); /* message header field, Content-Type */
+        memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/x-theora\r\n", 30); /* message header field, Content-Type */
 		
 	op.b_o_s = 0; 
 	op.e_o_s = 0;
-	op.bytes = 80; /* size of the packet in bytes */
+	op.bytes = 82; /* size of the packet in bytes */
 	
         ogg_stream_packetin (&info->so, &op);
 	_ogg_free (op.packet);
@@ -119,24 +119,25 @@ void add_fisbone_packet (oggmux_info *info) {
 
     if (!info->video_only) {
 	memset (&op, 0, sizeof (op));
-	op.packet = _ogg_calloc (80, sizeof(unsigned char));
-	memset (op.packet, 0, 80);
+	op.packet = _ogg_calloc (82, sizeof(unsigned char));
+	memset (op.packet, 0, 82);
         /* it will be the fisbone packet for the vorbis audio */
 	memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
         *((ogg_uint32_t*)(op.packet+8)) = FISBONE_MESSAGE_HEADER_OFFSET; /* offset of the message header fields */
 	*((ogg_uint32_t*)(op.packet+12)) = info->vo.serialno; /* serialno of the vorbis stream */
         *((ogg_uint32_t*)(op.packet+16)) = 3; /* number of header packet */
-	/* granulerate, temporal resolution of the bitstream in samples/microsecond */
+	/* granulerate, temporal resolution of the bitstream in Hz */
 	*((ogg_int64_t*)(op.packet+20)) = info->sample_rate; /* granulerate numerator */
-        *((ogg_int64_t*)(op.packet+28)) = (ogg_int64_t)1000; /* granulerate denominator */
+        *((ogg_int64_t*)(op.packet+28)) = (ogg_int64_t)1; /* granulerate denominator */
 	*((ogg_int64_t*)(op.packet+36)) = 0; /* start granule */
         *((ogg_uint32_t*)(op.packet+44)) = 2; /* preroll, for vorbis its 2 */
 	*(op.packet+48) = 0; /* granule shift, always 0 for vorbis */
-        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/x-vorbis", 28);
+        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/x-vorbis\r\n", 30); 
+	/* Important: Check the case of Content-Type for correctness */
 	
 	op.b_o_s = 0;
 	op.e_o_s = 0;
-	op.bytes = 80;
+	op.bytes = 82;
 	
         ogg_stream_packetin (&info->so, &op);
 	_ogg_free (op.packet);
