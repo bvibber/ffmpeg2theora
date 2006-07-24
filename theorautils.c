@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 #include "theora/theora.h"
 #include "vorbis/codec.h"
@@ -53,6 +54,9 @@ void init_info(oggmux_info *info) {
     info->videopage_buffer_length = 0;
     info->audiopage = NULL;
     info->videopage = NULL;
+    info->start_time = time(NULL);
+    info->duration = -1;
+    
     info->v_pkg=0;
     info->a_pkg=0;
 #ifdef OGGMUX_DEBUG
@@ -363,14 +367,35 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
     }
 }
 
+static double get_remaining(oggmux_info *info, double timebase) {
+  double remaining = 0;
+  double to_encode, time_so_far;
+  
+  if(info->duration != -1 && timebase > 0) {
+    time_so_far = time(NULL) - info->start_time;
+    to_encode = info->duration - timebase;
+    if(to_encode > 0) {
+      remaining = (time_so_far / timebase) * to_encode;
+    }
+  }
+  return remaining;
+}
+
 static void print_stats(oggmux_info *info, double timebase){
     int hundredths = timebase * 100 - (long) timebase * 100;
     int seconds = (long) timebase % 60;
     int minutes = ((long) timebase / 60) % 60;
     int hours = (long) timebase / 3600;
-
-    fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps                  ",
-         hours, minutes, seconds, hundredths,info->akbps, info->vkbps);
+    double remaining = get_remaining(info, timebase);
+    int remaining_seconds = (long) remaining % 60;
+    int remaining_minutes = ((long) remaining / 60) % 60;
+    int remaining_hours = (long) remaining / 3600;
+    
+    fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time remaining: %02d:%02d:%02d      ",
+         hours, minutes, seconds, hundredths,
+         info->akbps, info->vkbps,
+         remaining_hours, remaining_minutes, remaining_seconds
+         );
 }
 
 static int write_audio_page(oggmux_info *info)

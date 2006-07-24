@@ -80,10 +80,13 @@ typedef struct
     /* some stats */
     double audiotime;
     double videotime;
+    double duration;
+    
     int vkbps;
     int akbps;
     ogg_int64_t audio_bytesout;
     ogg_int64_t video_bytesout;
+    time_t start_time;
 
     //to do some manual page flusing
     int v_pkg;

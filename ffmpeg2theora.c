@@ -1,7 +1,7 @@
 /* -*- tab-width:4;c-file-style:"cc-mode"; -*- */
 /*
  * ffmpeg2theora.c -- Convert ffmpeg supported a/v files to  Ogg Theora / Ogg Vorbis
- * Copyright (C) 2003-2005 <j@v2v.cc>
+ * Copyright (C) 2003-2006 <j@v2v.cc>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1274,6 +1274,9 @@ int main (int argc, char **argv){
                 if(!info.outfile) {
                     fprintf (stderr,"\nUnable to open output file %s\n", outputfile_name);
                     return(1);
+                }
+                if (convert->context->duration != AV_NOPTS_VALUE) {
+                  info.duration = convert->context->duration / AV_TIME_BASE;
                 }
                 ff2theora_output (convert);
                 convert->audio_index =convert->video_index = -1;
