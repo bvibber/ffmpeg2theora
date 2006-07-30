@@ -33,7 +33,6 @@
 
 #ifdef WIN32
 #include "fcntl.h"
-#define rindex  strrchr
 #endif
 
 #include "theorautils.h"
@@ -511,11 +510,11 @@ void ff2theora_output(ff2theora this) {
         /*check for end time and calculate number of frames to encode*/
         no_frames = fps*(this->end_time - this->start_time);
         if(this->end_time > 0 && no_frames <= 0){
-            fprintf(stderr,"end time has to be bigger than start time\n");
+            fprintf(stderr,"End time has to be bigger than start time.\n");
             exit(1);
         }
         if(info.audio_only && (this->end_time>0 || this->start_time>0)){
-            fprintf(stderr,"sorry, right now start/end time does not work for audio only files\n");
+            fprintf(stderr,"Sorry, right now start/end time does not work for audio only files.\n");
             exit(1);
         }
         /* main decoding loop */
@@ -694,7 +693,7 @@ void ff2theora_output(ff2theora this) {
         oggmux_close (&info);
     }
     else{
-        fprintf (stderr, "No video or audio stream found\n");
+        fprintf (stderr, "No video or audio stream found.\n");
     }
 }
 
@@ -749,11 +748,11 @@ int crop_check(ff2theora this, char *name, const char *arg)
 {
     int crop_value = atoi(arg); 
     if (crop_value < 0) {
-        fprintf(stderr, "Incorrect %s crop size\n",name);
+        fprintf(stderr, "Incorrect crop size `%s'.\n",name);
         exit(1);
     }
     if ((crop_value % 2) != 0) {
-        fprintf(stderr, "%s crop size must be a multiple of 2\n",name);
+        fprintf(stderr, "Crop size `%s' must be a multiple of 2.\n",name);
         exit(1);
     }
     /*
@@ -1051,7 +1050,7 @@ int main (int argc, char **argv){
                 convert->start_time = atoi(optarg);
                 break;
             case 'o':
-                sprintf(outputfile_name,optarg);
+                snprintf(outputfile_name,sizeof(outputfile_name),"%s",optarg);
                 outputfile_set=1;
                 break;
 	    case 'k':
@@ -1072,7 +1071,7 @@ int main (int argc, char **argv){
             case 'v':
                 convert->video_quality = rint(atof(optarg)*6.3);
                 if(convert->video_quality <0 || convert->video_quality >63){
-                        fprintf(stderr,"only values from 0 to 10 are valid for video quality\n");
+                        fprintf(stderr,"Only values from 0 to 10 are valid for video quality.\n");
                         exit(1);
                 }
                 convert->video_bitrate=0;
@@ -1080,7 +1079,7 @@ int main (int argc, char **argv){
             case 'V':
                 convert->video_bitrate=rint(atof(optarg)*1000);
                 if (convert->video_bitrate < 1) {
-                    fprintf(stderr, "only values bigger than 1 are valid for video bitrate (in kb/s)\n");
+                    fprintf(stderr, "Only values from 1 to 16000 are valid for video bitrate (in kb/s).\n");
                     exit(1);
                 }
                 convert->video_quality=0;
@@ -1088,7 +1087,7 @@ int main (int argc, char **argv){
             case 'a':
                 convert->audio_quality=atof(optarg);
                 if(convert->audio_quality<-2 || convert->audio_quality>10){
-                    fprintf(stderr,"only values from -2 to 10 are valid for audio quality\n");
+                    fprintf(stderr,"Only values from -2 to 10 are valid for audio quality.\n");
                     exit(1);
                 }
                 convert->audio_bitrate=0;
@@ -1096,7 +1095,7 @@ int main (int argc, char **argv){
             case 'A':
                 convert->audio_bitrate=atof(optarg)*1000;
                 if(convert->audio_bitrate<0){
-                    fprintf(stderr,"only values >0 are valid for audio bitrate\n");
+                    fprintf(stderr,"Only values >0 are valid for audio bitrate.\n");
                     exit(1);
                 }
                 convert->audio_quality = -990;
@@ -1104,14 +1103,14 @@ int main (int argc, char **argv){
             case 'S':
                 convert->sharpness = atoi(optarg);
                 if (convert->sharpness < 0 || convert->sharpness > 2) {
-                    fprintf (stderr, "only values from 0 to 2 are valid for sharpness\n");
+                    fprintf (stderr, "Only values from 0 to 2 are valid for sharpness.\n");
                     exit(1);
                 }
                 break;
             case 'K':
                 convert->keyint = atoi(optarg);
                 if (convert->keyint < 8 || convert->keyint > 65536) {
-                    fprintf (stderr, "only values from 8 to 65536 are valid for keyframe interval\n");
+                    fprintf (stderr, "Only values from 8 to 65536 are valid for keyframe interval.\n");
                     exit(1);
                 }
                 break;                        
@@ -1143,7 +1142,7 @@ int main (int argc, char **argv){
                     convert->sharpness = 2;
                 }
                 else{
-                    fprintf(stderr,"\nunknown preset.\n\n");
+                    fprintf(stderr,"\nUnknown preset.\n\n");
                     print_presets_info();
                     exit(1);
                 }
@@ -1153,7 +1152,7 @@ int main (int argc, char **argv){
                 if (n) {
 #ifndef _WIN32
                     if (nice(n)<0) {
-                        fprintf(stderr,"error setting %d for niceness", n);
+                        fprintf(stderr,"Error setting `%d' for niceness.", n);
                     }
 #endif
                 }
@@ -1166,20 +1165,21 @@ int main (int argc, char **argv){
     
     while(optind<argc){
         /* assume that anything following the options must be a filename */
-        sprintf(inputfile_name,"%s",argv[optind]);
+        snprintf(inputfile_name,sizeof(inputfile_name),"%s",argv[optind]);
         if(!strcmp(inputfile_name,"-")){
-            sprintf(inputfile_name,"pipe:");
+            snprintf(inputfile_name,sizeof(inputfile_name),"pipe:");
         }
         if(outputfile_set!=1){
-            sprintf(outputfile_name, "%s", argv[optind]);
-            if(str_ptr = rindex(outputfile_name, '.')) {
+            /* reserve 4 bytes in the buffer for the `.ogg' extension */
+            snprintf(outputfile_name, sizeof(outputfile_name) - 4, "%s", argv[optind]);
+            if(str_ptr = strrchr(outputfile_name, '.')) {
               sprintf(str_ptr, ".ogg");
               if(!strcmp(inputfile_name, outputfile_name)){
-                sprintf(outputfile_name, "%s.ogg", inputfile_name);
+                snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogg", inputfile_name);
               }
             }
             else {
-                 sprintf(outputfile_name, "%s.ogg", outputfile_name);
+                 snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogg", outputfile_name);
             }
             outputfile_set=1;
         }
@@ -1215,23 +1215,23 @@ int main (int argc, char **argv){
                    !strcmp( inputfile_name, "/dev/stdin" );
 
     if(outputfile_set!=1){    
-        fprintf(stderr,"you have to specifie an output file with -o output.ogg.\n");    
+        fprintf(stderr,"You have to specify an output file with -o output.ogg.\n");    
         exit(1);
     }
 
     /* could go, but so far no player supports offset_x/y */
     if(convert->picture_width % 8 ||  convert->picture_height % 8){
-        fprintf(stderr,"output size must be a multiple of 8 for now.\n");
+        fprintf(stderr,"Output size must be a multiple of 8 for now.\n");
         exit(1);
     }
     /*
     if(convert->picture_width % 4 ||  convert->picture_height % 4){
-        fprintf(stderr,"output width and hight size must be a multiple of 2.\n");
+        fprintf(stderr,"Output width and height size must be a multiple of 2.\n");
         exit(1);
     }
     */
     if(convert->end_time>0 && convert->end_time <= convert->start_time){
-        fprintf(stderr,"end time has to be bigger than start time\n");
+        fprintf(stderr,"End time has to be bigger than start time.\n");
         exit(1);
     }
 
@@ -1257,7 +1257,7 @@ int main (int argc, char **argv){
                 }
 #else
                 if(!strcmp(outputfile_name,"-")){
-                    sprintf(outputfile_name,"/dev/stdout");
+                    snprintf(outputfile_name,sizeof(outputfile_name),"/dev/stdout");
                 }
                 info.outfile = fopen(outputfile_name,"wb");
 #endif
@@ -1272,7 +1272,7 @@ int main (int argc, char **argv){
                 convert->pts_offset = 
                     (double) convert->context->start_time / AV_TIME_BASE;
                 if(!info.outfile) {
-                    fprintf (stderr,"\nUnable to open output file %s\n", outputfile_name);
+                    fprintf (stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
                     return(1);
                 }
                 if (convert->context->duration != AV_NOPTS_VALUE) {
@@ -1282,13 +1282,13 @@ int main (int argc, char **argv){
                 convert->audio_index =convert->video_index = -1;
             }
             else{
-                fprintf (stderr,"\nUnable to decode input\n");
+                fprintf (stderr,"\nUnable to decode input.\n");
                 return(1);
             }
             av_close_input_file (convert->context);
         }
         else{
-            fprintf (stderr, "\nFile %s has unknown data format\n", inputfile_name);
+            fprintf (stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
             return(1);
         }
     ff2theora_close (convert);
