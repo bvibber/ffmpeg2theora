@@ -159,7 +159,6 @@ void oggmux_init (oggmux_info *info){
     if(!info->audio_only){
         ogg_stream_init (&info->to, rand ());    /* oops, add one ot the above */
         theora_encode_init (&info->td, &info->ti);
-        theora_info_clear (&info->ti);
     }
     /* init theora done */
 
@@ -259,6 +258,10 @@ void oggmux_init (oggmux_info *info){
             fwrite (og.header, 1, og.header_len, info->outfile);
 	    fwrite (og.body, 1, og.body_len, info->outfile);
 	}
+    }
+
+    if (!info->audio_only) {
+	theora_info_clear(&info->ti);
     }
 
     /* Flush the rest of our headers. This ensures
