@@ -789,7 +789,7 @@ void print_usage (){
         "\n"
         "General output options:\n"
         "  -o, --output           alternative output filename\n"
-	      "  -k, --skeleton         outputs ogg skeleton metadata\n"
+        "  -k, --skeleton         outputs ogg skeleton metadata\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --v2v-preset       encode file with v2v preset.\n"
@@ -1053,9 +1053,9 @@ int main (int argc, char **argv){
                 snprintf(outputfile_name,sizeof(outputfile_name),"%s",optarg);
                 outputfile_set=1;
                 break;
-	    case 'k':
-		info.with_skeleton=1;
-		break;
+            case 'k':
+                info.with_skeleton=1;
+                break;
             case 'P':
                 sprintf(pidfile_name,optarg);
                 break;
