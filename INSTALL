@@ -12,6 +12,7 @@ you need
 - ffmpeg-trunk <http://ffmpeg.sf.net> by running ./get_ffmpeg_svn.sh
   (this script downloads current ffmpeg trunk, runs an appropriate
   configure and builds ffmpeg)
+  (--enable-swscale currently does not work since it changes ffmpegs api)
 
 if you did not install ffmpeg but want to staticly link it
 (recomended by ffmpeg developers) update PKG_CONFIG_PATH to

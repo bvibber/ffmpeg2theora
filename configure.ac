@@ -28,7 +28,7 @@ AC_SUBST(XIPH_CFLAGS)
 AC_SUBST(XIPH_LIBS)
 
 PKG_CONFIG_PATH=./ffmpeg:$PKG_CONFIG_PATH
-PKG_CHECK_MODULES(FFMPEG, libavformat libavcodec libswscale, HAVE_FFMPEG=yes, 
+PKG_CHECK_MODULES(FFMPEG, libavformat libavcodec, HAVE_FFMPEG=yes, 
         AC_MSG_ERROR([
 
 could not find ffmpeg. please update PKG_CONFIG_PATH to point to ffmpegs source
