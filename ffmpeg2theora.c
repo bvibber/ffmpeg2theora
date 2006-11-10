@@ -18,8 +18,6 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  * 
  */
-#include "common.h"
-#include "avformat.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +25,9 @@
 #include <string.h>
 #include <getopt.h>
 #include <math.h>
+
+#include "common.h"
+#include "avformat.h"
 
 #include "theora/theora.h"
 #include "vorbis/codec.h"
