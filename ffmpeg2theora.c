@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <getopt.h>
+#include <math.h>
 
 #include "theora/theora.h"
 #include "vorbis/codec.h"
@@ -124,13 +125,57 @@ typedef struct ff2theora{
 }
 *ff2theora;
 
+// gamma lookup table code
 
-static double rint(double x) {
-    if (x < 0.0)
-        return (double)(int)(x - 0.5);
-    else
-        return (double)(int)(x + 0.5);
+// ffmpeg2theora --nosound -f dv -H 32000 -S 0 -v 8 -x 384 -y 288 -G 1.5 input.dv
+static double video_gamma  = 0.0;
+static double video_bright = 0.0;
+static double video_contr  = 0.0;
+static int lut_used = 0;
+static unsigned char lut[256];
+
+static void lut_init(unsigned char *lut, double c, double b, double g) {
+    int i;
+    double v;
+
+    if ((g < 0.01) || (g > 100.0)) g = 1.0;
+    if ((c < 0.01) || (c > 100.0)) c = 1.0;
+    if ((b < -1.0) || (b > 1.0))   b = 0.0;
+
+    if (g == 1.0 && c == 1.0 && b == 0.0) return;
+    lut_used = 1;
+
+    printf("  Video correction: gamma=%g, contrast=%g, brightness=%g\n", g, c, b);
+
+    g = 1.0 / g;    // larger values shall make brighter video.
+
+    for (i = 0; i < 256; i++) {
+        v = (double) i / 255.0;
+        v = c * v + b;
+        if (v < 0.0) v = 0.0;
+        v = pow(v, g) * 255.0;    // mplayer's vf_eq2.c multiplies with 256 here, strange...
+
+        if (v >= 255) 
+            lut[i] = 255;
+        else
+            lut[i] = (unsigned char)(v+0.5);
+    }
 }
+
+static void lut_apply(unsigned char *lut, unsigned char *src, unsigned char *dst, int width, int height, int stride) {
+    int x, y;
+
+    if (!lut_used) abort();
+
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            dst[x] = lut[src[x]];
+        }
+        src += stride;
+        dst += stride;
+    }
+}
+
 
 oggmux_info info;
 
@@ -373,6 +418,9 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr,"\n");
             
         }
+
+    if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0) 
+      lut_init(lut, video_contr, video_bright, video_gamma);
     }
     if (this->audio_index >= 0){
         astream = this->context->streams[this->audio_index];
@@ -617,6 +665,7 @@ void ff2theora_output(ff2theora this) {
                     yuv.u = output_resized->data[1];
                     yuv.v = output_resized->data[2];
                     if(got_picture || e_o_s) do {                        
+                if (lut_used) lut_apply(lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
                         oggmux_add_video(&info, &yuv ,e_o_s);
                         this->frame_count++;
                     } while(dups--);
@@ -809,6 +858,14 @@ void print_usage (){
         "                          Note: lower values make the video sharper.\n"
         "  -K, --keyint           [8 to 65536] keyframe interval (default: 64)\n"
         "\n"
+        "Video transfer options:\n"
+        "  -C, --contrast         [0.1 to 10.0] contrast correction (default: 1.0)\n"
+            "                          Note: lower values make the video darker.\n"
+        "  -B, --brightness       [-1.0 to 1.0] brightness correction (default: 0.0)\n"
+            "                          Note: lower values make the video darker.\n"
+        "  -G, --gamma            [0.1 to 10.0] gamma correction (default: 1.0)\n"
+        "                          Note: lower values make the video darker.\n"
+        "\n"
         "Audio output options:\n"
         "  -a, --audioquality     [-2 to 10] encoding quality for audio (default: 1)\n"
         "  -A, --audiobitrate     [32 to 500] encoding bitrate for audio (kb/s)\n"
@@ -886,7 +943,7 @@ int main (int argc, char **argv){
     AVFormatParameters *formatParams = NULL;
     
     int c,long_option_index;
-    const char *optstring = "P:o:k:f:x:y:v:V:a:A:S:K:d:H:c:p:N:s:e:D:h::";
+    const char *optstring = "P:o:k:f:x:y:v:V:a:A:S:K:d:H:c:G:C:B:p:N:s:e:D:h::";
     struct option options [] = {
       {"pid",required_argument,NULL, 'P'},
       {"output",required_argument,NULL,'o'},
@@ -903,6 +960,9 @@ int main (int argc, char **argv){
       {"deinterlace",0,&flag,DEINTERLACE_FLAG},
       {"samplerate",required_argument,NULL,'H'},
       {"channels",required_argument,NULL,'c'},
+      {"gamma",required_argument,NULL,'G'},
+      {"brightness",required_argument,NULL,'B'},
+      {"contrast",required_argument,NULL,'C'},
       {"nosound",0,&flag,NOSOUND_FLAG},
       {"vhook",required_argument,&flag,VHOOK_FLAG},
 #ifdef VIDEO4LINUX_ENABLED
@@ -1100,6 +1160,15 @@ int main (int argc, char **argv){
                 }
                 convert->audio_quality = -990;
                 break;
+        case 'G':
+                video_gamma = atof(optarg);
+        break;
+        case 'C':
+                video_contr = atof(optarg);
+        break;
+        case 'B':
+                video_bright = atof(optarg);
+        break;
             case 'S':
                 convert->sharpness = atoi(optarg);
                 if (convert->sharpness < 0 || convert->sharpness > 2) {
