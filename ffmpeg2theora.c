@@ -420,8 +420,8 @@ void ff2theora_output(ff2theora this) {
             
         }
 
-    if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0) 
-      lut_init(lut, video_contr, video_bright, video_gamma);
+        if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0) 
+            lut_init(lut, video_contr, video_bright, video_gamma);
     }
     if (this->audio_index >= 0){
         astream = this->context->streams[this->audio_index];
@@ -665,8 +665,9 @@ void ff2theora_output(ff2theora this) {
                     yuv.y = output_resized->data[0];
                     yuv.u = output_resized->data[1];
                     yuv.v = output_resized->data[2];
-                    if(got_picture || e_o_s) do {                        
-                if (lut_used) lut_apply(lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
+                    if(got_picture || e_o_s) do {
+                        if (lut_used) 
+                            lut_apply(lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
                         oggmux_add_video(&info, &yuv ,e_o_s);
                         this->frame_count++;
                     } while(dups--);
