@@ -26,8 +26,8 @@
 #include <getopt.h>
 #include <math.h>
 
-#include "common.h"
 #include "avformat.h"
+#include "swscale.h"
 
 #include "theora/theora.h"
 #include "vorbis/codec.h"
@@ -72,6 +72,9 @@
 #define NTSC_FULL_WIDTH 720
 #define NTSC_FULL_HEIGHT 480
 
+
+static int sws_flags = SWS_BICUBIC;
+
 typedef struct ff2theora{
     AVFormatContext *context;
     int video_index;
@@ -90,12 +93,14 @@ typedef struct ff2theora{
     int picture_width;
     int picture_height;
     double fps;
-    ImgReSampleContext *img_resample_ctx; /* for image resampling/resizing */
+    struct SwsContext *sws_colorspace_ctx; /* for image resampling/resizing */
+    struct SwsContext *sws_scale_ctx; /* for image resampling/resizing */
     ReSampleContext *audio_resample_ctx;
     ogg_int32_t aspect_numerator;
     ogg_int32_t aspect_denominator;
     double    frame_aspect;
 
+    int pix_fmt;
     int video_quality;
     int video_bitrate;
     int sharpness;
@@ -246,6 +251,8 @@ ff2theora ff2theora_init (){
         this->frame_leftBand=0;
         this->frame_rightBand=0;
         
+        this->pix_fmt = PIX_FMT_YUV420P;
+        
     }
     return this;
 }
@@ -391,21 +398,19 @@ void ff2theora_output(ff2theora this) {
         this->frame_x_offset = 0;
         this->frame_y_offset = 0;
         
-        if(this->frame_width > 0 || this->frame_height > 0){
-            int frame_padtop = this->frame_y_offset;
-            int frame_padbottom = this->frame_height-this->picture_height;
-            int frame_padleft = this->frame_x_offset;
-            int frame_padright = this->frame_width-this->picture_width;
-
-            this->img_resample_ctx = img_resample_full_init(
-                          //this->picture_width, this->picture_height,
-                          this->frame_width, this->frame_height,
-                          venc->width, venc->height,
-                          this->frame_topBand, this->frame_bottomBand,
-                          this->frame_leftBand, this->frame_rightBand,
-                          frame_padtop, frame_padbottom,
-                          frame_padleft, frame_padright
-              );
+        if(this->frame_width > 0 || this->frame_height > 0){            
+            this->sws_colorspace_ctx = sws_getContext(
+                          venc->width, venc->height, venc->pix_fmt,
+                          venc->width, venc->height, this->pix_fmt,
+                          sws_flags, NULL, NULL, NULL
+            );
+            this->sws_scale_ctx = sws_getContext(
+                          venc->width  - (this->frame_leftBand + this->frame_rightBand), 
+                          venc->height  - (this->frame_topBand + this->frame_bottomBand), 
+                          this->pix_fmt,
+                          this->frame_width, this->frame_height, this->pix_fmt,
+                          sws_flags, NULL, NULL, NULL
+            );
             fprintf(stderr,"  Resize: %dx%d",venc->width,venc->height);
             if(this->frame_topBand || this->frame_bottomBand ||
             this->frame_leftBand || this->frame_rightBand){
@@ -413,11 +418,10 @@ void ff2theora_output(ff2theora this) {
                     venc->width-this->frame_leftBand-this->frame_rightBand,
                     venc->height-this->frame_topBand-this->frame_bottomBand);
             }
-            if(this->picture_width != (venc->width-this->frame_leftBand-this->frame_rightBand) 
+            if(this->picture_width != (venc->width-this->frame_leftBand - this->frame_rightBand) 
                 || this->picture_height != (venc->height-this->frame_topBand-this->frame_bottomBand))
                 fprintf(stderr," => %dx%d",this->picture_width, this->picture_height);
             fprintf(stderr,"\n");
-            
         }
 
         if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0) 
@@ -475,7 +479,7 @@ void ff2theora_output(ff2theora this) {
         int16_t *audio_buf= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int16_t *resampled= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int no_frames;
-
+        
         if(this->video_index >= 0)
             info.audio_only=0;
         else
@@ -491,13 +495,13 @@ void ff2theora_output(ff2theora this) {
                             vstream->codec->width,vstream->codec->height);
             frame_tmp = alloc_picture(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
-            output_tmp =alloc_picture(PIX_FMT_YUV420P, 
+            output_tmp =alloc_picture(this->pix_fmt, 
                             vstream->codec->width,vstream->codec->height);
-            output =alloc_picture(PIX_FMT_YUV420P, 
+            output =alloc_picture(this->pix_fmt, 
                             vstream->codec->width,vstream->codec->height);
-            output_resized =alloc_picture(PIX_FMT_YUV420P, 
+            output_resized =alloc_picture(this->pix_fmt, 
                             this->frame_width, this->frame_height);
-            output_buffered =alloc_picture(PIX_FMT_YUV420P,
+            output_buffered =alloc_picture(this->pix_fmt,
                             this->frame_width, this->frame_height);    
 
             /* video settings here */
@@ -612,19 +616,22 @@ void ff2theora_output(ff2theora this) {
                                       dups, (dups == 1) ? "frame" : "frames");
                                 }
                             }
+                            
                             //For audio only files command line option"-e" will not work
                             //as we don't increment frame_count in audio section.
-                            if(venc->pix_fmt != PIX_FMT_YUV420P) {
-                                img_convert((AVPicture *)output_tmp,PIX_FMT_YUV420P,
-                                        (AVPicture *)frame,venc->pix_fmt,
-                                             venc->width,venc->height);
+                            
+                            if(venc->pix_fmt != this->pix_fmt) {
+                               sws_scale(this->sws_colorspace_ctx,
+                                 frame->data, frame->linesize, 0, venc->height,
+                                 output_tmp->data, output_tmp->linesize);
+                                             
                             }
                             else{
                                 output_tmp = frame;
                             }
-
                             if(frame->interlaced_frame || this->deinterlace){
-                                if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,PIX_FMT_YUV420P,venc->width,venc->height)<0){                                fprintf(stderr," failed deinterlace\n");
+                                if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,venc->width,venc->height)<0){
+                                        fprintf(stderr," failed deinterlace\n");
                                         // deinterlace failed
                                          output=output_tmp;
                                 }
@@ -634,12 +641,19 @@ void ff2theora_output(ff2theora this) {
                             }
                             // now output
                             if(this->vhook)
-                                frame_hook_process((AVPicture *)output, PIX_FMT_YUV420P, venc->width,venc->height);
+                                frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height);
 
-                            if(this->img_resample_ctx){
-                                img_resample(this->img_resample_ctx, 
-                                        (AVPicture *)output_resized, 
-                                        (AVPicture *)output);
+                            if (this->frame_topBand || this->frame_leftBand) {
+                                if (img_crop((AVPicture *)output_tmp, (AVPicture *)output, 
+                                    this->pix_fmt, this->frame_topBand, this->frame_leftBand) < 0) {
+                                    av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
+                                }
+                                output = output_tmp;
+                            }
+                            if(this->sws_scale_ctx){
+                              sws_scale(this->sws_scale_ctx,
+                                output->data, output->linesize, 0, venc->height - (this->frame_topBand + this->frame_bottomBand),
+                                output_resized->data, output_resized->linesize);
                             }    
                             else{
                                 output_resized=output;
@@ -736,8 +750,6 @@ void ff2theora_output(ff2theora this) {
             av_free(audio_buf);
         }
 
-        if (this->img_resample_ctx)
-            img_resample_close(this->img_resample_ctx);
         if (this->audio_resample_ctx)
             audio_resample_close(this->audio_resample_ctx);
 */
