@@ -125,6 +125,8 @@ typedef struct ff2theora{
     int start_time;
     int end_time; 
 
+    AVRational framerate_new;
+
     double pts_offset; /* between given input pts and calculated output pts */
     int64_t frame_count; /* total video frames output so far */
     int64_t sample_count; /* total audio samples output so far */
@@ -245,6 +247,8 @@ ff2theora ff2theora_init (){
         this->frame_aspect=0;
         this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace. 
         this->vhook=0;
+        this->framerate_new.num = -1;
+        this->framerate_new.den = 1;
 
         this->frame_topBand=0;
         this->frame_bottomBand=0;
@@ -266,7 +270,7 @@ void ff2theora_output(ff2theora this) {
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
     float frame_aspect;
-    double fps = 0.0;    
+    double fps = 0.0;
     
     if(this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
@@ -313,6 +317,7 @@ void ff2theora_output(ff2theora this) {
         }
         this->fps = fps;
 
+
         if(this->preset == V2V_PRESET_PREVIEW){
             if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
                 this->picture_width=NTSC_HALF_WIDTH;
@@ -347,17 +352,17 @@ void ff2theora_output(ff2theora this) {
                     this->frame_leftBand-this->frame_rightBand;
         }
         //so frame_aspect is set on the commandline
-        if(this->frame_aspect!=0){
-                if(this->picture_height){
-                    this->aspect_numerator=10000*this->frame_aspect*this->picture_height;
-                    this->aspect_denominator=10000*this->picture_width;
-                }
-                else{
-                    this->aspect_numerator=10000*this->frame_aspect*venc->height;
-                    this->aspect_denominator=10000*venc->width;
-                }
-                av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
-                frame_aspect=this->frame_aspect;
+        if(this->frame_aspect != 0){
+            if(this->picture_height){
+                this->aspect_numerator = 10000*this->frame_aspect*this->picture_height;
+                this->aspect_denominator = 10000*this->picture_width;
+            }
+            else{
+                this->aspect_numerator = 10000*this->frame_aspect*venc->height;
+                this->aspect_denominator = 10000*venc->width;
+            }
+            av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
+            frame_aspect=this->frame_aspect;
         }
         if(venc->sample_aspect_ratio.num!=0 && this->frame_aspect==0){
             // just use the ratio from the input
@@ -427,6 +432,10 @@ void ff2theora_output(ff2theora this) {
         if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0) 
             lut_init(lut, video_contr, video_bright, video_gamma);
     }
+    if (this->framerate_new.num > 0) {
+        fprintf(stderr,"  Resample Framerate: %0.2f => %0.2f\n", 
+                        this->fps,(double)this->framerate_new.num / this->framerate_new.den);
+    }
     if (this->audio_index >= 0){
         astream = this->context->streams[this->audio_index];
         aenc = this->context->streams[this->audio_index]->codec;
@@ -480,6 +489,9 @@ void ff2theora_output(ff2theora this) {
         int16_t *resampled= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int no_frames;
         
+        double framerate_add;
+        double framerate_tmpcount = 0;
+        
         if(this->video_index >= 0)
             info.audio_only=0;
         else
@@ -520,9 +532,18 @@ void ff2theora_output(ff2theora this) {
                 info.ti.fps_denominator = 1000000;
             }
             else {
-                info.ti.fps_numerator=vstream->r_frame_rate.num;
-                info.ti.fps_denominator = vstream->r_frame_rate.den;
+                if (this->framerate_new.num > 0) {
+                    // new framerate is interger only right now, 
+                    // so denominator is always 1
+                    info.ti.fps_numerator = this->framerate_new.num;
+                    info.ti.fps_denominator = this->framerate_new.den;
+                } 
+                else {
+                    info.ti.fps_numerator=vstream->r_frame_rate.num;
+                    info.ti.fps_denominator = vstream->r_frame_rate.den;
+                }
             }
+            
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
             info.ti.aspect_denominator=this->aspect_denominator;
@@ -570,6 +591,14 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr,"Sorry, right now start/end time does not work for audio only files.\n");
             exit(1);
         }
+
+        if (this->framerate_new.num > 0) {
+            double framerate_new = (double)this->framerate_new.num / this->framerate_new.den;
+            framerate_add = framerate_new/this->fps;
+            //fprintf(stderr,"calculating framerate addition to %f\n",framerate_add);
+            this->fps = framerate_new;
+        }
+
         /* main decoding loop */
         do{    
             if(no_frames > 0){
@@ -614,6 +643,19 @@ void ff2theora_output(ff2theora this) {
                                     fprintf(stderr,
                                       "%d duplicate %s added to maintain sync\n",
                                       dups, (dups == 1) ? "frame" : "frames");
+                                }
+                            }
+                            
+                            if (this->framerate_new.num > 0) {
+                                framerate_tmpcount += framerate_add;
+                                if (framerate_tmpcount < (double)(this->frame_count+1)) {
+                                    got_picture = 0; 
+                                } 
+                                else {
+                                    dups = 0;
+                                    while (framerate_tmpcount >= (double)(this->frame_count+2+dups)) {
+                                        dups += 1;
+                                    } 
                                 }
                             }
                             
@@ -754,7 +796,7 @@ void ff2theora_output(ff2theora this) {
             audio_resample_close(this->audio_resample_ctx);
 */
         oggmux_close (&info);
-    }
+        }
     else{
         fprintf (stderr, "No video or audio stream found.\n");
     }
@@ -806,6 +848,25 @@ static void add_frame_hooker(const char *arg)
     }
 }
 
+AVRational get_framerate(const char* arg)
+{
+    const char *p;
+    AVRational framerate;
+    
+    p = strchr(arg, ':');
+    if (p) {
+        framerate.num = strtol(arg, (char **)&arg, 10);
+        if (arg == p)
+            framerate.den = strtol(arg+1, (char **)&arg, 10);
+        if(framerate.num <= 0) 
+            framerate.num = -1;
+        if(framerate.den <= 0)
+            framerate.den = 1;
+    } else {
+        framerate.num = strtol(arg, (char **)&arg,10);
+    }
+    return(framerate);
+}
 
 int crop_check(ff2theora this, char *name, const char *arg)
 {
@@ -893,6 +954,7 @@ void print_usage (){
         "      --vhook            you can use ffmpeg's vhook system, example:\n"
         "        ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv\n"
         "  -f, --format           specify input format\n"
+        "  -F, --framerate        output framerate e.g 25:2 or 16\n"
 #ifdef VIDEO4LINUX_ENABLED
         "      --v4l /dev/video0  read data from v4l device /dev/video0\n"
         "                          you have to specifiy an output file with -o\n"
@@ -957,7 +1019,7 @@ int main (int argc, char **argv){
     AVFormatParameters *formatParams = NULL;
     
     int c,long_option_index;
-    const char *optstring = "P:o:k:f:x:y:v:V:a:A:S:K:d:H:c:G:C:B:p:N:s:e:D:h::";
+    const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:C:B:p:N:s:e:D:h::";
     struct option options [] = {
       {"pid",required_argument,NULL, 'P'},
       {"output",required_argument,NULL,'o'},
@@ -979,6 +1041,7 @@ int main (int argc, char **argv){
       {"contrast",required_argument,NULL,'C'},
       {"nosound",0,&flag,NOSOUND_FLAG},
       {"vhook",required_argument,&flag,VHOOK_FLAG},
+      {"framerate",required_argument,NULL,'F'},
 #ifdef VIDEO4LINUX_ENABLED
       {"v4l",required_argument,&flag,V4L_FLAG},
 #endif
@@ -1083,7 +1146,7 @@ int main (int argc, char **argv){
                             flag = -1;
                             break;
                         case AUDIOSTREAM_FLAG:
-                            convert->audiostream = atoi(optarg);;
+                            convert->audiostream = atoi(optarg);
                             flag = -1;
                             break;
                     }
@@ -1174,15 +1237,15 @@ int main (int argc, char **argv){
                 }
                 convert->audio_quality = -990;
                 break;
-        case 'G':
+            case 'G':
                 video_gamma = atof(optarg);
-        break;
-        case 'C':
+                break;
+            case 'C':
                 video_contr = atof(optarg);
-        break;
-        case 'B':
+                break;
+            case 'B':
                 video_bright = atof(optarg);
-        break;
+                break;
             case 'S':
                 convert->sharpness = atoi(optarg);
                 if (convert->sharpness < 0 || convert->sharpness > 2) {
@@ -1200,7 +1263,9 @@ int main (int argc, char **argv){
             case 'H':
                 convert->sample_rate=atoi(optarg);
                 break;
-            /* does this work? */
+            case 'F':
+                convert->framerate_new = get_framerate(optarg);
+                break;
             case 'c':
                 convert->channels=atoi(optarg);
                 break;
