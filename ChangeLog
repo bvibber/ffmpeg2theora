@@ -1,3 +1,8 @@
+0.17 2006-11-??
+    - new option -F/--framerate to set output framerate
+    - skeleton support(-k)
+    - vhook support(only available if libav* is linked as shared lib)
+    
 0.16  2006-02-11
     - support encoding from .ogg input file.
     - don't change samplerate and audio channels unless we use command

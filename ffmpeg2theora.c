@@ -927,6 +927,7 @@ void print_usage (){
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
         "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
+        "  -F, --framerate        output framerate e.g 25:2 or 16\n"
         "      --croptop, --cropbottom, --cropleft, --cropright\n"        
         "                         crop input by given pixels before resizing\n"        
         "  -S, --sharpness        [0 to 2] sharpness of images (default: 2).\n"
@@ -954,7 +955,6 @@ void print_usage (){
         "      --vhook            you can use ffmpeg's vhook system, example:\n"
         "        ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv\n"
         "  -f, --format           specify input format\n"
-        "  -F, --framerate        output framerate e.g 25:2 or 16\n"
 #ifdef VIDEO4LINUX_ENABLED
         "      --v4l /dev/video0  read data from v4l device /dev/video0\n"
         "                          you have to specifiy an output file with -o\n"
