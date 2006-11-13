@@ -3,7 +3,7 @@
 #optional, if you have the libs installed:
 #extra="--enable-faad --enable-libgsm --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2 --enable-dts"
 
-common="--enable-libogg --enable-theora --enable-a52 --enable-gpl --disable-encoders"
+common="--enable-gpl --enable-swscaler --enable-a52 --disable-encoders"
 
 #linux
 options="$common --enable-pthreads $extra"
