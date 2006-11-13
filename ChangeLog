@@ -1,4 +1,4 @@
-0.17 2006-11-??
+0.17 2006-11-13
     - new option -F/--framerate to set output framerate
     - skeleton support(-k)
     - vhook support(only available if libav* is linked as shared lib)
