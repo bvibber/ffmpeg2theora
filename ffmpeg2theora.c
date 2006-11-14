@@ -864,6 +864,7 @@ AVRational get_framerate(const char* arg)
             framerate.den = 1;
     } else {
         framerate.num = strtol(arg, (char **)&arg,10);
+        framerate.den = 1;
     }
     return(framerate);
 }
