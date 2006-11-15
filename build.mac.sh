@@ -63,6 +63,8 @@ tmp_dir=/tmp/ffmpeg2theora
 build_dir=$tmp_dir/build
 dist_dir=$tmp_dir/dist
 mkdir -p $dist_dir/universal/usr/local/bin
+mkdir -p $dist_dir/universal/usr/local/share/man/man1/
+cp Â$dist_dir/i386/share/man/man1/ffmpeg2theora.1 $dist_dir/universal/usr/local/share/man/man1/
 strip $dist_dir/ppc/bin/ffmpeg2theora
 strip $dist_dir/i386/bin/ffmpeg2theora
 lipo -create -arch ppc $dist_dir/ppc/bin/ffmpeg2theora \
