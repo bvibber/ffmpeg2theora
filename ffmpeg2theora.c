@@ -619,6 +619,7 @@ void ff2theora_output(ff2theora this) {
                 }
                 while(e_o_s || len > 0){
                     int dups = 0;
+                    yuv_buffer yuv;
                     len1 = avcodec_decode_video(vstream->codec, frame, &got_picture, ptr, len);
                     if(len1>=0) {
                                         
@@ -709,7 +710,6 @@ void ff2theora_output(ff2theora this) {
                     //now output_resized
 
                     /* pysical pages */
-                    yuv_buffer yuv;
                     yuv.y_width = this->frame_width;
                     yuv.y_height = this->frame_height;
                     yuv.y_stride = output_resized->linesize[0];

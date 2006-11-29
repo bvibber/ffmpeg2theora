@@ -293,6 +293,8 @@ void oggmux_init (oggmux_info *info){
     }
 
     if (info->with_skeleton) {
+	int result;
+
         /* build and add the e_o_s packet */
 	memset (&op, 0, sizeof (op));
         op.b_o_s = 0;
@@ -301,7 +303,7 @@ void oggmux_init (oggmux_info *info){
 	op.bytes = 0; /* e_o_s packet is an empty packet */
         ogg_stream_packetin (&info->so, &op);
 
-	int result = ogg_stream_flush (&info->so, &og);
+	result = ogg_stream_flush (&info->so, &og);
         if (result < 0){
             /* can't get here */
             fprintf (stderr, "Internal Ogg library error.\n");
