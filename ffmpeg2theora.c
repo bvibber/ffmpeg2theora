@@ -663,16 +663,20 @@ void ff2theora_output(ff2theora this) {
                                 /* it should be larger than half a frame to 
                                  avoid excessive dropping and duplicating */
                                 if (delta < -0.7) {
+#ifdef DEBUG
                                     fprintf(stderr,
                                           "Frame dropped to maintain sync\n");
+#endif
                                     break;
                                 }
                                 if (delta > 0.7) {
                                     //dups = lrintf(delta);
                                     dups = (int)delta;
+#ifdef DEBUG
                                     fprintf(stderr,
                                       "%d duplicate %s added to maintain sync\n",
                                       dups, (dups == 1) ? "frame" : "frames");
+#endif
                                 }
                             }
                             
