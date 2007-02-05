@@ -139,10 +139,13 @@ typedef struct ff2theora{
 static double video_gamma  = 0.0;
 static double video_bright = 0.0;
 static double video_contr  = 0.0;
-static int lut_used = 0;
-static unsigned char lut[256];
+static double video_satur  = 1.0;
+static int y_lut_used = 0;
+static int uv_lut_used = 0;
+static unsigned char y_lut[256];
+static unsigned char uv_lut[256];
 
-static void lut_init(unsigned char *lut, double c, double b, double g) {
+static void y_lut_init(unsigned char *lut, double c, double b, double g) {
     int i;
     double v;
 
@@ -151,7 +154,7 @@ static void lut_init(unsigned char *lut, double c, double b, double g) {
     if ((b < -1.0) || (b > 1.0))   b = 0.0;
 
     if (g == 1.0 && c == 1.0 && b == 0.0) return;
-    lut_used = 1;
+    y_lut_used = 1;
 
     printf("  Video correction: gamma=%g, contrast=%g, brightness=%g\n", g, c, b);
 
@@ -159,7 +162,7 @@ static void lut_init(unsigned char *lut, double c, double b, double g) {
 
     for (i = 0; i < 256; i++) {
         v = (double) i / 255.0;
-        v = c * v + b;
+        v = c * v + b * 0.1;
         if (v < 0.0) v = 0.0;
         v = pow(v, g) * 255.0;    // mplayer's vf_eq2.c multiplies with 256 here, strange...
 
@@ -170,10 +173,36 @@ static void lut_init(unsigned char *lut, double c, double b, double g) {
     }
 }
 
+
+static void uv_lut_init(unsigned char *lut, double s) {
+    int i;
+    double v;
+
+    if ((s < 0.0) || (s > 100.0)) s = 1.0;
+
+    if (s == 1.0) return;
+    uv_lut_used = 1;
+
+    printf("  Color correction: saturation=%g\n", s);
+
+    for (i = 0; i < 256; i++) {
+        v = 127.0 + (s * ((double)i - 127.0));
+        if (v < 0.0) v = 0.0;
+
+        if (v >= 255.0) 
+            lut[i] = 255;
+        else
+            lut[i] = (unsigned char)(v+0.5);
+    }
+}
+
+static void lut_init(double c, double b, double g, double s) {
+  y_lut_init(y_lut, c, b, g);
+  uv_lut_init(uv_lut, s);
+}
+
 static void lut_apply(unsigned char *lut, unsigned char *src, unsigned char *dst, int width, int height, int stride) {
     int x, y;
-
-    if (!lut_used) abort();
 
     for (y = 0; y < height; y++) {
         for (x = 0; x < width; x++) {
@@ -429,8 +458,8 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr,"\n");
         }
 
-        if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0) 
-            lut_init(lut, video_contr, video_bright, video_gamma);
+        if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0 || video_satur != 1.0) 
+            lut_init(video_contr, video_bright, video_gamma, video_satur);
     }
     if (this->framerate_new.num > 0) {
         fprintf(stderr,"  Resample Framerate: %0.2f => %0.2f\n", 
@@ -722,8 +751,12 @@ void ff2theora_output(ff2theora this) {
                     yuv.u = output_resized->data[1];
                     yuv.v = output_resized->data[2];
                     if(got_picture || e_o_s) do {
-                        if (lut_used) 
-                            lut_apply(lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
+                        if (y_lut_used) 
+                            lut_apply(y_lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
+                        if (uv_lut_used) {
+                            lut_apply(uv_lut, yuv.u, yuv.u, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
+                            lut_apply(uv_lut, yuv.v, yuv.v, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
+			  }
                         oggmux_add_video(&info, &yuv ,e_o_s);
                         this->frame_count++;
                     } while(dups--);
@@ -942,6 +975,8 @@ void print_usage (){
             "                          Note: lower values make the video darker.\n"
         "  -G, --gamma            [0.1 to 10.0] gamma correction (default: 1.0)\n"
         "                          Note: lower values make the video darker.\n"
+        "  -Z, --saturation       [0.1 to 10.0] saturation correction (default: 1.0)\n"
+        "                          Note: lower values make the video grey.\n"
         "\n"
         "Audio output options:\n"
         "  -a, --audioquality     [-2 to 10] encoding quality for audio (default: 1)\n"
@@ -1020,7 +1055,7 @@ int main (int argc, char **argv){
     AVFormatParameters *formatParams = NULL;
     
     int c,long_option_index;
-    const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:C:B:p:N:s:e:D:h::";
+    const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
     struct option options [] = {
       {"pid",required_argument,NULL, 'P'},
       {"output",required_argument,NULL,'o'},
@@ -1040,6 +1075,7 @@ int main (int argc, char **argv){
       {"gamma",required_argument,NULL,'G'},
       {"brightness",required_argument,NULL,'B'},
       {"contrast",required_argument,NULL,'C'},
+      {"saturation",required_argument,NULL,'P'},
       {"nosound",0,&flag,NOSOUND_FLAG},
       {"vhook",required_argument,&flag,VHOOK_FLAG},
       {"framerate",required_argument,NULL,'F'},
@@ -1243,6 +1279,9 @@ int main (int argc, char **argv){
                 break;
             case 'C':
                 video_contr = atof(optarg);
+		break;
+            case 'Z':
+                video_satur = atof(optarg);
                 break;
             case 'B':
                 video_bright = atof(optarg);
@@ -1321,7 +1360,7 @@ int main (int argc, char **argv){
         if(outputfile_set!=1){
             /* reserve 4 bytes in the buffer for the `.ogg' extension */
             snprintf(outputfile_name, sizeof(outputfile_name) - 4, "%s", argv[optind]);
-            if(str_ptr = strrchr(outputfile_name, '.')) {
+            if((str_ptr = strrchr(outputfile_name, '.'))) {
               sprintf(str_ptr, ".ogg");
               if(!strcmp(inputfile_name, outputfile_name)){
                 snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogg", inputfile_name);
