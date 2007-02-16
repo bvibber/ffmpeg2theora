@@ -1,9 +1,9 @@
 #!/bin/sh
 
-#optional, if you have the libs installed:
-#extra="--enable-faad --enable-libgsm --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2 --enable-dts"
+#optional, if you have those libs installed:
+#extra="--enable-libfaad --enable-libgsm --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2 --enable-libdts"
 
-common="--enable-gpl --enable-swscaler --enable-a52 --disable-encoders"
+common="--enable-gpl --enable-swscaler --enable-liba52 --disable-encoders"
 
 #linux
 options="$common --enable-pthreads $extra"
