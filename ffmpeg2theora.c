@@ -1079,7 +1079,7 @@ int main (int argc, char **argv){
       {"gamma",required_argument,NULL,'G'},
       {"brightness",required_argument,NULL,'B'},
       {"contrast",required_argument,NULL,'C'},
-      {"saturation",required_argument,NULL,'P'},
+      {"saturation",required_argument,NULL,'Z'},
       {"nosound",0,&flag,NOSOUND_FLAG},
       {"vhook",required_argument,&flag,VHOOK_FLAG},
       {"framerate",required_argument,NULL,'F'},
