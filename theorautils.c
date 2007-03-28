@@ -43,6 +43,7 @@ static double rint(double x)
 
 void init_info(oggmux_info *info) {
     info->with_skeleton = 0; /* skeleton is disabled by default	*/
+    info->frontend = 0; /*frontend mode*/
     info->videotime =  0;
     info->audiotime = 0;
     info->audio_bytesout = 0;
@@ -395,12 +396,21 @@ static void print_stats(oggmux_info *info, double timebase){
     int remaining_seconds = (long) remaining % 60;
     int remaining_minutes = ((long) remaining / 60) % 60;
     int remaining_hours = (long) remaining / 3600;
-    
-    fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time remaining: %02d:%02d:%02d      ",
-         hours, minutes, seconds, hundredths,
-         info->akbps, info->vkbps,
-         remaining_hours, remaining_minutes, remaining_seconds
-         );
+    if(info->frontend) {
+        fprintf (stderr,"\nf2t ;position: %.02lf;audio_kbps: %d;video_kbps: %d;remaining: %.02lf\n",
+           timebase,
+           info->akbps, info->vkbps,
+           remaining
+           );
+      
+    }
+    else {
+      fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time remaining: %02d:%02d:%02d      ",
+           hours, minutes, seconds, hundredths,
+           info->akbps, info->vkbps,
+           remaining_hours, remaining_minutes, remaining_seconds
+           );
+    }
 }
 
 static int write_audio_page(oggmux_info *info)

@@ -41,7 +41,7 @@ typedef struct
     int audio_only;
     int video_only;
     int with_skeleton;
-
+    int frontend;
     /* vorbis settings */
     int sample_rate;
     int channels;

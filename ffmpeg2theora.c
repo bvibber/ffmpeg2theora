@@ -58,6 +58,7 @@
 #define INPUTFPS_FLAG       11
 #define AUDIOSTREAM_FLAG    12
 #define VHOOK_FLAG          13
+#define FRONTEND_FLAG       14
 
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
@@ -285,7 +286,6 @@ ff2theora ff2theora_init (){
         this->frame_rightBand=0;
         
         this->pix_fmt = PIX_FMT_YUV420P;
-        
     }
     return this;
 }
@@ -1099,6 +1099,7 @@ int main (int argc, char **argv){
       {"endtime",required_argument,NULL,'e'},
       {"sync",0,&flag,SYNC_FLAG},
       {"optimize",0,&flag,OPTIMIZE_FLAG},
+      {"frontend",0,&flag,FRONTEND_FLAG},
 
       {"artist",required_argument,&metadata_flag,10},
       {"title",required_argument,&metadata_flag,11},
@@ -1152,6 +1153,10 @@ int main (int argc, char **argv){
                             break;
                         case OPTIMIZE_FLAG:
                             convert->quick_p = 0;
+                            flag = -1;
+                            break;
+                        case FRONTEND_FLAG:
+                            info.frontend = 1;
                             flag = -1;
                             break;
 #ifdef VIDEO4LINUX_ENABLED
@@ -1453,7 +1458,12 @@ int main (int argc, char **argv){
                 }
                 info.outfile = fopen(outputfile_name,"wb");
 #endif
-                dump_format (convert->context, 0,inputfile_name, 0);
+                if(info.frontend) {
+                  fprintf(stderr, "\nf2t ;duration: %d;\n", convert->context->duration / AV_TIME_BASE);                
+                }
+                else {
+                  dump_format (convert->context, 0,inputfile_name, 0);                  
+                }
                 if(convert->disable_audio){
                     fprintf(stderr,"  [audio disabled].\n");
                 }
@@ -1464,7 +1474,10 @@ int main (int argc, char **argv){
                 convert->pts_offset = 
                     (double) convert->context->start_time / AV_TIME_BASE;
                 if(!info.outfile) {
-                    fprintf (stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
+                    if(info.frontend)
+                        fprintf(stderr, "\nf2t ;result: Unable to open output file.;\n");                
+                    else
+                      fprintf (stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
                     return(1);
                 }
                 if (convert->context->duration != AV_NOPTS_VALUE) {
@@ -1474,8 +1487,11 @@ int main (int argc, char **argv){
                 convert->audio_index =convert->video_index = -1;
             }
             else{
-                fprintf (stderr,"\nUnable to decode input.\n");
-                return(1);
+              if(info.frontend)
+                  fprintf(stderr, "\nf2t ;result: input format not suported.;\n");                
+              else
+                  fprintf (stderr,"\nUnable to decode input.\n");
+              return(1);
             }
             av_close_input_file (convert->context);
         }
@@ -1486,9 +1502,11 @@ int main (int argc, char **argv){
     ff2theora_close (convert);
     fprintf(stderr,"\n");
     
-    if (*pidfile_name) 
-    {
+    if (*pidfile_name)
         unlink(pidfile_name);
-    }
+    
+    if(info.frontend)
+        fprintf(stderr, "\nf2t ;result: ok;\n");                
+    
     return(0);
 }
