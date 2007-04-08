@@ -1,4 +1,4 @@
-ffmpeg2theora
+ffmpeg2theora - http://v2v.cc/~j/ffmpeg2theora
 
 with ffmpeg2theora you can convert any file that ffmpeg can
 decode to theora. right now the settings are hardcoded into
