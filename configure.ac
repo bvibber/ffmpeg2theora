@@ -7,6 +7,8 @@ AM_INIT_AUTOMAKE([dist-bzip2])
 AC_PROG_CC
 AM_PROG_LIBTOOL
 
+AC_SYS_LARGEFILE
+
 AC_MSG_CHECKING(whether to link statically)
 AC_ARG_WITH(static-linking,
 [  --with-static-linking   Link binaries statically],
