@@ -1059,7 +1059,7 @@ int main (int argc, char **argv){
     AVFormatParameters *formatParams = NULL;
     
     int c,long_option_index;
-    const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
+    const char *optstring = "P:o:kf:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
     struct option options [] = {
       {"pid",required_argument,NULL, 'P'},
       {"output",required_argument,NULL,'o'},
