@@ -1,3 +1,7 @@
+0.19 2007-06-10
+    - use libswscale api
+    - add frontend mode and a simple PythonCard Frontend
+    
 0.18 2007-02-16
     - new option -Z/--saturation
     - document contrast / gamma / brightness / saturation options

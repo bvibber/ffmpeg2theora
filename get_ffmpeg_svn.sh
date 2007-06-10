@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #optional, if you have those libs installed:
-#extra="--enable-libfaad --enable-libgsm --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2 --enable-libdts"
+#extra="--enable-libfaad --enable-libgsm --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2"
 
 common="--enable-gpl --enable-swscaler --enable-liba52 --disable-encoders"
 

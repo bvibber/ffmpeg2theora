@@ -15,7 +15,7 @@ build_all_osx() {
   export PKG_CONFIG_LIBDIR=$dist_dir/lib/pkgconfig
 
   ffmpeg_extra="--enable-pp --enable-gpl --enable-swscaler --disable-encoders  --enable-libogg --enable-libvorbis"
-  ffmpeg_extra="$ffmpeg_extra --enable-libdts --enable-liba52"
+  ffmpeg_extra="$ffmpeg_extra --enable-liba52"
   test -e $dist_dir/lib/libfaad.a && ffmpeg_extra="$ffmpeg_extra --enable-faad" && echo "building with faad"
   echo ""
   if [ $arch == 'ppc' ]; then
@@ -62,17 +62,6 @@ build_all_osx() {
     ./autogen.sh --disable-shared --prefix=$dist_dir --host=$arch && make && make install
   fi
   export PKG_CONFIG_PATH=$build_dir/$package:$PKG_CONFIG_PATH
-
-  cd $build_dir
-  package="libdts-0.0.2"
-  if [ -e $package ]; then
-    echo "using existing $arch/$package"
-  else
-    echo "building $arch/$package"
-    tarball="http://download.videolan.org/pub/videolan/libdca/0.0.2/libdca-0.0.2.tar.gz"
-    test -e libdts-0.0.2 || curl $tarball > libdts-0.0.2.tar.gz && tar xzf libdts-0.0.2.tar.gz && \
-    cd libdts-0.0.2 && ./configure --prefix=$dist_dir && make && make install
-  fi
   
   cd $build_dir
   package="a52dec-0.7.4"
