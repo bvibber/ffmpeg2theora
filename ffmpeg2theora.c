@@ -469,7 +469,7 @@ void ff2theora_output(ff2theora this) {
         astream = this->context->streams[this->audio_index];
         aenc = this->context->streams[this->audio_index]->codec;
         acodec = avcodec_find_decoder (aenc->codec_id);
-        if (this->channels == -1) {
+        if (this->channels < 1) {
             if (aenc->channels > 2)
                 this->channels = 2;
             else
