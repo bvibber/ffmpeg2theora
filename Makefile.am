@@ -4,8 +4,6 @@ SUBDIRS = kino_export
 
 EXTRA_DIST = Makefile.mingw32 theorautils.h get_ffmpeg_svn.sh ffmpeg2theora.1
 
-EXTRA=-D_FILE_OFFSET_BITS=64 -I$(prefix)/include
-
 bin_PROGRAMS = ffmpeg2theora
 
 ffmpeg2theora_SOURCES = ffmpeg2theora.c  theorautils.c
