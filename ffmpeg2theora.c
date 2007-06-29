@@ -1317,6 +1317,10 @@ int main (int argc, char **argv){
                 break;
             case 'c':
                 convert->channels=atoi(optarg);
+                if(convert->channels <= 0) {
+                  fprintf (stderr, "You can not have less than one audio channel.\n");
+                  exit(1);
+                }
                 break;
             case 'p':
                 //v2v presets
