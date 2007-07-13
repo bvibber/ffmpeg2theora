@@ -223,7 +223,7 @@ static int using_stdin = 0;
 /**
  * Allocate and initialise an AVFrame. 
  */
-AVFrame *alloc_picture (int pix_fmt, int width, int height) {
+AVFrame *frame_alloc (int pix_fmt, int width, int height) {
     AVFrame *picture;
     uint8_t *picture_buf;
     int size;
@@ -532,17 +532,17 @@ void ff2theora_output(ff2theora this) {
             info.video_only=1;
         
         if(!info.audio_only){
-            frame = alloc_picture(vstream->codec->pix_fmt,
+            frame = frame_alloc(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
-            frame_tmp = alloc_picture(vstream->codec->pix_fmt,
+            frame_tmp = frame_alloc(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
-            output_tmp =alloc_picture(this->pix_fmt, 
+            output_tmp =frame_alloc(this->pix_fmt, 
                             vstream->codec->width,vstream->codec->height);
-            output =alloc_picture(this->pix_fmt, 
+            output =frame_alloc(this->pix_fmt, 
                             vstream->codec->width,vstream->codec->height);
-            output_resized =alloc_picture(this->pix_fmt, 
+            output_resized =frame_alloc(this->pix_fmt, 
                             this->frame_width, this->frame_height);
-            output_buffered =alloc_picture(this->pix_fmt,
+            output_buffered =frame_alloc(this->pix_fmt,
                             this->frame_width, this->frame_height);    
 
             /* video settings here */
@@ -720,7 +720,7 @@ void ff2theora_output(ff2theora this) {
                                 frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height);
 
                             if (this->frame_topBand || this->frame_leftBand) {
-                                if (img_crop((AVPicture *)output_tmp, (AVPicture *)output, 
+                                if (av_picture_crop((AVPicture *)output_tmp, (AVPicture *)output, 
                                     this->pix_fmt, this->frame_topBand, this->frame_leftBand) < 0) {
                                     av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
                                 }
