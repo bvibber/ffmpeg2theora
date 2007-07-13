@@ -777,9 +777,9 @@ void ff2theora_output(ff2theora this) {
                 while(e_o_s || len > 0 ){
                     int samples=0;
                     int samples_out=0;
-                    int data_size;
+                    int data_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
                     if(len > 0){
-                        len1 = avcodec_decode_audio(astream->codec, audio_buf,&data_size, ptr, len);
+                        len1 = avcodec_decode_audio2(astream->codec, audio_buf, &data_size, ptr, len);
                         if (len1 < 0){
                             /* if error, we skip the frame */
                             break;
