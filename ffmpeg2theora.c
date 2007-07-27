@@ -59,6 +59,7 @@
 #define AUDIOSTREAM_FLAG    12
 #define VHOOK_FLAG          13
 #define FRONTEND_FLAG       14
+#define SPEEDLEVEL_FLAG     15
 
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
@@ -106,7 +107,6 @@ typedef struct ff2theora{
     int video_bitrate;
     int sharpness;
     int keyint;
-    int quick_p;
 
     double force_input_fps;
     int sync;
@@ -269,7 +269,6 @@ ff2theora ff2theora_init (){
         this->video_bitrate=0;
         this->sharpness=2;
         this->keyint=64;
-        this->quick_p=1;
         this->force_input_fps=0;
         this->sync=0;
         this->aspect_numerator=0;
@@ -588,7 +587,6 @@ void ff2theora_output(ff2theora this) {
             info.ti.target_bitrate = this->video_bitrate; 
             info.ti.quality = this->video_quality;
             info.ti.dropframes_p = 0;
-            info.ti.quick_p = this->quick_p;
             info.ti.keyframe_auto_p = 1;
             info.ti.keyframe_frequency = this->keyint;
             info.ti.keyframe_frequency_force = this->keyint;
@@ -961,7 +959,9 @@ void print_usage (){
         "Video output options:\n"
         "  -v, --videoquality     [0 to 10] encoding quality for video (default: 5)\n"
         "  -V, --videobitrate     [1 to 16778] encoding bitrate for video (kb/s)\n"
-        "      --optimize         optimize video output filesize (slower)\n"
+        "      --optimize         optimize video output filesize (slower) (same as speedlevel 0)\n"
+        "      --speedlevel       [0 2] encoding is faster with higher values the cost is quality and bandwith\n"
+        "                               this puts the encoder in VBR mode, bitrate settings no longer work\n"
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
         "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
@@ -1099,6 +1099,7 @@ int main (int argc, char **argv){
       {"endtime",required_argument,NULL,'e'},
       {"sync",0,&flag,SYNC_FLAG},
       {"optimize",0,&flag,OPTIMIZE_FLAG},
+      {"speedlevel",required_argument,&flag,SPEEDLEVEL_FLAG},
       {"frontend",0,&flag,FRONTEND_FLAG},
 
       {"artist",required_argument,&metadata_flag,10},
@@ -1152,7 +1153,11 @@ int main (int argc, char **argv){
                             flag = -1;
                             break;
                         case OPTIMIZE_FLAG:
-                            convert->quick_p = 0;
+                            info.speed_level = 0;
+                            flag = -1;
+                            break;
+                        case SPEEDLEVEL_FLAG:
+                          info.speed_level = atoi(optarg);
                             flag = -1;
                             break;
                         case FRONTEND_FLAG:

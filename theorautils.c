@@ -57,6 +57,7 @@ void init_info(oggmux_info *info) {
     info->videopage = NULL;
     info->start_time = time(NULL);
     info->duration = -1;
+    info->speed_level = -1;
     
     info->v_pkg=0;
     info->a_pkg=0;
@@ -160,6 +161,14 @@ void oggmux_init (oggmux_info *info){
     if(!info->audio_only){
         ogg_stream_init (&info->to, rand ());    /* oops, add one ot the above */
         theora_encode_init (&info->td, &info->ti);
+        
+        if(info->speed_level >= 0) {
+          int max_speed_level;
+          theora_control(&info->td, TH_ENCCTL_GET_SPLEVEL_MAX, &max_speed_level, sizeof(int));
+          if(info->speed_level > max_speed_level)
+            info->speed_level = max_speed_level;
+          theora_control(&info->td, TH_ENCCTL_SET_SPLEVEL, &info->speed_level, sizeof(int));
+        }
     }
     /* init theora done */
 

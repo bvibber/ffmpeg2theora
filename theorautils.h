@@ -54,6 +54,7 @@ typedef struct
     /* theora settings */
     theora_info ti;
     theora_comment tc;
+    int speed_level;
 
     /* state info */    
     theora_state td;
