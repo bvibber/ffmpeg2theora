@@ -43,23 +43,25 @@
   #define VIDEO4LINUX_ENABLED
 #endif
 
-#define DEINTERLACE_FLAG     1
-#define OPTIMIZE_FLAG        2
-#define SYNC_FLAG            3
-#define NOSOUND_FLAG         4
+enum {
+  DEINTERLACE_FLAG,
+  OPTIMIZE_FLAG,
+  SYNC_FLAG,
+  NOSOUND_FLAG,
 #ifdef VIDEO4LINUX_ENABLED
-  #define V4L_FLAG           5
+  V4L_FLAG,
 #endif
-#define CROPTOP_FLAG         6
-#define CROPBOTTOM_FLAG      7
-#define CROPRIGHT_FLAG       8
-#define CROPLEFT_FLAG        9
-#define ASPECT_FLAG         10
-#define INPUTFPS_FLAG       11
-#define AUDIOSTREAM_FLAG    12
-#define VHOOK_FLAG          13
-#define FRONTEND_FLAG       14
-#define SPEEDLEVEL_FLAG     15
+  CROPTOP_FLAG,
+  CROPBOTTOM_FLAG,
+  CROPRIGHT_FLAG,
+  CROPLEFT_FLAG,
+  ASPECT_FLAG,
+  INPUTFPS_FLAG,
+  AUDIOSTREAM_FLAG,
+  VHOOK_FLAG,
+  FRONTEND_FLAG,
+  SPEEDLEVEL_FLAG,
+} F2T_FLAGS;
 
 #define V2V_PRESET_PRO 1
 #define V2V_PRESET_PREVIEW 2
