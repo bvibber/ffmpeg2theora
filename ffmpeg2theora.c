@@ -963,7 +963,6 @@ void print_usage (){
         "  -V, --videobitrate     [1 to 16778] encoding bitrate for video (kb/s)\n"
         "      --optimize         optimize video output filesize (slower) (same as speedlevel 0)\n"
         "      --speedlevel       [0 2] encoding is faster with higher values the cost is quality and bandwith\n"
-        "                               this puts the encoder in VBR mode, bitrate settings no longer work\n"
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
         "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
