@@ -49,6 +49,7 @@ Encode file with v2v preset.  Right now, there is preview and pro.  Run
 .TP
 .B \-v, \-\-videoquality
 [0 to 10] Set encoding quality for video (default: 5).
+          use higher values for better quality
 .TP
 .B \-V, \-\-videobitrate
 [1 to 16778] Set encoding bitrate for video (in kb/s).
@@ -57,6 +58,9 @@ Encode file with v2v preset.  Right now, there is preview and pro.  Run
 Optimize output Theora video, using a full search for motion vectors
 instead of a hierarchical one. This can reduce video bitrate about 5%,
 but it is slower and therefore is disabled by default.
+.TP
+.B \-\-speedlevel
+[0 2] encoding is faster with higher values the cost is quality and bandwidth
 .TP
 .B \-x, \-\-width
 Scale to given width (in pixels).
@@ -96,6 +100,7 @@ sharper.
 .TP
 .B \-a, \-\-audioquality
 [-2 to 10] Set encoding quality for audio (default: 1).
+           use higher values for better quality
 .TP
 .B \-A, \-\-audiobitrate
 [32 to 500] Set encoding bitrate for audio (in kb/s).
