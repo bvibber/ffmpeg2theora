@@ -512,7 +512,7 @@ void ff2theora_output(ff2theora this) {
         int len1;
         int got_picture;
         int first = 1;
-        int e_o_s=0;
+        int e_o_s = 0;
         int ret;
         uint8_t *ptr;
         int16_t *audio_buf= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
@@ -651,7 +651,6 @@ void ff2theora_output(ff2theora this) {
                     yuv_buffer yuv;
                     len1 = avcodec_decode_video(vstream->codec, frame, &got_picture, ptr, len);
                     if(len1>=0) {
-                                        
                         if(got_picture){
                             // this is disabled by default since it does not work
                             // for all input formats the way it should.
@@ -683,7 +682,7 @@ void ff2theora_output(ff2theora this) {
                             if (this->framerate_new.num > 0) {
                                 framerate_tmpcount += framerate_add;
                                 if (framerate_tmpcount < (double)(this->frame_count+1)) {
-                                    got_picture = 0; 
+                                    got_picture = 0;
                                 } 
                                 else {
                                     dups = 0;
@@ -738,32 +737,39 @@ void ff2theora_output(ff2theora this) {
                         }
                         ptr += len1;
                         len -= len1;
-                    }    
-                    first=0;
+                    }
                     //now output_resized
+                    if(!first) {
+                      /* pysical pages */
+                      yuv.y_width = this->frame_width;
+                      yuv.y_height = this->frame_height;
+                      yuv.y_stride = output_buffered->linesize[0];
 
-                    /* pysical pages */
-                    yuv.y_width = this->frame_width;
-                    yuv.y_height = this->frame_height;
-                    yuv.y_stride = output_resized->linesize[0];
+                      yuv.uv_width = this->frame_width / 2;
+                      yuv.uv_height = this->frame_height / 2;
+                      yuv.uv_stride = output_buffered->linesize[1];
 
-                    yuv.uv_width = this->frame_width / 2;
-                    yuv.uv_height = this->frame_height / 2;
-                    yuv.uv_stride = output_resized->linesize[1];
-
-                    yuv.y = output_resized->data[0];
-                    yuv.u = output_resized->data[1];
-                    yuv.v = output_resized->data[2];
-                    if(got_picture || e_o_s) do {
-                        if (y_lut_used) 
-                            lut_apply(y_lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
-                        if (uv_lut_used) {
-                            lut_apply(uv_lut, yuv.u, yuv.u, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
-                            lut_apply(uv_lut, yuv.v, yuv.v, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
-                        }
-                        oggmux_add_video(&info, &yuv ,e_o_s);
-                        this->frame_count++;
-                    } while(dups--);
+                      yuv.y = output_buffered->data[0];
+                      yuv.u = output_buffered->data[1];
+                      yuv.v = output_buffered->data[2];
+                      if(got_picture || e_o_s) {
+                        do {
+                          if (y_lut_used) {
+                              lut_apply(y_lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
+                          }
+                          if (uv_lut_used) {
+                              lut_apply(uv_lut, yuv.u, yuv.u, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
+                              lut_apply(uv_lut, yuv.v, yuv.v, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
+                          }
+                          oggmux_add_video(&info, &yuv, e_o_s);
+                          this->frame_count++;
+                        } while(dups--);
+                      }
+                    }
+                    if(got_picture) {
+                      first=0;
+                      av_picture_copy ((AVPicture *)output_buffered, (AVPicture *)output_resized, this->pix_fmt, this->frame_width, this->frame_height);
+                    }
                     if(!got_picture){
                         break;
                     }
