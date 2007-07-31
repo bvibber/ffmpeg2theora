@@ -817,27 +817,7 @@ void ff2theora_output(ff2theora this) {
             av_free_packet (&pkt);
         }
         while (ret >= 0);
-/*
-    lets takes this out for now, this way glic stops complaining.
-*/
 
-/*
-        if(frame) av_free(frame);
-        if(frame_tmp) av_free(frame_tmp);
-        if(output) av_free(output);
-        if(output_tmp) av_free(output_tmp);
-        if(output_resized) av_free(output_resized);
-        if(output_buffered) av_free(output_buffered);
-        
-        if(audio_buf){
-            if(audio_buf!=resampled)
-                av_free(resampled);
-            av_free(audio_buf);
-        }
-
-        if (this->audio_resample_ctx)
-            audio_resample_close(this->audio_resample_ctx);
-*/
         oggmux_close (&info);
         }
     else{
@@ -1037,7 +1017,7 @@ void print_usage (){
         "  cat something.dv | ffmpeg2theora -f dv -o output.ogg -\n"
         "\n"
         "  Encode a series of images:\n"
-        "    ffmpeg2theora -f image2 frame\%06d.png -o output.ogg\n"
+        "    ffmpeg2theora -f image2 frame%%06d.png -o output.ogg\n"
         "\n"
 #ifdef VIDEO4LINUX_ENABLED
         "  Live streaming from V4L Device:\n"
