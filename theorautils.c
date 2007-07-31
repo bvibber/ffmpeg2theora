@@ -334,7 +334,6 @@ void oggmux_init (oggmux_info *info){
  */
 void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s){
     ogg_packet op;
-
     theora_encode_YUVin (&info->td, yuv);
     while(theora_encode_packetout (&info->td, e_o_s, &op)) {
       ogg_stream_packetin (&info->to, &op);

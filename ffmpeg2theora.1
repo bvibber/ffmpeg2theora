@@ -44,7 +44,7 @@ End encoding at this time (in seconds).
 .TP
 .B \-p, \-\-v2v-preset
 Encode file with v2v preset.  Right now, there is preview and pro.  Run
-\*(lqffmpeg2theora -p info\*(rq for more information.
+\*(lqffmpeg2theora \-p info\*(rq for more information.
 .SS Video output options:
 .TP
 .B \-v, \-\-videoquality
@@ -121,14 +121,14 @@ deinterlaced.
 .TP
 .B \-\-vhook
 you can use ffmpeg's vhook system, example:
- ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv
+ ffmpeg2theora \-\-vhook '/path/watermark.so \-f wm.gif' input.dv
 .TP
 .B \-f, \-\-format
 Specify input format.
 .TP
 .B \-\-v4l  /dev/video0
 read data from v4l device /dev/video0,
-you have to specify an output file with -o.
+you have to specify an output file with \-o.
 .TP
 .B \-\-inputfps
 Override input fps.
@@ -170,6 +170,28 @@ Set niceness to n.
 .TP
 .B \-h, \-\-help
 Output a help message.
+.SH EXAMPLES
+Encode Videos:
+  ffmpeg2theora videoclip.avi (will write output to videoclip.ogg)
+  
+  cat something.dv | ffmpeg2theora -f dv -o output.ogg \-
+
+Encode a series of images:
+  ffmpeg2theora -f image2 frame%06d.png -o output.ogg
+
+Live streaming from V4L Device:
+  ffmpeg2theora \-\-v4l /dev/video0 \-\-inputfps 15 \-x 160 \-y 128 \-o \- \\
+    | oggfwd iccast2server 8000 password /theora.ogg
+
+Live encoding from a DV camcorder (needs a fast machine):
+  dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
+
+Live encoding and streaming to icecast server:
+  dvgrab \-\-format raw \- \\
+    | ffmpeg2theora \-f dv \-x 160 \-y 128 \-o /dev/stdout \- \\
+    | oggfwd iccast2server 8000 password /theora.ogg
+
+
 .SH AUTHOR
 ffmpeg2theora was written by jan gerber <j@v2v.cc>.
 .PP

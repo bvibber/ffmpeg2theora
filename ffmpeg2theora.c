@@ -760,7 +760,7 @@ void ff2theora_output(ff2theora this) {
                         if (uv_lut_used) {
                             lut_apply(uv_lut, yuv.u, yuv.u, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
                             lut_apply(uv_lut, yuv.v, yuv.v, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
-			  }
+                        }
                         oggmux_add_video(&info, &yuv ,e_o_s);
                         this->frame_count++;
                     } while(dups--);
@@ -1030,19 +1030,22 @@ void print_usage (){
         "\n"
         "  cat something.dv | ffmpeg2theora -f dv -o output.ogg -\n"
         "\n"
+        "  Encode a series of images:\n"
+        "    ffmpeg2theora -f image2 frame\%06d.png -o output.ogg\n"
+        "\n"
 #ifdef VIDEO4LINUX_ENABLED
         "  Live streaming from V4L Device:\n"
-        "  ffmpeg2theora --v4l /dev/video0 --inputfps 15 -x 160 -y 128 -o - \\\n"
-        "   | oggfwd iccast2server 8000 password /theora.ogg\n"
+        "    ffmpeg2theora --v4l /dev/video0 --inputfps 15 -x 160 -y 128 -o - \\\n"
+        "     | oggfwd iccast2server 8000 password /theora.ogg\n"
         "\n"
 #endif
         "  Live encoding from a DV camcorder (needs a fast machine):\n"
-        "  dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
+        "    dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
         "\n"
         "  Live encoding and streaming to icecast server:\n"
-        "  dvgrab --format raw - | \\\n"
-        "   ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - | \\\n"
-        "   oggfwd iccast2server 8000 password /theora.ogg\n"
+        "    dvgrab --format raw - \\\n"
+        "     | ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - \\\n"
+        "     | oggfwd iccast2server 8000 password /theora.ogg\n"
         "\n"
         );
     exit (0);
