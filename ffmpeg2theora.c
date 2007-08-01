@@ -706,7 +706,8 @@ void ff2theora_output(ff2theora this) {
                             }
                             if(frame->interlaced_frame || this->deinterlace){
                                 if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,venc->width,venc->height)<0){
-                                        fprintf(stderr," failed deinterlace\n");
+                                        fprintf(stderr,"Deinterlace failed.\n");
+                                        exit(1);
                                         // deinterlace failed
                                          output=output_tmp;
                                 }
