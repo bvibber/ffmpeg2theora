@@ -25,7 +25,10 @@ setup(
   name='Simple Theora Encoder',
   options={'py2app': {
 	'strip': True,
-	'packages': ['PythonCard', 'wx']
+	'optimize': 2,
+	'iconfile': 'Simple Theora Encoder.icns',
+	'packages': ['PythonCard', 'wx'],
+	'plist': {'CFBundleIconFile': 'Simple Theora Encoder.icns'},
   }},
   cmdclass = {'py2app': mypy2app }
   
