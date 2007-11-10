@@ -63,9 +63,13 @@ enum {
   SPEEDLEVEL_FLAG,
 } F2T_FLAGS;
 
-#define V2V_PRESET_PRO 1
-#define V2V_PRESET_PREVIEW 2
-
+enum {
+  V2V_PRESET_NONE,
+  V2V_PRESET_PRO,
+  V2V_PRESET_PREVIEW,
+  V2V_PRESET_VIDEOBIN
+} F2T_PRESETS;
+  
 #define PAL_HALF_WIDTH 384
 #define PAL_HALF_HEIGHT 288
 #define NTSC_HALF_WIDTH 320
@@ -368,6 +372,36 @@ void ff2theora_output(ff2theora this) {
                 this->picture_height=PAL_FULL_HEIGHT;
             }
         }
+        else if(this->preset == V2V_PRESET_VIDEOBIN){
+            int width=venc->width-this->frame_leftBand-this->frame_rightBand;
+            int height=venc->height-this->frame_topBand-this->frame_bottomBand;
+            if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+              height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;                
+            }
+            if( ((float)width /height) < 1.5) {
+              if(width > 448) {
+                //4:3 448 x 336
+                this->picture_width=448;
+                this->picture_height=336;
+              }
+              else {
+                this->picture_width=width;
+                this->picture_height=height;
+              }
+            }
+            else {
+              if(width > 512) {
+                //16:9 512 x 288
+                this->picture_width=512;
+                this->picture_height=288;
+              }
+              else {
+                this->picture_width=width;
+                this->picture_height=height;
+              }
+            }
+            
+        }
         if (this->deinterlace==1)
             fprintf(stderr,"  Deinterlace: on\n");
 
@@ -412,9 +446,13 @@ void ff2theora_output(ff2theora this) {
                 frame_aspect=(float)(this->aspect_numerator*venc->width)/
                                 (this->aspect_denominator*venc->height);
             }
-            
         }
-
+        if((float)this->aspect_numerator/this->aspect_denominator < 1.09){
+          this->aspect_numerator = 1;
+          this->aspect_denominator = 1;
+          frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
+                          (this->aspect_denominator*this->picture_height);
+        }
         if(this->aspect_denominator && frame_aspect){
             fprintf(stderr,"  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
             fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
@@ -927,6 +965,10 @@ void print_presets_info() {
         "                        Quality 7 - Sharpness 0\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
+        "  videobin       Video: 512x288 for 16:9 material, 448x336 for 4:3 material\n"
+        "                        Bitrate 992kbs\n"
+        "                 Audio: Max 2 channels - Quality 3\n"
+        "\n"
         );
 }
 
@@ -942,7 +984,7 @@ void print_usage (){
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --v2v-preset       encode file with v2v preset.\n"
-        "                          Right now there is preview and pro. Run\n"
+        "                          Right now there is preview, pro and videobin. Run\n"
         "                          '"PACKAGE" -p info' for more informations\n"
         "\n"
         "Video output options:\n"
@@ -1332,6 +1374,7 @@ int main (int argc, char **argv){
                     convert->video_quality = rint(7*6.3);
                     convert->audio_quality = 3.00;
                     convert->sharpness = 0;
+                    info.speed_level = 0;
                 }
                 else if(!strcmp(optarg,"preview")){
                     //need a way to set resize here. and not later
@@ -1339,6 +1382,15 @@ int main (int argc, char **argv){
                     convert->video_quality = rint(5*6.3);
                     convert->audio_quality = 1.00;
                     convert->sharpness = 2;
+                    info.speed_level = 0;
+                }
+                else if(!strcmp(optarg,"videobin")){
+                    convert->preset=V2V_PRESET_VIDEOBIN;
+                    convert->video_bitrate=rint(992*1000);
+                    convert->video_bitrate=0;
+                    convert->audio_quality = 3.00;
+                    convert->sharpness = 2;
+                    info.speed_level = 0;
                 }
                 else{
                     fprintf(stderr,"\nUnknown preset.\n\n");
