@@ -30,11 +30,14 @@ AC_SUBST(XIPH_CFLAGS)
 AC_SUBST(XIPH_LIBS)
 
 PKG_CONFIG_PATH=./ffmpeg:$PKG_CONFIG_PATH
-PKG_CHECK_MODULES(FFMPEG, libavformat libavcodec libswscale, HAVE_FFMPEG=yes, 
+PKG_CHECK_MODULES(FFMPEG, libavformat libavcodec libswscale libpostproc, HAVE_FFMPEG=yes, 
         AC_MSG_ERROR([
 
-could not find ffmpeg. please update PKG_CONFIG_PATH to point to ffmpegs source
-folder or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
+could not find libavformat libavcodec libswscale libpostproc.
+install it 
+ sudo apt-get install libavformat-dev libavcodec-dev libswscale-dev libpostproc-dev
+or update PKG_CONFIG_PATH to point to ffmpegs source folder
+or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
 ])
 )
 AC_SUBST(FFMPEG_CFLAGS)

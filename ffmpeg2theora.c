@@ -28,6 +28,7 @@
 
 #include "avformat.h"
 #include "swscale.h"
+#include "postprocess.h"
 
 #include "theora/theora.h"
 #include "vorbis/codec.h"
@@ -44,6 +45,7 @@
 #endif
 
 enum {
+  NULL_FLAG,
   DEINTERLACE_FLAG,
   OPTIMIZE_FLAG,
   SYNC_FLAG,
@@ -61,6 +63,7 @@ enum {
   VHOOK_FLAG,
   FRONTEND_FLAG,
   SPEEDLEVEL_FLAG,
+  PP_FLAG,
 } F2T_FLAGS;
 
 enum {
@@ -113,6 +116,7 @@ typedef struct ff2theora{
     int video_bitrate;
     int sharpness;
     int keyint;
+    char pp_mode[255];
 
     double force_input_fps;
     int sync;
@@ -303,6 +307,8 @@ void ff2theora_output(ff2theora this) {
     AVStream *vstream = NULL;
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
+    pp_mode_t *ppMode = NULL;
+    pp_context_t *ppContext = NULL;
     float frame_aspect;
     double fps = 0.0;
     
@@ -402,9 +408,6 @@ void ff2theora_output(ff2theora this) {
             }
             
         }
-        if (this->deinterlace==1)
-            fprintf(stderr,"  Deinterlace: on\n");
-
         if(this->picture_height==0 && 
             (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
             this->picture_height=venc->height-
@@ -456,6 +459,15 @@ void ff2theora_output(ff2theora this) {
         if(this->aspect_denominator && frame_aspect){
             fprintf(stderr,"  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
             fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
+        }
+
+        if (this->deinterlace==1)
+            fprintf(stderr,"  Deinterlace: on\n");
+
+        if (strcmp(this->pp_mode, "")) {
+          ppContext = pp_get_context(venc->width, venc->height, PP_FORMAT_420);
+          ppMode = pp_get_mode_by_name_and_quality(this->pp_mode, PP_QUALITY_MAX);
+          fprintf(stderr,"  Postprocessing: %s\n", this->pp_mode);
         }
 
         if(!this->picture_width) 
@@ -746,14 +758,18 @@ void ff2theora_output(ff2theora this) {
                                 if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,venc->width,venc->height)<0){
                                         fprintf(stderr,"Deinterlace failed.\n");
                                         exit(1);
-                                        // deinterlace failed
-                                         output=output_tmp;
                                 }
                             }
                             else{
                                 output=output_tmp;
                             }
                             // now output
+                            if(ppMode)
+                                pp_postprocess(output->data, output->linesize,
+                                               output->data, output->linesize,
+                                               venc->width, venc->height,
+                                               output->qscale_table, output->qstride,
+                                               ppMode, ppContext, this->pix_fmt);
                             if(this->vhook)
                                 frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height);
 
@@ -858,7 +874,9 @@ void ff2theora_output(ff2theora this) {
         while (ret >= 0);
 
         oggmux_close (&info);
-        }
+        if(ppContext)
+            pp_free_context(ppContext);
+    }
     else{
         fprintf (stderr, "No video or audio stream found.\n");
     }
@@ -1004,6 +1022,8 @@ void print_usage (){
         "  -K, --keyint           [8 to 65536] keyframe interval (default: 64)\n"
         "\n"
         "Video transfer options:\n"
+        "  --pp                   Video Postprocessing, denoise, deblock, deinterlacer\n"
+            "                          use --pp help for a list of available filters.\n"
         "  -C, --contrast         [0.1 to 10.0] contrast correction (default: 1.0)\n"
             "                          Note: lower values make the video darker.\n"
         "  -B, --brightness       [-1.0 to 1.0] brightness correction (default: 0.0)\n"
@@ -1109,6 +1129,7 @@ int main (int argc, char **argv){
       {"sharpness",required_argument,NULL,'S'},
       {"keyint",required_argument,NULL,'K'},
       {"deinterlace",0,&flag,DEINTERLACE_FLAG},
+      {"pp",required_argument,&flag,PP_FLAG},
       {"samplerate",required_argument,NULL,'H'},
       {"channels",required_argument,NULL,'c'},
       {"gamma",required_argument,NULL,'G'},
@@ -1171,6 +1192,14 @@ int main (int argc, char **argv){
                     {
                         case DEINTERLACE_FLAG:
                             convert->deinterlace = 1;
+                            flag = -1;
+                            break;
+                        case PP_FLAG:
+                            if(!strcmp(optarg, "help")) {
+                                fprintf(stdout, pp_help);
+                                exit(1);
+                            }
+                            snprintf(convert->pp_mode,sizeof(convert->pp_mode),"%s",optarg);
                             flag = -1;
                             break;
                         case VHOOK_FLAG:
