@@ -325,19 +325,17 @@ void ff2theora_output(ff2theora this) {
     
     for (i = 0; i < this->context->nb_streams; i++){
         AVCodecContext *enc = this->context->streams[i]->codec;
-
         switch (enc->codec_type){
-        case CODEC_TYPE_VIDEO:
-
-            if (this->video_index < 0)
-                this->video_index = i;
-            break;
-        case CODEC_TYPE_AUDIO:
-            if (this->audio_index < 0 && !this->disable_audio)
-                this->audio_index = i;
-            break;
-        default:
-            break;
+            case CODEC_TYPE_VIDEO:
+              if (this->video_index < 0)
+                    this->video_index = i;
+                break;
+            case CODEC_TYPE_AUDIO:
+                if (this->audio_index < 0 && !this->disable_audio)
+                    this->audio_index = i;
+                break;
+            default:
+                break;
         }
     }
 
@@ -384,7 +382,7 @@ void ff2theora_output(ff2theora this) {
             if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
               height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;                
             }
-            if( ((float)width /height) < 1.5) {
+            if( ((float)width /height) <= 1.5) {
               if(width > 448) {
                 //4:3 448 x 336
                 this->picture_width=448;
@@ -838,7 +836,7 @@ void ff2theora_output(ff2theora this) {
                 while(e_o_s || len > 0 ){
                     int samples=0;
                     int samples_out=0;
-                    int data_size = AVCODEC_MAX_AUDIO_FRAME_SIZE;
+                    int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
                     if(len > 0){
                         len1 = avcodec_decode_audio2(astream->codec, audio_buf, &data_size, ptr, len);
                         if (len1 < 0){
@@ -1420,6 +1418,7 @@ int main (int argc, char **argv){
                     convert->audio_quality = 3.00;
                     convert->sharpness = 2;
                     info.speed_level = 0;
+                    snprintf(convert->pp_mode,sizeof(convert->pp_mode),"de,tn");
                 }
                 else{
                     fprintf(stderr,"\nUnknown preset.\n\n");

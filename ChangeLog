@@ -1,3 +1,8 @@
+0.20 2007-11-31
+    - add postprocessing filters, denoise, deblock, dering
+    - new preset
+    - several bugfixes
+
 0.19 2007-06-29
     - use libswscale api
     - add frontend mode and a simple PythonCard Frontend
