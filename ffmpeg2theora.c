@@ -1418,7 +1418,6 @@ int main (int argc, char **argv){
                     convert->audio_quality = 3.00;
                     convert->sharpness = 2;
                     info.speed_level = 0;
-                    snprintf(convert->pp_mode,sizeof(convert->pp_mode),"de,tn");
                 }
                 else{
                     fprintf(stderr,"\nUnknown preset.\n\n");
