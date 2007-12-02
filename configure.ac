@@ -1,10 +1,11 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_PREREQ(2.59)
-AC_INIT(ffmpeg2theora,0.19)
+AC_INIT(ffmpeg2theora,0.20)
 AC_CONFIG_SRCDIR([Makefile.am])
 AM_INIT_AUTOMAKE([dist-bzip2])
 
 AC_PROG_CC
+AM_PROG_CC_C_O
 AM_PROG_LIBTOOL
 
 AC_SYS_LARGEFILE
@@ -24,7 +25,7 @@ AC_ARG_WITH(static-linking,
 AC_MSG_RESULT(no)
 )
 
-PKG_CHECK_MODULES(XIPH,ogg >= 1.1 vorbis vorbisenc theora )
+PKG_CHECK_MODULES(XIPH,ogg >= 1.1 vorbis vorbisenc theora >= 1.0beta1)
 
 AC_SUBST(XIPH_CFLAGS)
 AC_SUBST(XIPH_LIBS)

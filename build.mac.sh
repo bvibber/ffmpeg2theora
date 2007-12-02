@@ -14,7 +14,7 @@ build_all_osx() {
   export PKG_CONFIG_ALLOW_SYSTEM_LIBS=0
   export PKG_CONFIG_LIBDIR=$dist_dir/lib/pkgconfig
 
-  ffmpeg_extra="--enable-pp --enable-gpl --enable-swscaler --disable-encoders  --enable-libogg --enable-libvorbis"
+  ffmpeg_extra="--enable-pp --enable-gpl --enable-swscaler --disable-encoders --enable-libvorbis"
   ffmpeg_extra="$ffmpeg_extra --enable-liba52"
   test -e $dist_dir/lib/libfaad.a && ffmpeg_extra="$ffmpeg_extra --enable-faad" && echo "building with faad"
   echo ""
@@ -80,7 +80,7 @@ build_all_osx() {
     echo "using existing $arch/$package"
   else
     echo "building $arch/$package"
-    test -e ffmpeg || svn co svn://svn.mplayerhq.hu/ffmpeg/trunk ffmpeg
+    test -e ffmpeg || svn co -r11076 svn://svn.mplayerhq.hu/ffmpeg/trunk ffmpeg
     cd ffmpeg
     unset CFLAGS
     unset LDFLAGS
