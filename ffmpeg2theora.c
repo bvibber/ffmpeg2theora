@@ -892,6 +892,9 @@ double aspect_check(const char *arg)
     const char *p;
 
     p = strchr(arg, ':');
+    if (!p) {
+      p = strchr(arg, '/');
+    }
     if (p) {
         x = strtol(arg, (char **)&arg, 10);
         if (arg == p)
@@ -932,6 +935,9 @@ AVRational get_framerate(const char* arg)
     AVRational framerate;
     
     p = strchr(arg, ':');
+    if (!p) {
+      p = strchr(arg, '/');
+    }
     if (p) {
         framerate.num = strtol(arg, (char **)&arg, 10);
         if (arg == p)
