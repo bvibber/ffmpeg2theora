@@ -37,10 +37,10 @@ execute()
 
 	# Run the command
 	case "$profile" in 
-		"0" ) 	ffmpeg2theora -f dv -x 640 -y 480 -d -v 7 -a 3 -H 48000 -o "$file".ogg - ;;
-		"1" ) 	ffmpeg2theora -f dv -x 320 -y 240 -d -v 7 -a 3 -H 48000 -o "$file".ogg - ;;
-		"2" ) 	ffmpeg2theora -f dv -x 320 -y 240 -d -v 5 -a 0 -H 44100 -o "$file".ogg - ;;
-		"3" ) 	ffmpeg2theora -f dv -x 160 -y 128 -d -v 3 -a 0 -H 22000 -o "$file".ogg - ;;
+		"0" ) 	ffmpeg2theora -f dv -x 640 -y 480 -d -v 7 -a 3 -H 48000 -o "$file".ogv - ;;
+		"1" ) 	ffmpeg2theora -f dv -x 320 -y 240 -d -v 7 -a 3 -H 48000 -o "$file".ogv - ;;
+		"2" ) 	ffmpeg2theora -f dv -x 320 -y 240 -d -v 5 -a 0 -H 44100 -o "$file".ogv - ;;
+		"3" ) 	ffmpeg2theora -f dv -x 160 -y 128 -d -v 3 -a 0 -H 22000 -o "$file".ogv - ;;
 	esac
 }
 

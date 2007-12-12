@@ -33,7 +33,7 @@ A summary of options is included below.
 .TP
 .B \-o, \-\-output
 Specify the output filename.  If no output filename is specified, output will
-be written to \fIinputfile\fP.ogg.  To output to standard output, specify
+be written to \fIinputfile\fP.ogv.  To output to standard output, specify
 /dev/stdout as the output file.
 .TP
 .B \-s, \-\-starttime
@@ -176,24 +176,24 @@ Set niceness to n.
 Output a help message.
 .SH EXAMPLES
 Encode Videos:
-  ffmpeg2theora videoclip.avi (will write output to videoclip.ogg)
+  ffmpeg2theora videoclip.avi (will write output to videoclip.ogv)
   
-  cat something.dv | ffmpeg2theora -f dv -o output.ogg \-
+  cat something.dv | ffmpeg2theora -f dv -o output.ogv \-
 
 Encode a series of images:
-  ffmpeg2theora -f image2 frame%06d.png -o output.ogg
+  ffmpeg2theora -f image2 frame%06d.png -o output.ogv
 
 Live streaming from V4L Device:
   ffmpeg2theora \-\-v4l /dev/video0 \-\-inputfps 15 \-x 160 \-y 128 \-o \- \\
-    | oggfwd iccast2server 8000 password /theora.ogg
+    | oggfwd iccast2server 8000 password /theora.ogv
 
 Live encoding from a DV camcorder (needs a fast machine):
-  dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
+  dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogv -\n"
 
 Live encoding and streaming to icecast server:
   dvgrab \-\-format raw \- \\
     | ffmpeg2theora \-f dv \-x 160 \-y 128 \-o /dev/stdout \- \\
-    | oggfwd iccast2server 8000 password /theora.ogg
+    | oggfwd iccast2server 8000 password /theora.ogv
 
 
 .SH AUTHOR

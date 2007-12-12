@@ -1079,26 +1079,26 @@ void print_usage (){
         "  -h, --help             this message\n"
         "\n"
         "Examples:\n"
-        "  ffmpeg2theora videoclip.avi (will write output to videoclip.ogg)\n"
+        "  ffmpeg2theora videoclip.avi (will write output to videoclip.ogv)\n"
         "\n"
-        "  cat something.dv | ffmpeg2theora -f dv -o output.ogg -\n"
+        "  cat something.dv | ffmpeg2theora -f dv -o output.ogv -\n"
         "\n"
         "  Encode a series of images:\n"
-        "    ffmpeg2theora -f image2 frame%%06d.png -o output.ogg\n"
+        "    ffmpeg2theora -f image2 frame%%06d.png -o output.ogv\n"
         "\n"
 #ifdef VIDEO4LINUX_ENABLED
         "  Live streaming from V4L Device:\n"
         "    ffmpeg2theora --v4l /dev/video0 --inputfps 15 -x 160 -y 128 -o - \\\n"
-        "     | oggfwd iccast2server 8000 password /theora.ogg\n"
+        "     | oggfwd iccast2server 8000 password /theora.ogv\n"
         "\n"
 #endif
         "  Live encoding from a DV camcorder (needs a fast machine):\n"
-        "    dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogg -\n"
+        "    dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogv -\n"
         "\n"
         "  Live encoding and streaming to icecast server:\n"
         "    dvgrab --format raw - \\\n"
         "     | ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - \\\n"
-        "     | oggfwd iccast2server 8000 password /theora.ogg\n"
+        "     | oggfwd iccast2server 8000 password /theora.ogv\n"
         "\n"
         );
     exit (0);
@@ -1454,16 +1454,16 @@ int main (int argc, char **argv){
             snprintf(inputfile_name,sizeof(inputfile_name),"pipe:");
         }
         if(outputfile_set!=1){
-            /* reserve 4 bytes in the buffer for the `.ogg' extension */
+            /* reserve 4 bytes in the buffer for the `.ogv' extension */
             snprintf(outputfile_name, sizeof(outputfile_name) - 4, "%s", argv[optind]);
             if((str_ptr = strrchr(outputfile_name, '.'))) {
-              sprintf(str_ptr, ".ogg");
+              sprintf(str_ptr, ".ogv");
               if(!strcmp(inputfile_name, outputfile_name)){
-                snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogg", inputfile_name);
+                snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", inputfile_name);
               }
             }
             else {
-                 snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogg", outputfile_name);
+                 snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", outputfile_name);
             }
             outputfile_set=1;
         }
@@ -1499,7 +1499,7 @@ int main (int argc, char **argv){
                    !strcmp( inputfile_name, "/dev/stdin" );
 
     if(outputfile_set!=1){    
-        fprintf(stderr,"You have to specify an output file with -o output.ogg.\n");    
+        fprintf(stderr,"You have to specify an output file with -o output.ogv.\n");    
         exit(1);
     }
 
