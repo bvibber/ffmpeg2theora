@@ -64,6 +64,7 @@ enum {
   FRONTEND_FLAG,
   SPEEDLEVEL_FLAG,
   PP_FLAG,
+  NOSKELETON
 } F2T_FLAGS;
 
 enum {
@@ -1002,7 +1003,7 @@ void print_usage (){
         "\n"
         "General output options:\n"
         "  -o, --output           alternative output filename\n"
-        "  -k, --skeleton         outputs ogg skeleton metadata\n"
+        "  -K, --no-skeleton      disables ogg skeleton metadata output\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --v2v-preset       encode file with v2v preset.\n"
@@ -1118,11 +1119,12 @@ int main (int argc, char **argv){
     AVFormatParameters *formatParams = NULL;
     
     int c,long_option_index;
-    const char *optstring = "P:o:kf:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
+    const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
     struct option options [] = {
       {"pid",required_argument,NULL, 'P'},
       {"output",required_argument,NULL,'o'},
       {"skeleton",no_argument,NULL,'k'},
+      {"no-skeleton",no_argument,&flag,NOSKELETON},
       {"format",required_argument,NULL,'f'},
       {"width",required_argument,NULL,'x'},
       {"height",required_argument,NULL,'y'},
@@ -1267,6 +1269,9 @@ int main (int argc, char **argv){
                         case AUDIOSTREAM_FLAG:
                             convert->audiostream = atoi(optarg);
                             flag = -1;
+                            break;
+                        case NOSKELETON:
+                            info.with_skeleton=0;
                             break;
                     }
                 }
