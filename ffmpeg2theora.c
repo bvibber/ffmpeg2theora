@@ -1003,7 +1003,7 @@ void print_usage (){
         "\n"
         "General output options:\n"
         "  -o, --output           alternative output filename\n"
-        "  -K, --no-skeleton      disables ogg skeleton metadata output\n"
+        "      --no-skeleton      disables ogg skeleton metadata output\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --v2v-preset       encode file with v2v preset.\n"
