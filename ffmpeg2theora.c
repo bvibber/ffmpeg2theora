@@ -1081,7 +1081,7 @@ void print_usage (){
         "  Encode a series of images:\n"
         "    ffmpeg2theora -f image2 frame%%06d.png -o output.ogv\n"
         "\n"
-#ifdef 0
+#if 0
         "  Live streaming from V4L Device:\n"
         "    ffmpeg2theora  /dev/video0 -fps 15 -x 160 -y 128 -o - \\\n"
         "     | oggfwd iccast2server 8000 password /theora.ogv\n"
