@@ -305,7 +305,7 @@ void oggmux_init (oggmux_info *info){
     if (info->with_skeleton) {
     int result;
 
-        /* build and add the e_o_s packet */
+    /* build and add the e_o_s packet */
     memset (&op, 0, sizeof (op));
         op.b_o_s = 0;
     op.e_o_s = 1; /* its the e_o_s packet */
