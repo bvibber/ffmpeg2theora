@@ -27,6 +27,7 @@
 #include <math.h>
 
 #include "avformat.h"
+#include "avdevice.h"
 #include "swscale.h"
 #include "postprocess.h"
 
@@ -50,9 +51,6 @@ enum {
   OPTIMIZE_FLAG,
   SYNC_FLAG,
   NOSOUND_FLAG,
-#ifdef VIDEO4LINUX_ENABLED
-  V4L_FLAG,
-#endif
   CROPTOP_FLAG,
   CROPBOTTOM_FLAG,
   CROPRIGHT_FLAG,
@@ -1052,10 +1050,6 @@ void print_usage (){
         "      --vhook            you can use ffmpeg's vhook system, example:\n"
         "        ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv\n"
         "  -f, --format           specify input format\n"
-#ifdef VIDEO4LINUX_ENABLED
-        "      --v4l /dev/video0  read data from v4l device /dev/video0\n"
-        "                          you have to specifiy an output file with -o\n"
-#endif
         "      --inputfps fps     override input fps\n"
         "      --audiostream id   by default the last audio stream is selected,\n"
         "                          use this to select another audio stream\n"
@@ -1087,9 +1081,9 @@ void print_usage (){
         "  Encode a series of images:\n"
         "    ffmpeg2theora -f image2 frame%%06d.png -o output.ogv\n"
         "\n"
-#ifdef VIDEO4LINUX_ENABLED
+#ifdef 0
         "  Live streaming from V4L Device:\n"
-        "    ffmpeg2theora --v4l /dev/video0 --inputfps 15 -x 160 -y 128 -o - \\\n"
+        "    ffmpeg2theora  /dev/video0 -fps 15 -x 160 -y 128 -o - \\\n"
         "     | oggfwd iccast2server 8000 password /theora.ogv\n"
         "\n"
 #endif
@@ -1145,9 +1139,6 @@ int main (int argc, char **argv){
       {"nosound",0,&flag,NOSOUND_FLAG},
       {"vhook",required_argument,&flag,VHOOK_FLAG},
       {"framerate",required_argument,NULL,'F'},
-#ifdef VIDEO4LINUX_ENABLED
-      {"v4l",required_argument,&flag,V4L_FLAG},
-#endif
       {"aspect",required_argument,&flag,ASPECT_FLAG},
       {"v2v-preset",required_argument,NULL,'p'},
       {"nice",required_argument,NULL,'N'},
@@ -1234,14 +1225,7 @@ int main (int argc, char **argv){
                             info.frontend = 1;
                             flag = -1;
                             break;
-#ifdef VIDEO4LINUX_ENABLED
-                        case V4L_FLAG:
-                            formatParams = malloc(sizeof(AVFormatParameters));
-                            formatParams->device = optarg;
-                            flag = -1;
-                            break;
-#endif
-                /* crop */
+                        /* crop */
                         case CROPTOP_FLAG:
                             convert->frame_topBand = crop_check(convert,"top",optarg);
                             flag = -1;
