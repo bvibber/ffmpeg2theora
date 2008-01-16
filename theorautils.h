@@ -56,7 +56,7 @@ typedef struct
     theora_comment tc;
     int speed_level;
 
-    /* state info */    
+    /* state info */
     theora_state td;
     vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
     vorbis_block vb;     /* local working space for packet->PCM decode */
@@ -67,7 +67,7 @@ typedef struct
     ogg_stream_state vo;    /* take physical pages, weld into a logical
                              * stream of packets */
     ogg_stream_state so;    /* take physical pages, weld into a logical
-			     * stream of packets, used for skeleton stream */
+                             * stream of packets, used for skeleton stream */
 
     int audiopage_valid;
     int videopage_valid;
@@ -82,7 +82,7 @@ typedef struct
     double audiotime;
     double videotime;
     double duration;
-    
+
     int vkbps;
     int akbps;
     ogg_int64_t audio_bytesout;

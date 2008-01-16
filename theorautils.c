@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * 
+ *
  */
 
 #include <stdio.h>
@@ -42,7 +42,7 @@ static double rint(double x)
 }
 
 void init_info(oggmux_info *info) {
-    info->with_skeleton = 1; /* skeleton is enabled by default	*/
+    info->with_skeleton = 1; /* skeleton is enabled by default    */
     info->frontend = 0; /*frontend mode*/
     info->videotime =  0;
     info->audiotime = 0;
@@ -58,7 +58,7 @@ void init_info(oggmux_info *info) {
     info->start_time = time(NULL);
     info->duration = -1;
     info->speed_level = -1;
-    
+
     info->v_pkg=0;
     info->a_pkg=0;
 #ifdef OGGMUX_DEBUG
@@ -71,7 +71,7 @@ void add_fishead_packet (oggmux_info *info) {
     ogg_packet op;
 
     memset (&op, 0, sizeof (op));
-    
+
     op.packet = _ogg_calloc (64, sizeof(unsigned char));
     memset (op.packet, 0, 64);
     memcpy (op.packet, FISHEAD_IDENTIFIER, 8); /* identifier */
@@ -83,7 +83,7 @@ void add_fishead_packet (oggmux_info *info) {
     *((ogg_int64_t*)(op.packet+36)) = (ogg_int64_t)1000; /* basetime denominator */
     /* both the numerator are zero hence handled by the memset */
     *((ogg_uint32_t*)(op.packet+44)) = 0; /* UTC time, set to zero for now */
-    
+
     op.b_o_s = 1; /* its the first packet of the stream */
     op.e_o_s = 0; /* its not the last packet of the stream */
     op.bytes = 64; /* length of the packet in bytes */
@@ -99,54 +99,54 @@ void add_fisbone_packet (oggmux_info *info) {
     ogg_packet op;
 
     if (!info->audio_only) {
-	memset (&op, 0, sizeof (op));	    
+        memset (&op, 0, sizeof (op));
         op.packet = _ogg_calloc (82, sizeof(unsigned char));
         memset (op.packet, 0, 82);
-	/* it will be the fisbone packet for the theora video */
+        /* it will be the fisbone packet for the theora video */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
-	*((ogg_uint32_t*)(op.packet+8)) = FISBONE_MESSAGE_HEADER_OFFSET; /* offset of the message header fields */
+        *((ogg_uint32_t*)(op.packet+8)) = FISBONE_MESSAGE_HEADER_OFFSET; /* offset of the message header fields */
         *((ogg_uint32_t*)(op.packet+12)) = info->to.serialno; /* serialno of the theora stream */
-	*((ogg_uint32_t*)(op.packet+16)) = 3; /* number of header packets */
-	/* granulerate, temporal resolution of the bitstream in samples/microsecond */
+        *((ogg_uint32_t*)(op.packet+16)) = 3; /* number of header packets */
+        /* granulerate, temporal resolution of the bitstream in samples/microsecond */
         *((ogg_int64_t*)(op.packet+20)) = info->ti.fps_numerator; /* granulrate numerator */
-	*((ogg_int64_t*)(op.packet+28)) = info->ti.fps_denominator; /* granulrate denominator */
+        *((ogg_int64_t*)(op.packet+28)) = info->ti.fps_denominator; /* granulrate denominator */
         *((ogg_int64_t*)(op.packet+36)) = 0; /* start granule */
-	*((ogg_uint32_t*)(op.packet+44)) = 0; /* preroll, for theora its 0 */
+        *((ogg_uint32_t*)(op.packet+44)) = 0; /* preroll, for theora its 0 */
         *(op.packet+48) = theora_granule_shift (&info->ti); /* granule shift */
         memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/x-theora\r\n", 30); /* message header field, Content-Type */
-		
-	op.b_o_s = 0; 
-	op.e_o_s = 0;
-	op.bytes = 82; /* size of the packet in bytes */
-	
+
+        op.b_o_s = 0;
+        op.e_o_s = 0;
+        op.bytes = 82; /* size of the packet in bytes */
+
         ogg_stream_packetin (&info->so, &op);
-	_ogg_free (op.packet);
+        _ogg_free (op.packet);
     }
 
     if (!info->video_only) {
-	memset (&op, 0, sizeof (op));
-	op.packet = _ogg_calloc (82, sizeof(unsigned char));
-	memset (op.packet, 0, 82);
+        memset (&op, 0, sizeof (op));
+        op.packet = _ogg_calloc (82, sizeof(unsigned char));
+        memset (op.packet, 0, 82);
         /* it will be the fisbone packet for the vorbis audio */
-	memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
+        memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
         *((ogg_uint32_t*)(op.packet+8)) = FISBONE_MESSAGE_HEADER_OFFSET; /* offset of the message header fields */
-	*((ogg_uint32_t*)(op.packet+12)) = info->vo.serialno; /* serialno of the vorbis stream */
+        *((ogg_uint32_t*)(op.packet+12)) = info->vo.serialno; /* serialno of the vorbis stream */
         *((ogg_uint32_t*)(op.packet+16)) = 3; /* number of header packet */
-	/* granulerate, temporal resolution of the bitstream in Hz */
-	*((ogg_int64_t*)(op.packet+20)) = info->sample_rate; /* granulerate numerator */
+        /* granulerate, temporal resolution of the bitstream in Hz */
+        *((ogg_int64_t*)(op.packet+20)) = info->sample_rate; /* granulerate numerator */
         *((ogg_int64_t*)(op.packet+28)) = (ogg_int64_t)1; /* granulerate denominator */
-	*((ogg_int64_t*)(op.packet+36)) = 0; /* start granule */
+        *((ogg_int64_t*)(op.packet+36)) = 0; /* start granule */
         *((ogg_uint32_t*)(op.packet+44)) = 2; /* preroll, for vorbis its 2 */
-	*(op.packet+48) = 0; /* granule shift, always 0 for vorbis */
-        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/x-vorbis\r\n", 30); 
-	/* Important: Check the case of Content-Type for correctness */
-	
-	op.b_o_s = 0;
-	op.e_o_s = 0;
-	op.bytes = 82;
-	
+        *(op.packet+48) = 0; /* granule shift, always 0 for vorbis */
+        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/x-vorbis\r\n", 30);
+        /* Important: Check the case of Content-Type for correctness */
+
+        op.b_o_s = 0;
+        op.e_o_s = 0;
+        op.bytes = 82;
+
         ogg_stream_packetin (&info->so, &op);
-	_ogg_free (op.packet);
+        _ogg_free (op.packet);
     }
 }
 
@@ -156,12 +156,12 @@ void oggmux_init (oggmux_info *info){
 
     /* yayness.  Set up Ogg output stream */
     srand (time (NULL));
-    ogg_stream_init (&info->vo, rand ());    
-    
+    ogg_stream_init (&info->vo, rand ());
+
     if(!info->audio_only){
         ogg_stream_init (&info->to, rand ());    /* oops, add one ot the above */
         theora_encode_init (&info->td, &info->ti);
-        
+
         if(info->speed_level >= 0) {
           int max_speed_level;
           theora_control(&info->td, TH_ENCCTL_GET_SPLEVEL_MAX, &max_speed_level, sizeof(int));
@@ -177,10 +177,10 @@ void oggmux_init (oggmux_info *info){
         int ret;
         vorbis_info_init (&info->vi);
         /* Encoding using a VBR quality mode.  */
-        if(info->vorbis_quality>-99) 
+        if(info->vorbis_quality>-99)
             ret =vorbis_encode_init_vbr (&info->vi, info->channels,info->sample_rate,info->vorbis_quality);
         else
-            ret=vorbis_encode_init(&info->vi,info->channels,info->sample_rate,-1,info->vorbis_bitrate,-1); 
+            ret=vorbis_encode_init(&info->vi,info->channels,info->sample_rate,-1,info->vorbis_bitrate,-1);
 
         if (ret){
             fprintf (stderr,
@@ -201,9 +201,9 @@ void oggmux_init (oggmux_info *info){
     /* first packet should be skeleton fishead packet, if skeleton is used */
 
     if (info->with_skeleton) {
-	ogg_stream_init (&info->so, rand());
-	add_fishead_packet (info);
-	if (ogg_stream_pageout (&info->so, &og) != 1){
+    ogg_stream_init (&info->so, rand());
+    add_fishead_packet (info);
+    if (ogg_stream_pageout (&info->so, &og) != 1){
             fprintf (stderr, "Internal Ogg library error.\n");
             exit (1);
         }
@@ -255,23 +255,23 @@ void oggmux_init (oggmux_info *info){
 
     /* output the appropriate fisbone packets */
     if (info->with_skeleton) {
-	add_fisbone_packet (info);
-	while (1) {
-	    int result = ogg_stream_flush (&info->so, &og);
+    add_fisbone_packet (info);
+    while (1) {
+        int result = ogg_stream_flush (&info->so, &og);
             if (result < 0){
-	        /* can't get here */
-	        fprintf (stderr, "Internal Ogg library error.\n");
-		exit (1);
+            /* can't get here */
+            fprintf (stderr, "Internal Ogg library error.\n");
+        exit (1);
             }
-	    if (result == 0)
-	        break;
+        if (result == 0)
+            break;
             fwrite (og.header, 1, og.header_len, info->outfile);
-	    fwrite (og.body, 1, og.body_len, info->outfile);
-	}
+        fwrite (og.body, 1, og.body_len, info->outfile);
+    }
     }
 
     if (!info->audio_only) {
-	theora_info_clear(&info->ti);
+    theora_info_clear(&info->ti);
     }
 
     /* Flush the rest of our headers. This ensures
@@ -303,17 +303,17 @@ void oggmux_init (oggmux_info *info){
     }
 
     if (info->with_skeleton) {
-	int result;
+    int result;
 
         /* build and add the e_o_s packet */
-	memset (&op, 0, sizeof (op));
+    memset (&op, 0, sizeof (op));
         op.b_o_s = 0;
-	op.e_o_s = 1; /* its the e_o_s packet */
+    op.e_o_s = 1; /* its the e_o_s packet */
         op.granulepos = 0;
-	op.bytes = 0; /* e_o_s packet is an empty packet */
+    op.bytes = 0; /* e_o_s packet is an empty packet */
         ogg_stream_packetin (&info->so, &op);
 
-	result = ogg_stream_flush (&info->so, &og);
+    result = ogg_stream_flush (&info->so, &og);
         if (result < 0){
             /* can't get here */
             fprintf (stderr, "Internal Ogg library error.\n");
@@ -324,10 +324,10 @@ void oggmux_init (oggmux_info *info){
     }
 }
 
-/**    
+/**
  * adds a video frame to the encoding sink
  * if e_o_s is 1 the end of the logical bitstream will be marked.
- * @param this ff2theora struct 
+ * @param this ff2theora struct
  * @param info oggmux_info
  * @param yuv_buffer
  * @param e_o_s 1 indicates ond of stream
@@ -340,8 +340,8 @@ void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s){
       info->v_pkg++;
     }
 }
-    
-/** 
+
+/**
  * adds audio samples to encoding sink
  * @param buffer pointer to buffer
  * @param bytes bytes in buffer
@@ -372,7 +372,7 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
         /* analysis, assume we want to use bitrate management */
         vorbis_analysis (&info->vb, NULL);
         vorbis_bitrate_addblock (&info->vb);
-        
+
         /* weld packets into the bitstream */
         while (vorbis_bitrate_flushpacket (&info->vd, &op)){
             ogg_stream_packetin (&info->vo, &op);
@@ -384,7 +384,7 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
 static double get_remaining(oggmux_info *info, double timebase) {
   double remaining = 0;
   double to_encode, time_so_far;
-  
+
   if(info->duration != -1 && timebase > 0) {
     time_so_far = time(NULL) - info->start_time;
     to_encode = info->duration - timebase;
@@ -410,7 +410,7 @@ static void print_stats(oggmux_info *info, double timebase){
            info->akbps, info->vkbps,
            remaining
            );
-      
+
     }
     else {
       if(!remaining) {
@@ -440,7 +440,7 @@ static int write_audio_page(oggmux_info *info)
 
   ret = fwrite(info->audiopage, 1, info->audiopage_len, info->outfile);
   if(ret < info->audiopage_len) {
-    fprintf(stderr,"error writing audio page\n"); 
+    fprintf(stderr,"error writing audio page\n");
   }
   else {
     info->audio_bytesout += ret;
@@ -542,7 +542,7 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
 
           info->audiopage_valid = 1;
           if(ogg_page_granulepos(&og)>0) {
-            info->audiotime= vorbis_granule_time (&info->vd, 
+            info->audiotime= vorbis_granule_time (&info->vd,
                   ogg_page_granulepos(&og));
           }
         }
@@ -564,7 +564,7 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
           write_video_page(info);
         else
           write_audio_page(info);
-      } 
+      }
       else if(e_o_s && info->videopage_valid) {
           write_video_page(info);
       }
