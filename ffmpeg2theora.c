@@ -1425,7 +1425,6 @@ int main (int argc, char **argv){
                 else if(!strcmp(optarg,"videobin")){
                     convert->preset=V2V_PRESET_VIDEOBIN;
                     convert->video_bitrate=rint(992*1000);
-                    convert->video_bitrate=0;
                     convert->audio_quality = 3.00;
                     convert->sharpness = 2;
                     info.speed_level = 0;
