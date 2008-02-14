@@ -73,6 +73,8 @@ void add_fishead_packet (oggmux_info *info) {
     memset (&op, 0, sizeof (op));
 
     op.packet = _ogg_calloc (64, sizeof(unsigned char));
+    if (op.packet == NULL) return;
+
     memset (op.packet, 0, 64);
     memcpy (op.packet, FISHEAD_IDENTIFIER, 8); /* identifier */
     *((ogg_uint16_t*)(op.packet+8)) = SKELETON_VERSION_MAJOR; /* version major */
@@ -101,6 +103,8 @@ void add_fisbone_packet (oggmux_info *info) {
     if (!info->audio_only) {
         memset (&op, 0, sizeof (op));
         op.packet = _ogg_calloc (82, sizeof(unsigned char));
+        if (op.packet == NULL) return;
+
         memset (op.packet, 0, 82);
         /* it will be the fisbone packet for the theora video */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
@@ -126,6 +130,8 @@ void add_fisbone_packet (oggmux_info *info) {
     if (!info->video_only) {
         memset (&op, 0, sizeof (op));
         op.packet = _ogg_calloc (82, sizeof(unsigned char));
+        if (op.packet == NULL) return;
+
         memset (op.packet, 0, 82);
         /* it will be the fisbone packet for the vorbis audio */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
