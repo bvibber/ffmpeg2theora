@@ -69,7 +69,9 @@ enum {
   V2V_PRESET_NONE,
   V2V_PRESET_PRO,
   V2V_PRESET_PREVIEW,
-  V2V_PRESET_VIDEOBIN
+  V2V_PRESET_VIDEOBIN,
+  V2V_PRESET_PADMA,
+  V2V_PRESET_PADMASTREAM,
 } F2T_PRESETS;
 
 #define PAL_HALF_WIDTH 384
@@ -375,6 +377,55 @@ void ff2theora_output(ff2theora this) {
                 this->picture_height=PAL_FULL_HEIGHT;
             }
         }
+         else if(this->preset == V2V_PRESET_PADMA){
+             int width=venc->width-this->frame_leftBand-this->frame_rightBand;
+             int height=venc->height-this->frame_topBand-this->frame_bottomBand;
+             if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+               height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+             }
+             if(this->frame_aspect == 0)
+               this->frame_aspect = (float)width/height;
+             if(this->frame_aspect <= 1.5) {
+               if(width > 640 || height > 480) {
+                 //4:3 640 x 480
+                 this->picture_width=640;
+                 this->picture_height=480;
+               }
+               else {
+                 this->picture_width=width;
+                 this->picture_height=height;
+               }
+             }
+             else {
+               if(width > 640 || height > 360) {
+                 //16:9 640 x 360
+                 this->picture_width=640;
+                 this->picture_height=360;
+               }
+               else {
+                 this->picture_width=width;
+                 this->picture_height=height;
+               }
+             }
+
+         }
+         else if(this->preset == V2V_PRESET_PADMASTREAM){
+             int width=venc->width-this->frame_leftBand-this->frame_rightBand;
+             int height=venc->height-this->frame_topBand-this->frame_bottomBand;
+             if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+               height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+             }
+             if(this->frame_aspect == 0)
+               this->frame_aspect = (float)width/height;
+             if(this->frame_aspect <= 1.5) {
+                 this->picture_width=128;
+                 this->picture_height=96;
+             }
+             else {
+                 this->picture_width=128;
+                 this->picture_height=72;
+             }
+         }
         else if(this->preset == V2V_PRESET_VIDEOBIN){
             int width=venc->width-this->frame_leftBand-this->frame_rightBand;
             int height=venc->height-this->frame_topBand-this->frame_bottomBand;
@@ -990,6 +1041,13 @@ void print_presets_info() {
         "                        Bitrate 992kbs\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
+        "  padma          Video: 640x360 for 16:9 material, 640x480 for 4:3 material\n"
+        "                        Quality 5 - Sharpness 0\n"
+        "                 Audio: Max 2 channels - Quality 3\n"
+        "\n"
+        "  padma-stream   Video: 128x72 for 16:9 material, 128x96 for 4:3 material\n"
+        "                 Audio: mono quality -1\n"
+        "\n"
         );
 }
 
@@ -1322,11 +1380,11 @@ int main (int argc, char **argv){
                 convert->video_bitrate=0;
                 break;
             case 'V':
-                convert->video_bitrate=rint(atof(optarg)*1000);
                 if (convert->video_bitrate < 1) {
                     fprintf(stderr, "Only values from 1 to 16000 are valid for video bitrate (in kb/s).\n");
                     exit(1);
                 }
+                convert->video_bitrate=rint(atof(optarg)*1000);
                 convert->video_quality=0;
                 break;
             case 'a':
@@ -1409,8 +1467,26 @@ int main (int argc, char **argv){
                 else if(!strcmp(optarg,"videobin")){
                     convert->preset=V2V_PRESET_VIDEOBIN;
                     convert->video_bitrate=rint(992*1000);
+                    convert->video_quality = 0;
                     convert->audio_quality = 3.00;
                     convert->sharpness = 2;
+                    info.speed_level = 0;
+                }
+                else if(!strcmp(optarg,"padma")){
+                    convert->preset=V2V_PRESET_PADMA;
+                    convert->video_quality = rint(5*6.3);
+                    convert->audio_quality = 3.00;
+                    convert->sharpness = 0;
+                    info.speed_level = 0;
+                }
+                else if(!strcmp(optarg,"padma-stream")){
+                    convert->preset=V2V_PRESET_PADMASTREAM;
+                    convert->video_bitrate=rint(180*1000);
+                    convert->video_quality = 0;
+                    convert->audio_quality = -1.00;
+                    convert->sample_rate=44100;
+                    convert->sharpness = 2;
+                    convert->keyint = 16;
                     info.speed_level = 0;
                 }
                 else{
