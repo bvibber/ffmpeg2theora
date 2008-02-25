@@ -1123,6 +1123,7 @@ void print_usage (){
         "      --organization     Name of organization (studio)\n"
         "      --copyright        Copyright\n"
         "      --license          License\n"
+        "      --contact          Contact link\n"
         "\n"
         "Other options:\n"
 #ifndef _WIN32
@@ -1220,6 +1221,8 @@ int main (int argc, char **argv){
       {"organization",required_argument,&metadata_flag,14},
       {"copyright",required_argument,&metadata_flag,15},
       {"license",required_argument,&metadata_flag,16},
+      {"contact",required_argument,&metadata_flag,17},
+      {"source-hash",required_argument,&metadata_flag,18},
 
       {"help",0,NULL,'h'},
       {NULL,0,NULL,0}
@@ -1341,6 +1344,12 @@ int main (int argc, char **argv){
                             break;
                         case 16:
                             theora_comment_add_tag(&info.tc, "LICENSE", optarg);
+                            break;
+                        case 17:
+                            theora_comment_add_tag(&info.tc, "CONTACT", optarg);
+                            break;
+                        case 18:
+                            theora_comment_add_tag(&info.tc, "SOURCE HASH", optarg);
                             break;
                     }
                     metadata_flag=0;
