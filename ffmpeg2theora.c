@@ -26,10 +26,10 @@
 #include <getopt.h>
 #include <math.h>
 
-#include "avformat.h"
-#include "avdevice.h"
-#include "swscale.h"
-#include "postprocess.h"
+#include "libavformat/avformat.h"
+#include "libavdevice/avdevice.h"
+#include "libswscale/swscale.h"
+#include "libpostproc/postprocess.h"
 
 #include "theora/theora.h"
 #include "vorbis/codec.h"
