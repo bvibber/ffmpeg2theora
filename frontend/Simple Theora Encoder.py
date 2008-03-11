@@ -180,7 +180,7 @@ class SimpleTheoraEncoderBackground(model.Background):
       list = self.components.encodingQueue
       key = self.components.encodingQueue.GetItemData(self.currentItem)
       result = dialog.textEntryDialog(self, 
-                                  'This parametes are passed to ffmpeg2theora adjust to your needs',
+                                  'These parametes are passed to ffmpeg2theora adjust to your needs',
                                   'Encoding Settings', 
                                   self.queuedata[key]['settings'])
       if result.accepted:
