@@ -577,7 +577,7 @@ ff2theora ff2theora_init (){
         this->picture_height=0;      // set to 0 to not resize the output
         this->video_quality=rint(5*6.3); // video quality 5
         this->video_bitrate=0;
-        this->sharpness=2;
+        this->sharpness=0;
         this->keyint=64;
         this->force_input_fps=0;
         this->sync=0;
@@ -1451,7 +1451,7 @@ void print_usage (){
         "  -F, --framerate        output framerate e.g 25:2 or 16\n"
         "      --croptop, --cropbottom, --cropleft, --cropright\n"
         "                         crop input by given pixels before resizing\n"
-        "  -S, --sharpness        [0 to 2] sharpness of images (default: 2).\n"
+        "  -S, --sharpness        [0 to 2] sharpness of images (default: 0).\n"
         "                          Note: lower values make the video sharper.\n"
         "  -K, --keyint           [8 to 65536] keyframe interval (default: 64)\n"
         "\n"
