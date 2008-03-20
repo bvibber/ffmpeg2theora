@@ -1,0 +1,131 @@
+Subtitles can be embedded in an Ogg stream alongside a Theora video.
+
+ * Overview
+ * Subtitles related options
+ * Converting non-utf-8 files to utf-8
+ * Examples
+
+
+
+ * Overview
+
+Subtitles are read from SubRip (.srt) format files and converted to
+Kate streams. Those SubRip files must be encoded in utf-8 (7 bit ASCII
+is a subset of utf-8 so are valid input as well). See below for more
+information on converting SubRip files with other encodings to utf-8.
+
+Subtitles support requires libkate, available from:
+http://code.google.com/p/libkate
+
+A subtitles input file is given with the --subtitles option.
+The language of subtitles in a file is given by the --subtitles-language
+option. See below for a list of subtitles related options. At the most
+simple, supplying a single input file:
+
+  ./ffmpeg2theora -o output.ogv --subtitles input.srt input.avi
+
+Any number of subtitles streams can be multiplexed, presumably with
+different languages and/or categories. See below for examples of this.
+
+
+
+ * Subtitles related options
+
+--subtitles <file>
+   Loads subtitles from a file, which must be an utf-8 encoded SubRip
+   (.srt) file
+
+--subtitles-language <language>
+  Sets the language of the relevant subtitles stream. Language must be
+  a language tag according to RFC 3066 (usually a two letter language
+  code, optionally followed by a dash (or underscore) and a region code.
+  Examples include en, it, ja, en_GB, de_DE, etc.
+  If unspecified, the default is to not set a language.
+
+--subtitles-category <category>
+  Sets the category of the relevant subtitles stream. Category must be
+  a free text string describing the type of the subtitles streams. This
+  is meant to be parsable automatically, so should be ASCII only, and
+  preferably among a list of predefined well known categories, such as
+  subtitles, commentary, transcript, lyrics.
+  If unspecified, the default is subtitles.
+
+--subtitles-encoding <encoding>
+  Sets the encoding of the relevant input file. Allowed encodings are
+  utf-8, utf8, iso-8859-1, and latin1. The first two are synonymous and
+  yield no conversion. The latter two are synonymous and convert from
+  iso-8859-1 to utf-8.
+  If the input file is in another encoding, a separate step is needed
+  to convert the input file to utf-8. See below for more information on
+  converting other encoding to utf-8.
+  If unspecified, the default is utf-8.
+
+
+
+ * Converting non-utf-8 files to utf-8
+
+If you have SubRip files in another format than utf-8, you can use the
+iconv or recode programs to convert them to utf-8 so ffmpeg2theora can
+read them.
+
+   * iconv
+      If you have a file called subtitles.srt which is not in utf-8,
+      you can convert it to utf-8 with the command:
+
+         iconv -t utf-8 -f ENCODING subtitles.srt > subtitles.utf8.srt
+
+      Substitute ENCODING with the actual encoding of the input file.
+      For instance, if your input file is in Shift-JIS encoding, replace
+      ENCODING with SHIFT-JIS. If your input file is in big endian UCS2
+      encoding, replace ENCODING with UCS-2BE.
+
+      This will create a new file called subtitles.utf8.srt, which will
+      be the equivalent of the input file, but in utf-8 format, so it
+      can be used as input to ffmpeg2theora.
+
+      To view a list of all the encodings iconv can convert to utf-8,
+      see the output of `iconv -l'.
+
+   * recode
+
+      If you have a file called subtitles.srt which is not in utf-8,
+      you can convert it to utf-8 with the command:
+
+         recode ENCODING..utf-8 < subtitles.srt > subtitles.utf8.srt
+
+      Substitute ENCODING with the actual encoding of the input file.
+      For instance, if your input file is in Shift-JIS encoding, replace
+      ENCODING with SHIFT-JIS. If your input file is in BIG5 encoding,
+      replace ENCODING with BIG5.
+
+      This will create a new file called subtitles.utf8.srt, which will
+      be the equivalent of the input file, but in utf-8 format, so it
+      can be used as input to ffmpeg2theora.
+
+      To view a list of all the encodings recode can convert to utf-8,
+      see the output of `recode -l'.
+
+
+ * Examples
+
+    Add a single English subtitles stream:
+
+      ./ffmpeg2theora --subtitles-language en --subtitles input.srt input.avi
+
+    Add German and Italian commentary:
+
+      ./ffmpeg2theora --subtitles comm.german.srt --subtitles-language de \
+                      --subtitles-category commentary \
+                      --subtitles comm.italian.srt --subtitles-language it \
+                      --subtitles-category commentary \
+                      input.avi
+
+    Add English subtitles and commentary:
+
+      ./ffmpeg2theora --subtitles subs.srt --subtitles-language en \
+                      --subtitles-category subtitles \
+                      --subtitles commentary.srt --subtitles-language en \
+                      --subtitles-category commentary \
+                      input.avi
+
+

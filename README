@@ -14,3 +14,5 @@ usage right now:
 
  there is a export plugin for kino (http://kino.schirmacher.de/)
  more info in kino_export/README
+
+ subtitles can be embedded in an ogg stream, see subtitles.txt for more info.

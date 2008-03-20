@@ -148,6 +148,28 @@ another audio stream.
 Use A/V sync from input container. Since this does not work with
 all input format you have to manualy enable it if you have
 issues with A/V sync.
+.SS Subtitles options:
+.TP
+.B \-\-subtitles
+Encode subtitles from the given file to a multiplexed Kate stream.
+The input file should be in SubRip (.srt) format, encoded in utf-8,
+unless the --subtitles-encoding option is also given.
+.TP
+.B \-\-subtitles-encoding encoding
+Assumes the corresponding subtitles file is encoded in the given
+encoding (utf-8 and iso-8859-1 (aka latin1) are supported).
+.TP
+.B \-\-subtitles-language language
+Sets the language of the corresponding subtitles stream. This will
+be set in the corresponding Kate stream so a video player may make
+this available to the user for language selection.
+.TP
+.B \-\-subtitles-category category
+Sets the category of the corresponding subtitles stream. This will
+be set in the corresponding Kate stream so a video player may make
+this available to the user for selection. The default category is
+"subtitles". Suggested other categories may include "transcript",
+"commentary", "lyrics", etc.
 .SS Metadata options:
 .TP
 .B \-\-artist

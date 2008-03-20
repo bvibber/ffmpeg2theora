@@ -12,6 +12,9 @@ you need
 - ffmpeg-trunk <http://ffmpeg.sf.net> by running ./get_ffmpeg_svn.sh
   (this script downloads current ffmpeg trunk, runs an appropriate
   configure and builds ffmpeg)
+- for subtitles support, libkate <http://code.google.com/p/libkate/>,
+  or by running ./get_libkate.sh (this script downloads libkate, and
+  builds libkate)
 
 if you did not install ffmpeg but want to staticly link it
 (recomended by ffmpeg developers) update PKG_CONFIG_PATH to
@@ -49,3 +52,19 @@ the installed shared libs. otherwise one gets errors like this:
  undefined symbol: av_read_frame
 this is a known limitation of vhooks in ffmpeg.
 
+
+subtitles suppport
+------------------
+
+Subtitles for multiple languages can be encoded from one or more utf-8
+SubRip format files (.srt) if you have libkate installed. Subtitles will
+be merged into the output Ogg stream as multiplexed Kate streams.
+
+For example, to encode a video with both German and Italian subtitles:
+
+./ffmpeg2theora -o ouput.ogv --subtitles german.srt --subtitles-language de_DE \
+                             --subtitles italian.srt --subtitles-language it \
+                   input.avi
+
+See subtitles.txt for more information on how to add subtitles to your
+videos.

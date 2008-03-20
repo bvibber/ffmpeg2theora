@@ -28,6 +28,9 @@
 #include "theora/theora.h"
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
+#ifdef HAVE_OGGKATE
+#include "kate/oggkate.h"
+#endif
 
 #include "theorautils.h"
 
@@ -48,6 +51,7 @@ void init_info(oggmux_info *info) {
     info->audiotime = 0;
     info->audio_bytesout = 0;
     info->video_bytesout = 0;
+    info->kate_bytesout = 0;
 
     info->videopage_valid = 0;
     info->audiopage_valid = 0;
@@ -61,10 +65,58 @@ void init_info(oggmux_info *info) {
 
     info->v_pkg=0;
     info->a_pkg=0;
+    info->k_pkg=0;
 #ifdef OGGMUX_DEBUG
     info->a_page=0;
     info->v_page=0;
+    info->k_page=0;
 #endif
+
+    info->with_kate = 0;
+    info->n_kate_streams = 0;
+}
+
+void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
+{
+    int n;
+
+    info->n_kate_streams = n_kate_streams;
+    if (n_kate_streams == 0) return;
+    info->kate_streams = (oggmux_kate_stream*)malloc(n_kate_streams*sizeof(oggmux_kate_stream));
+    for (n=0; n<n_kate_streams; ++n) {
+        oggmux_kate_stream *ks=info->kate_streams+n;
+        ks->katepage_valid = 0;
+        ks->katepage_buffer_length = 0;
+        ks->katepage = NULL;
+        ks->katetime = 0;
+    }
+}
+
+static void write16le(unsigned char *ptr,ogg_uint16_t v)
+{
+  ptr[0]=v&0xff;
+  ptr[1]=(v>>8)&0xff;
+}
+
+static void write32le(unsigned char *ptr,ogg_uint32_t v)
+{
+  ptr[0]=v&0xff;
+  ptr[1]=(v>>8)&0xff;
+  ptr[2]=(v>>16)&0xff;
+  ptr[3]=(v>>24)&0xff;
+}
+
+static void write64le(unsigned char *ptr,ogg_int64_t v)
+{
+  ogg_uint32_t hi=v>>32;
+  ptr[0]=v&0xff;
+  ptr[1]=(v>>8)&0xff;
+  ptr[2]=(v>>16)&0xff;
+  ptr[3]=(v>>24)&0xff;
+  ptr[4]=hi&0xff;
+  ptr[5]=(hi>>8)&0xff;
+  ptr[6]=(hi>>16)&0xff;
+  ptr[7]=(hi>>24)&0xff;
 }
 
 void add_fishead_packet (oggmux_info *info) {
@@ -77,14 +129,14 @@ void add_fishead_packet (oggmux_info *info) {
 
     memset (op.packet, 0, 64);
     memcpy (op.packet, FISHEAD_IDENTIFIER, 8); /* identifier */
-    *((ogg_uint16_t*)(op.packet+8)) = SKELETON_VERSION_MAJOR; /* version major */
-    *((ogg_uint16_t*)(op.packet+10)) = SKELETON_VERSION_MINOR; /* version minor */
-    *((ogg_int64_t*)(op.packet+12)) = (ogg_int64_t)0; /* presentationtime numerator */
-    *((ogg_int64_t*)(op.packet+20)) = (ogg_int64_t)1000; /* presentationtime denominator */
-    *((ogg_int64_t*)(op.packet+28)) = (ogg_int64_t)0; /* basetime numerator */
-    *((ogg_int64_t*)(op.packet+36)) = (ogg_int64_t)1000; /* basetime denominator */
+    write16le(op.packet+8, SKELETON_VERSION_MAJOR); /* version major */
+    write16le(op.packet+10, SKELETON_VERSION_MINOR); /* version minor */
+    write64le(op.packet+12, (ogg_int64_t)0); /* presentationtime numerator */
+    write64le(op.packet+20, (ogg_int64_t)1000); /* presentationtime denominator */
+    write64le(op.packet+28, (ogg_int64_t)0); /* basetime numerator */
+    write64le(op.packet+36, (ogg_int64_t)1000); /* basetime denominator */
     /* both the numerator are zero hence handled by the memset */
-    *((ogg_uint32_t*)(op.packet+44)) = 0; /* UTC time, set to zero for now */
+    write32le(op.packet+44, 0); /* UTC time, set to zero for now */
 
     op.b_o_s = 1; /* its the first packet of the stream */
     op.e_o_s = 0; /* its not the last packet of the stream */
@@ -99,6 +151,7 @@ void add_fishead_packet (oggmux_info *info) {
  */
 void add_fisbone_packet (oggmux_info *info) {
     ogg_packet op;
+    int n;
 
     if (!info->audio_only) {
         memset (&op, 0, sizeof (op));
@@ -108,14 +161,14 @@ void add_fisbone_packet (oggmux_info *info) {
         memset (op.packet, 0, 82);
         /* it will be the fisbone packet for the theora video */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
-        *((ogg_uint32_t*)(op.packet+8)) = FISBONE_MESSAGE_HEADER_OFFSET; /* offset of the message header fields */
-        *((ogg_uint32_t*)(op.packet+12)) = info->to.serialno; /* serialno of the theora stream */
-        *((ogg_uint32_t*)(op.packet+16)) = 3; /* number of header packets */
+        write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
+        write32le(op.packet+12, info->to.serialno); /* serialno of the theora stream */
+        write32le(op.packet+16, 3); /* number of header packets */
         /* granulerate, temporal resolution of the bitstream in samples/microsecond */
-        *((ogg_int64_t*)(op.packet+20)) = info->ti.fps_numerator; /* granulrate numerator */
-        *((ogg_int64_t*)(op.packet+28)) = info->ti.fps_denominator; /* granulrate denominator */
-        *((ogg_int64_t*)(op.packet+36)) = 0; /* start granule */
-        *((ogg_uint32_t*)(op.packet+44)) = 0; /* preroll, for theora its 0 */
+        write64le(op.packet+20, info->ti.fps_numerator); /* granulrate numerator */
+        write64le(op.packet+28, info->ti.fps_denominator); /* granulrate denominator */
+        write64le(op.packet+36, 0); /* start granule */
+        write32le(op.packet+44, 0); /* preroll, for theora its 0 */
         *(op.packet+48) = theora_granule_shift (&info->ti); /* granule shift */
         memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/x-theora\r\n", 30); /* message header field, Content-Type */
 
@@ -135,14 +188,14 @@ void add_fisbone_packet (oggmux_info *info) {
         memset (op.packet, 0, 82);
         /* it will be the fisbone packet for the vorbis audio */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
-        *((ogg_uint32_t*)(op.packet+8)) = FISBONE_MESSAGE_HEADER_OFFSET; /* offset of the message header fields */
-        *((ogg_uint32_t*)(op.packet+12)) = info->vo.serialno; /* serialno of the vorbis stream */
-        *((ogg_uint32_t*)(op.packet+16)) = 3; /* number of header packet */
+        write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
+        write32le(op.packet+12, info->vo.serialno); /* serialno of the vorbis stream */
+        write32le(op.packet+16, 3); /* number of header packet */
         /* granulerate, temporal resolution of the bitstream in Hz */
-        *((ogg_int64_t*)(op.packet+20)) = info->sample_rate; /* granulerate numerator */
-        *((ogg_int64_t*)(op.packet+28)) = (ogg_int64_t)1; /* granulerate denominator */
-        *((ogg_int64_t*)(op.packet+36)) = 0; /* start granule */
-        *((ogg_uint32_t*)(op.packet+44)) = 2; /* preroll, for vorbis its 2 */
+        write64le(op.packet+20, info->sample_rate); /* granulerate numerator */
+        write64le(op.packet+28, (ogg_int64_t)1); /* granulerate denominator */
+        write64le(op.packet+36, 0); /* start granule */
+        write32le(op.packet+44, 2); /* preroll, for vorbis its 2 */
         *(op.packet+48) = 0; /* granule shift, always 0 for vorbis */
         memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/x-vorbis\r\n", 30);
         /* Important: Check the case of Content-Type for correctness */
@@ -154,6 +207,37 @@ void add_fisbone_packet (oggmux_info *info) {
         ogg_stream_packetin (&info->so, &op);
         _ogg_free (op.packet);
     }
+
+#ifdef HAVE_KATE
+    if (info->with_kate) {
+        for (n=0; n<info->n_kate_streams; ++n) {
+            oggmux_kate_stream *ks=info->kate_streams+n;
+	    memset (&op, 0, sizeof (op));
+	    op.packet = _ogg_calloc (86, sizeof(unsigned char));
+	    memset (op.packet, 0, 86);
+            /* it will be the fisbone packet for the kate stream */
+	    memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
+            write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
+	    write32le(op.packet+12, ks->ko.serialno); /* serialno of the vorbis stream */
+            write32le(op.packet+16, ks->ki.num_headers); /* number of header packet */
+	    /* granulerate, temporal resolution of the bitstream in Hz */
+	    write64le(op.packet+20, ks->ki.gps_numerator); /* granulerate numerator */
+            write64le(op.packet+28, ks->ki.gps_denominator); /* granulerate denominator */
+	    write64le(op.packet+36, 0); /* start granule */
+            write32le(op.packet+44, 0); /* preroll, for kate it's 0 */
+	    *(op.packet+48) = ks->ki.granule_shift; /* granule shift */
+            memcpy (op.packet+FISBONE_SIZE, "Content-Type: application/x-kate\r\n", 34);
+	    /* Important: Check the case of Content-Type for correctness */
+	
+	    op.b_o_s = 0;
+	    op.e_o_s = 0;
+	    op.bytes = 86;
+	
+            ogg_stream_packetin (&info->so, &op);
+	    _ogg_free (op.packet);
+        }
+    }
+#endif
 }
 
 void oggmux_init (oggmux_info *info){
@@ -203,6 +287,23 @@ void oggmux_init (oggmux_info *info){
 
     }
     /* audio init done */
+
+    /* initialize kate if we have subtitles */
+    if (info->with_kate) {
+        int ret, n;
+#ifdef HAVE_KATE
+        for (n=0; n<info->n_kate_streams; ++n) {
+            oggmux_kate_stream *ks=info->kate_streams+n;
+            ogg_stream_init (&ks->ko, rand ());    /* oops, add one ot the above */
+            ret = kate_encode_init (&ks->k, &ks->ki);
+            if (ret<0) fprintf(stderr, "kate_encode_init: %d\n",ret);
+            ret = kate_comment_init(&ks->kc);
+            if (ret<0) fprintf(stderr, "kate_comment_init: %d\n",ret);
+            kate_comment_add_tag (&ks->kc, "ENCODER",PACKAGE_STRING);
+        }
+#endif
+    }
+    /* kate init done */
 
     /* first packet should be skeleton fishead packet, if skeleton is used */
 
@@ -259,6 +360,34 @@ void oggmux_init (oggmux_info *info){
         ogg_stream_packetin (&info->vo, &header_code);
     }
 
+#ifdef HAVE_KATE
+    if (info->with_kate) {
+        int n;
+        for (n=0; n<info->n_kate_streams; ++n) {
+            oggmux_kate_stream *ks=info->kate_streams+n;
+            int ret;
+            while (1) {
+                ret=kate_ogg_encode_headers(&ks->k,&ks->kc,&op);
+                if (ret==0) {
+                  ogg_stream_packetin(&ks->ko,&op);
+                  ogg_packet_clear(&op);
+                }
+                if (ret<0) fprintf(stderr, "kate_encode_headers: %d\n",ret);
+                if (ret>0) break;
+            }
+
+            /* first header is on a separate page - libogg will do it automatically */
+            ret=ogg_stream_pageout (&ks->ko, &og);
+            if (ret!=1) {
+                fprintf (stderr, "Internal Ogg library error.\n");
+                exit (1);
+            }
+            fwrite (og.header, 1, og.header_len, info->outfile);
+            fwrite (og.body, 1, og.body_len, info->outfile);
+        }
+    }
+#endif
+
     /* output the appropriate fisbone packets */
     if (info->with_skeleton) {
     add_fisbone_packet (info);
@@ -306,6 +435,24 @@ void oggmux_init (oggmux_info *info){
             break;
         fwrite (og.header, 1, og.header_len,info->outfile);
         fwrite (og.body, 1, og.body_len, info->outfile);
+    }
+    if (info->with_kate) {
+        int n;
+        for (n=0; n<info->n_kate_streams; ++n) {
+            oggmux_kate_stream *ks=info->kate_streams+n;
+            while (1) {
+                int result = ogg_stream_flush (&ks->ko, &og);
+                if (result < 0){
+                    /* can't get here */
+                    fprintf (stderr, "Internal Ogg library error.\n");
+                    exit (1);
+                }
+                if (result == 0)
+                    break;
+                fwrite (og.header, 1, og.header_len,info->outfile);
+                fwrite (og.body, 1, og.body_len, info->outfile);
+            }
+        }
     }
 
     if (info->with_skeleton) {
@@ -387,6 +534,66 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
     }
 }
 
+/**    
+ * adds a subtitles text to the encoding sink
+ * if e_o_s is 1 the end of the logical bitstream will be marked.
+ * @param info oggmux_info
+ * @param idx which kate stream to output to
+ * @param t0 the show time of the text
+ * @param t1 the hide time of the text
+ * @param text the utf-8 text
+ * @param len the number of bytes in the text
+ * @param e_o_s 1 indicates end of stream
+ */
+void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len, int e_o_s){
+#ifdef HAVE_KATE
+    ogg_packet op;
+    oggmux_kate_stream *ks=info->kate_streams+idx;
+    int ret;
+    ret = kate_ogg_encode_text(&ks->k, t0, t1, text, len, &op);
+    if (ret>=0) {
+        ogg_stream_packetin (&ks->ko, &op);
+        info->k_pkg++;
+    }
+    else {
+        fprintf(stderr, "Failed to encode kate data packet (%f --> %f, [%s]): %d",
+            t0, t1, text, ret);
+    }
+    if(e_o_s) {
+        ret = kate_ogg_encode_finish(&ks->k, -1, &op);
+        if (ret>=0) {
+            ogg_stream_packetin (&ks->ko, &op);
+            info->k_pkg++;
+        }
+        else {
+            fprintf(stderr, "Failed to encode kate end packet: %d", ret);
+        }
+    }
+#endif
+}
+    
+/**    
+ * adds a kate end packet to the encoding sink
+ * @param info oggmux_info
+ * @param idx which kate stream to output to
+ * @param t the time of the end packet
+ */
+void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t){
+#ifdef HAVE_KATE
+    ogg_packet op;
+    oggmux_kate_stream *ks=info->kate_streams+idx;
+    int ret;
+    ret = kate_ogg_encode_finish(&ks->k, t, &op);
+    if (ret>=0) {
+        ogg_stream_packetin (&ks->ko, &op);
+        info->k_pkg++;
+    }
+    else {
+        fprintf(stderr, "Failed to encode kate end packet: %d", ret);
+    }
+#endif
+}
+    
 static double get_remaining(oggmux_info *info, double timebase) {
   double remaining = 0;
   double to_encode, time_so_far;
@@ -440,7 +647,7 @@ static void print_stats(oggmux_info *info, double timebase){
     }
 }
 
-static int write_audio_page(oggmux_info *info)
+static void write_audio_page(oggmux_info *info)
 {
   int ret;
 
@@ -465,7 +672,7 @@ static int write_audio_page(oggmux_info *info)
   print_stats(info, info->audiotime);
 }
 
-static int write_video_page(oggmux_info *info)
+static void write_video_page(oggmux_info *info)
 {
   int ret;
 
@@ -491,10 +698,56 @@ static int write_video_page(oggmux_info *info)
   print_stats(info, info->videotime);
 }
 
+static void write_kate_page(oggmux_info *info, int idx)
+{
+  int ret;
+  oggmux_kate_stream *ks=info->kate_streams+idx;
+
+  ret = fwrite(ks->katepage, 1, ks->katepage_len, info->outfile);
+  if(ret < ks->katepage_len) {
+    fprintf(stderr,"error writing kate page\n");
+  }
+  else {
+    info->kate_bytesout += ret;
+  }
+  ks->katepage_valid = 0;
+  info->k_pkg -= ogg_page_packets((ogg_page *)&ks->katepage);
+#ifdef OGGMUX_DEBUG
+  ks->k_page++;
+  fprintf(stderr,"\nkate page %d (%d pkgs) | pkg remaining %d\n",ks->k_page,ogg_page_packets((ogg_page *)&info->katepage),info->k_pkg);
+#endif
+
+
+  /*
+  info->kkbps = rint (info->kate_bytesout * 8. / info->katetime * .001);
+  if(info->kkbps<0)
+    info->kkbps=0;
+  print_stats(info, info->katetime);
+  */
+}
+
+static int find_best_valid_kate_page(oggmux_info *info)
+{
+  int n;
+  double t=0.0;
+  int best=-1;
+  if (info->with_kate) for (n=0; n<info->n_kate_streams;++n) {
+    oggmux_kate_stream *ks=info->kate_streams+n;
+    if (ks->katepage_valid) {
+      if (best==-1 || ks->katetime<t) {
+        t=ks->katetime;
+        best=n;
+      }
+    }
+  }
+  return best;
+}
+
 void oggmux_flush (oggmux_info *info, int e_o_s)
 {
-    int len;
+    int n,len;
     ogg_page og;
+    int best;
 
     /* flush out the ogg pages to info->outfile */
     while(1) {
@@ -554,10 +807,53 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
         }
       }
 
+#ifdef HAVE_KATE
+      if (info->with_kate) for (n=0; n<info->n_kate_streams; ++n) {
+        oggmux_kate_stream *ks=info->kate_streams+n;
+        if (!ks->katepage_valid) {
+          int k_next=0;
+          /* always flush kate stream */
+          if (ogg_stream_flush(&ks->ko, &og) > 0) {
+            k_next = 1;
+          }
+          if (k_next) {
+            len = og.header_len + og.body_len;
+            if(ks->katepage_buffer_length < len) {
+              ks->katepage = realloc(ks->katepage, len);
+              ks->katepage_buffer_length = len;
+            }
+            ks->katepage_len = len;
+            memcpy(ks->katepage, og.header, og.header_len);
+            memcpy(ks->katepage+og.header_len , og.body, og.body_len);
+
+            ks->katepage_valid = 1;
+            if(ogg_page_granulepos(&og)>0) {
+              ks->katetime= kate_granule_time (&ks->ki,
+                    ogg_page_granulepos(&og));
+            }
+          }
+        }
+      }
+#endif
+
+#ifdef HAVE_KATE
+#define CHECK_KATE_OUTPUT(which) \
+        if (best>=0 && info->kate_streams[best].katetime/*-1.0*/<=info->which##time) { \
+          write_kate_page(info, best); \
+          continue; \
+        }
+#else
+#define CHECK_KATE_OUTPUT(which) ((void)0)
+#endif
+
+      best=find_best_valid_kate_page(info);
+
       if(info->video_only && info->videopage_valid) {
+        CHECK_KATE_OUTPUT(video);
         write_video_page(info);
       }
       else if(info->audio_only && info->audiopage_valid) {
+        CHECK_KATE_OUTPUT(audio);
         write_audio_page(info);
       }
       /* We're using both. We can output only:
@@ -566,10 +862,17 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
        */
       else if(info->videopage_valid && info->audiopage_valid) {
         /* Make sure they're in the right order. */
-        if(info->videotime <= info->audiotime)
+        if(info->videotime <= info->audiotime) {
+          CHECK_KATE_OUTPUT(video);
           write_video_page(info);
-        else
+        }
+        else {
+          CHECK_KATE_OUTPUT(audio);
           write_audio_page(info);
+        }
+      }
+      else if(e_o_s && best>=0) {
+          write_kate_page(info, best);
       }
       else if(e_o_s && info->videopage_valid) {
           write_video_page(info);
@@ -584,6 +887,8 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
 }
 
 void oggmux_close (oggmux_info *info){
+    int n;
+
     ogg_stream_clear (&info->vo);
     vorbis_block_clear (&info->vb);
     vorbis_dsp_clear (&info->vd);
@@ -593,6 +898,15 @@ void oggmux_close (oggmux_info *info){
     ogg_stream_clear (&info->to);
     theora_clear (&info->td);
 
+#ifdef HAVE_KATE
+    for (n=0; n<info->n_kate_streams; ++n) {
+        ogg_stream_clear (&info->kate_streams[n].ko);
+        kate_comment_clear (&info->kate_streams[n].kc);
+        kate_info_clear (&info->kate_streams[n].ki);
+        kate_clear (&info->kate_streams[n].k);
+    }
+#endif
+
     if (info->outfile && info->outfile != stdout)
         fclose (info->outfile);
 
@@ -600,4 +914,9 @@ void oggmux_close (oggmux_info *info){
       free(info->videopage);
     if(info->audiopage)
       free(info->audiopage);
+
+    for (n=0; n<info->n_kate_streams; ++n) {
+        if(info->kate_streams[n].katepage)
+          free(info->kate_streams[n].katepage);
+    }
 }

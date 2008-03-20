@@ -22,6 +22,9 @@
 #include "theora/theora.h"
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
+#ifdef HAVE_KATE
+#include "kate/kate.h"
+#endif
 #include "ogg/ogg.h"
 
 // #define OGGMUX_DEBUG
@@ -32,6 +35,23 @@
 #define FISBONE_IDENTIFIER "fisbone\0"
 #define FISBONE_SIZE 52
 #define FISBONE_MESSAGE_HEADER_OFFSET 44
+
+typedef struct
+{
+#ifdef HAVE_KATE
+    kate_state k;
+    kate_info ki;
+    kate_comment kc;
+#endif
+    ogg_stream_state ko;    /* take physical pages, weld into a logical
+                             * stream of packets */
+    int katepage_valid;
+    unsigned char *katepage;
+    int katepage_len;
+    int katepage_buffer_length;
+    double katetime;
+}
+oggmux_kate_stream;
 
 typedef struct
 {
@@ -61,6 +81,8 @@ typedef struct
     vorbis_dsp_state vd; /* central working state for the packet->PCM decoder */
     vorbis_block vb;     /* local working space for packet->PCM decode */
 
+    int with_kate;
+
     /* used for muxing */
     ogg_stream_state to;    /* take physical pages, weld into a logical
                              * stream of packets */
@@ -87,21 +109,30 @@ typedef struct
     int akbps;
     ogg_int64_t audio_bytesout;
     ogg_int64_t video_bytesout;
+    ogg_int64_t kate_bytesout;
     time_t start_time;
 
     //to do some manual page flusing
     int v_pkg;
     int a_pkg;
+    int k_pkg;
 #ifdef OGGMUX_DEBUG
     int a_page;
     int v_page;
+    int k_page;
 #endif
+
+    int n_kate_streams;
+    oggmux_kate_stream *kate_streams;
 }
 oggmux_info;
 
 extern void init_info(oggmux_info *info);
+extern void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams);
 extern void oggmux_init (oggmux_info *info);
 extern void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s);
 extern void oggmux_add_audio (oggmux_info *info, int16_t * readbuffer, int bytesread, int samplesread,int e_o_s);
+extern void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len,int e_o_s);
+extern void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t);
 extern void oggmux_flush (oggmux_info *info, int e_o_s);
 extern void oggmux_close (oggmux_info *info);

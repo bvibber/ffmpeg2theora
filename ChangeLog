@@ -1,3 +1,10 @@
+0.21 ??
+    - switch default extension to .ogv 
+    - enable Ogg Skeleton by default
+    - add kate streams for subtitles (--subtitles, --subtitles-language,
+      subtitles-category, and --subtitles-encoding options)
+    - new presets
+
 0.20 2007-11-31
     - add postprocessing filters, denoise, deblock, dering
     - new preset

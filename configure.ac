@@ -26,19 +26,31 @@ AC_MSG_RESULT(no)
 )
 
 PKG_CHECK_MODULES(XIPH,ogg >= 1.1 vorbis vorbisenc theora >= 1.0beta1)
-
 AC_SUBST(XIPH_CFLAGS)
 AC_SUBST(XIPH_LIBS)
 
-PKG_CONFIG_PATH=./ffmpeg:$PKG_CONFIG_PATH
+export PKG_CONFIG_PATH=./libkate/pkg/pkgconfig:$PKG_CONFIG_PATH
+PKG_CHECK_MODULES(KATE,oggkate, 
+                  KATE_CFLAGS="-DHAVE_KATE -DHAVE_OGGKATE $KATE_CFLAGS",
+                  [AC_MSG_RESULT(
+
+.     Could not find libkate. Subtitles support will be disabled.
+      You can also run ./get_libkate.sh (for more information see INSTALL)
+      or update PKG_CONFIG_PATH to point to libkate's source folder
+)]
+)
+AC_SUBST(KATE_LIBS)
+AC_SUBST(KATE_CFLAGS)
+
+export PKG_CONFIG_PATH=./ffmpeg:$PKG_CONFIG_PATH
 PKG_CHECK_MODULES(FFMPEG, libavformat libavcodec libavdevice libswscale libpostproc, HAVE_FFMPEG=yes, 
         AC_MSG_ERROR([
 
-could not find libavformat libavcodec libswscale libpostproc.
-install it 
- sudo apt-get install libavformat-dev libavcodec-dev libavdevice-dev libswscale-dev libpostproc-dev
-or update PKG_CONFIG_PATH to point to ffmpegs source folder
-or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
+.     Could not find libavformat libavcodec libavdevice libswscale libpostproc.
+      You can install it via
+       sudo apt-get install libavformat-dev libavcodec-dev libavdevice-dev libswscale-dev libpostproc-dev
+      or update PKG_CONFIG_PATH to point to ffmpeg's source folder
+      or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
 ])
 )
 AC_SUBST(FFMPEG_CFLAGS)
