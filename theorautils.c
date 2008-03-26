@@ -170,7 +170,7 @@ void add_fisbone_packet (oggmux_info *info) {
         write64le(op.packet+36, 0); /* start granule */
         write32le(op.packet+44, 0); /* preroll, for theora its 0 */
         *(op.packet+48) = theora_granule_shift (&info->ti); /* granule shift */
-        memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/x-theora\r\n", 30); /* message header field, Content-Type */
+        memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/theora\r\n", 30); /* message header field, Content-Type */
 
         op.b_o_s = 0;
         op.e_o_s = 0;
@@ -197,7 +197,7 @@ void add_fisbone_packet (oggmux_info *info) {
         write64le(op.packet+36, 0); /* start granule */
         write32le(op.packet+44, 2); /* preroll, for vorbis its 2 */
         *(op.packet+48) = 0; /* granule shift, always 0 for vorbis */
-        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/x-vorbis\r\n", 30);
+        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/vorbis\r\n", 30);
         /* Important: Check the case of Content-Type for correctness */
 
         op.b_o_s = 0;
