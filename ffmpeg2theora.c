@@ -1812,11 +1812,11 @@ int main (int argc, char **argv){
                 convert->video_bitrate=0;
                 break;
             case 'V':
+                convert->video_bitrate=rint(atof(optarg)*1000);
                 if (convert->video_bitrate < 1) {
                     fprintf(stderr, "Only values from 1 to 16000 are valid for video bitrate (in kb/s).\n");
                     exit(1);
                 }
-                convert->video_bitrate=rint(atof(optarg)*1000);
                 convert->video_quality=0;
                 break;
             case 'a':
