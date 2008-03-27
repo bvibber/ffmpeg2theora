@@ -155,10 +155,10 @@ void add_fisbone_packet (oggmux_info *info) {
 
     if (!info->audio_only) {
         memset (&op, 0, sizeof (op));
-        op.packet = _ogg_calloc (82, sizeof(unsigned char));
+        op.packet = _ogg_calloc (80, sizeof(unsigned char));
         if (op.packet == NULL) return;
 
-        memset (op.packet, 0, 82);
+        memset (op.packet, 0, 80);
         /* it will be the fisbone packet for the theora video */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
         write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
@@ -170,11 +170,11 @@ void add_fisbone_packet (oggmux_info *info) {
         write64le(op.packet+36, 0); /* start granule */
         write32le(op.packet+44, 0); /* preroll, for theora its 0 */
         *(op.packet+48) = theora_granule_shift (&info->ti); /* granule shift */
-        memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/theora\r\n", 30); /* message header field, Content-Type */
+        memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/theora\r\n", 28); /* message header field, Content-Type */
 
         op.b_o_s = 0;
         op.e_o_s = 0;
-        op.bytes = 82; /* size of the packet in bytes */
+        op.bytes = 80; /* size of the packet in bytes */
 
         ogg_stream_packetin (&info->so, &op);
         _ogg_free (op.packet);
@@ -182,10 +182,10 @@ void add_fisbone_packet (oggmux_info *info) {
 
     if (!info->video_only) {
         memset (&op, 0, sizeof (op));
-        op.packet = _ogg_calloc (82, sizeof(unsigned char));
+        op.packet = _ogg_calloc (80, sizeof(unsigned char));
         if (op.packet == NULL) return;
 
-        memset (op.packet, 0, 82);
+        memset (op.packet, 0, 80);
         /* it will be the fisbone packet for the vorbis audio */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
         write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
@@ -197,12 +197,12 @@ void add_fisbone_packet (oggmux_info *info) {
         write64le(op.packet+36, 0); /* start granule */
         write32le(op.packet+44, 2); /* preroll, for vorbis its 2 */
         *(op.packet+48) = 0; /* granule shift, always 0 for vorbis */
-        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/vorbis\r\n", 30);
+        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/vorbis\r\n", 28);
         /* Important: Check the case of Content-Type for correctness */
 
         op.b_o_s = 0;
         op.e_o_s = 0;
-        op.bytes = 82;
+        op.bytes = 80;
 
         ogg_stream_packetin (&info->so, &op);
         _ogg_free (op.packet);
