@@ -26,5 +26,5 @@ fi
 
 tar xfz "libkate-$version.tar.gz"
 ln -fs "libkate-$version" libkate
-cd libkate && make
+cd libkate && make staticlib
 
