@@ -2,7 +2,8 @@ AUTOMAKE_OPTIONS = 1.8 dist-bzip2 no-dist-gzip
 
 SUBDIRS = kino_export
 
-EXTRA_DIST = Makefile.mingw32 theorautils.h get_ffmpeg_svn.sh ffmpeg2theora.1
+EXTRA_DIST = Makefile.mingw32 theorautils.h get_ffmpeg_svn.sh ffmpeg2theora.1 \
+             get_libkate.sh subtitles.txt 
 
 bin_PROGRAMS = ffmpeg2theora
 

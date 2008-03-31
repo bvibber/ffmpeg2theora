@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version=0.1.0
+version=0.1.1
 baseurl="http://libkate.googlecode.com/files/libkate-$version.tar.gz"
 
 which wget >& /dev/null
