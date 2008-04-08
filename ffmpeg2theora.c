@@ -1488,6 +1488,7 @@ void print_usage (){
         "                          not work with all input format you have to manually\n"
         "                          enable it if you have issues with A/V sync\n"
         "\n"
+#ifdef HAVE_KATE
         "Subtitles options:\n"
         "      --subtitles file                 use subtitles from the given file (SubRip (.srt) format)\n"
         "      --subtitles-encoding encoding    set encoding of the subtitles file\n"
@@ -1495,6 +1496,7 @@ void print_usage (){
         "      --subtitles-language language    set subtitles language (de, en_GB, etc)\n"
         "      --subtitles-category category    set subtitles category (default \"subtitles\")\n"
         "\n"
+#endif
         "Metadata options:\n"
         "      --artist           Name of artist (director)\n"
         "      --title            Title\n"
@@ -1618,7 +1620,9 @@ int main (int argc, char **argv){
     FILE *fpid = NULL;
 
     ff2theora convert = ff2theora_init ();
-    av_register_all ();
+    avcodec_register_all();
+    avdevice_register_all();
+    av_register_all();
 
     if (argc == 1){
         print_usage ();
