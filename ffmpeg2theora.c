@@ -1517,7 +1517,7 @@ void print_usage (){
         "Examples:\n"
         "  ffmpeg2theora videoclip.avi (will write output to videoclip.ogv)\n"
         "\n"
-        "  ffmpeg2theora videoclip.avi subtitles.srt (same, with subtitles)\n"
+        "  ffmpeg2theora videoclip.avi --subtitles subtitles.srt (same, with subtitles)\n"
         "\n"
         "  cat something.dv | ffmpeg2theora -f dv -o output.ogv -\n"
         "\n"
