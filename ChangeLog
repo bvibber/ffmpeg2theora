@@ -3,6 +3,7 @@
     - enable Ogg Skeleton by default
     - add kate streams for subtitles (--subtitles, --subtitles-language,
       subtitles-category, and --subtitles-encoding options)
+    - start- and endtime now also works if an output framerate is set
     - new presets
 
 0.20 2007-11-31

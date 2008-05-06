@@ -1412,7 +1412,7 @@ void print_presets_info() {
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  videobin       Video: 512x288 for 16:9 material, 448x336 for 4:3 material\n"
-        "                        Bitrate 992kbs\n"
+        "                        Bitrate 600kbs\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  padma          Video: 640x360 for 16:9 material, 640x480 for 4:3 material\n"
@@ -1903,7 +1903,7 @@ int main (int argc, char **argv){
                 }
                 else if(!strcmp(optarg,"videobin")){
                     convert->preset=V2V_PRESET_VIDEOBIN;
-                    convert->video_bitrate=rint(992*1000);
+                    convert->video_bitrate=rint(600*1000);
                     convert->video_quality = 0;
                     convert->audio_quality = 3.00;
                     convert->sharpness = 2;
