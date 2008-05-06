@@ -1453,7 +1453,7 @@ void print_usage (){
         "                         crop input by given pixels before resizing\n"
         "  -S, --sharpness        [0 to 2] sharpness of images (default: 0).\n"
         "                          Note: lower values make the video sharper.\n"
-        "  -K, --keyint           [8 to 65536] keyframe interval (default: 64)\n"
+        "  -K, --keyint           [1 to 65536] keyframe interval (default: 64)\n"
         "\n"
         "Video transfer options:\n"
         "  --pp                   Video Postprocessing, denoise, deblock, deinterlacer\n"
@@ -1860,8 +1860,8 @@ int main (int argc, char **argv){
                 break;
             case 'K':
                 convert->keyint = atoi(optarg);
-                if (convert->keyint < 8 || convert->keyint > 65536) {
-                    fprintf (stderr, "Only values from 8 to 65536 are valid for keyframe interval.\n");
+                if (convert->keyint < 1 || convert->keyint > 65536) {
+                    fprintf (stderr, "Only values from 1 to 65536 are valid for keyframe interval.\n");
                     exit(1);
                 }
                 break;
