@@ -1048,12 +1048,7 @@ void ff2theora_output(ff2theora this) {
               }
           }
         }
-        /*check for end time and calculate number of frames to encode*/
-        no_frames = fps*(this->end_time - this->start_time);
-        if(this->end_time > 0 && no_frames <= 0){
-            fprintf(stderr,"End time has to be bigger than start time.\n");
-            exit(1);
-        }
+
         if(info.audio_only && (this->end_time>0 || this->start_time>0)){
             fprintf(stderr,"Sorry, right now start/end time does not work for audio only files.\n");
             exit(1);
@@ -1066,6 +1061,12 @@ void ff2theora_output(ff2theora this) {
             this->fps = framerate_new;
         }
 
+        /*check for end time and calculate number of frames to encode*/
+        no_frames = this->fps*(this->end_time - this->start_time);
+        if(this->end_time > 0 && no_frames <= 0){
+            fprintf(stderr,"End time has to be bigger than start time.\n");
+            exit(1);
+        }
         /* main decoding loop */
         do{
             if(no_frames > 0){
