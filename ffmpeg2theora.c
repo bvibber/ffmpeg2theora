@@ -901,7 +901,6 @@ void ff2theora_output(ff2theora this) {
 
     if (this->video_index >= 0 || this->audio_index >=0){
         AVFrame *frame=NULL;
-        AVFrame *frame_tmp=NULL;
         AVFrame *output=NULL;
         AVFrame *output_tmp=NULL;
         AVFrame *output_resized=NULL;
@@ -934,8 +933,6 @@ void ff2theora_output(ff2theora this) {
 
         if(!info.audio_only){
             frame = frame_alloc(vstream->codec->pix_fmt,
-                            vstream->codec->width,vstream->codec->height);
-            frame_tmp = frame_alloc(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
             output_tmp =frame_alloc(this->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
