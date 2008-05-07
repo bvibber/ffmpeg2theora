@@ -336,6 +336,8 @@ void oggmux_init (oggmux_info *info){
         theora_comment_add_tag (&info->tc, "ENCODER",PACKAGE_STRING);
         theora_encode_comment (&info->tc, &op);
         ogg_stream_packetin (&info->to, &op);
+        _ogg_free (op.packet);
+
         theora_encode_tables (&info->td, &op);
         ogg_stream_packetin (&info->to, &op);
     }
