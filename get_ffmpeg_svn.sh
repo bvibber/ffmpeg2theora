@@ -1,9 +1,12 @@
 #!/bin/sh
 
 #optional, if you have those libs installed:
-#extra="--enable-libfaad --enable-libgsm --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2"
+#extra=" --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2"
 
-common="--enable-gpl --enable-swscale --enable-postproc --enable-liba52 --disable-encoders --enable-libvorbis"
+#apt-get install liba52-dev libfaad-dev libgsm1-dev
+#extra=" --enable-liba52 --enable-libfaad --enable-libgsm"
+
+common="--enable-gpl --enable-swscale --enable-postproc --disable-encoders --enable-libvorbis"
 
 #linux
 options="$common --enable-pthreads $extra"
