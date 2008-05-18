@@ -1,6 +1,7 @@
 #!/bin/sh
 
 #optional, if you have those libs installed:
+#apt-get install libamrnb-dev libamrwb-dev
 #extra=" --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2"
 
 #apt-get install liba52-dev libfaad-dev libgsm1-dev
