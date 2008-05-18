@@ -1,4 +1,4 @@
-0.21 ??
+0.21 2008-05-19 
     - switch default extension to .ogv 
     - enable Ogg Skeleton by default
     - add kate streams for subtitles (--subtitles, --subtitles-language,
