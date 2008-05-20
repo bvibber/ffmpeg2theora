@@ -308,9 +308,7 @@ static int load_subtitles(ff2theora_kate_stream *this)
             return -1;
           }
           if (id!=last_seen_id+1) {
-            fprintf(stderr,"WARNING - Error: non consecutive ids: %s\n",str);
-            fclose(f);
-            return -1;
+            fprintf(stderr,"WARNING - non consecutive ids: %s - pretending not to have noticed\n",str);
           }
           last_seen_id=id;
           need=need_timing;
@@ -1007,8 +1005,8 @@ void ff2theora_output(ff2theora this) {
         for (i=0; i<this->n_kate_streams; ++i) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
             kate_info *ki = &info.kate_streams[i].ki;
+            kate_info_init(ki);
             if (ks->num_subtitles > 0) {
-                kate_info_init(ki);
                 kate_info_set_language(ki, ks->subtitles_language);
                 kate_info_set_category(ki, ks->subtitles_category[0]?ks->subtitles_category:"subtitles");
                 if(this->force_input_fps) {
@@ -1043,6 +1041,11 @@ void ff2theora_output(ff2theora this) {
                   /* printf("skipping subtitle %u\n", ks->subtitles_count); */
                   ks->subtitles_count++;
               }
+          }
+          else {
+            ks->filename=NULL;
+            ks->num_subtitles=0;
+            ks->subtitles=NULL;
           }
         }
 
