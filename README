@@ -6,7 +6,6 @@ the binary. the idea is to provide ffmpeg2theora as a binary
 along sites like v2v.cc to enable as many people as possible
 to encode video clips with the same settings.
 
-
 usage right now:
  ./ffmpeg2theora clip.avi
  will produce clip.ogv

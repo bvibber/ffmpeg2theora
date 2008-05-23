@@ -8,9 +8,9 @@ EXTRA_DIST = Makefile get_ffmpeg_svn.sh \
 
 bin_PROGRAMS = ffmpeg2theora
 
-ffmpeg2theora_SOURCES = ffmpeg2theora.c theorautils.c subtitles.c \
-                        ffmpeg2theora.h theorautils.h subtitles.h
+ffmpeg2theora_SOURCES = src/ffmpeg2theora.c src/theorautils.c src/subtitles.c \
+                        src/ffmpeg2theora.h src/theorautils.h src/subtitles.h
 ffmpeg2theora_LDFLAGS = -L$(prefix)/lib @XIPH_LIBS@ @KATE_LIBS@ @FFMPEG_LIBS@
-ffmpeg2theora_CFLAGS = @XIPH_CFLAGS@ @KATE_CFLAGS@ @FFMPEG_CFLAGS@
+ffmpeg2theora_CFLAGS = -I./src @XIPH_CFLAGS@ @KATE_CFLAGS@ @FFMPEG_CFLAGS@
 
 man_MANS = ffmpeg2theora.1

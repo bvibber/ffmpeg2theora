@@ -6,12 +6,12 @@ baseurl="http://libkate.googlecode.com/files/libkate-$version.tar.gz"
 which wget >& /dev/null
 if [ $? -eq 0 ]
 then
-  wget "$baseurl"
+  test -e "libkate-$version.tar.gz" || wget "$baseurl"
 else
   which curl >& /dev/null
   if [ $? -eq 0 ]
   then
-    curl "$baseurl"
+    test -e "libkate-$version.tar.gz" || curl "$baseurl" -o "libkate-$version.tar.gz"
   else
     echo "Neither wget nor curl were found, cannot download libkate"
     exit 1

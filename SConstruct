@@ -22,7 +22,6 @@ env.Append(CCFLAGS=[
   '-DPACKAGE_VERSION=\\"%s\\"' %pkg_version,
   '-DPACKAGE_STRING=\\"%s-%s\\"' %(pkg_name, pkg_version),
   '-DPACKAGE=\\"%s\\"' % pkg_name,
-  '-DVERSION=\\"%s\\"' %pkg_version,
 ])
 #if env['CC'] == 'gcc':
 #  env.Append(CCFLAGS=["-g", "-O2", "-Wall"])
@@ -81,13 +80,13 @@ if conf.CheckPKG(KATE_LIBS):
   env.Append(CCFLAGS=['-DHAVE_KATE', '-DHAVE_OGGKATE'])
 else:
   print """
-      Could not find %s.
-      update PKG_CONFIG_PATH to point to ffmpeg's source folder
-      or run ./get_libkate.sh (for more information see INSTALL)
-  """ % KATE_LIBS
+      Could not find libkate. Subtitles support will be disabled.
+      You can also run ./get_libkate.sh (for more information see INSTALL)
+      or update PKG_CONFIG_PATH to point to libkate's source folder
+  """
 env = conf.Finish()
 
 # ffmpeg2theora 
 ffmpeg2theora = env.Copy()
-ffmpeg2theora_sources = glob('*.c')
+ffmpeg2theora_sources = glob('src/*.c')
 ffmpeg2theora.Program('ffmpeg2theora', ffmpeg2theora_sources)
