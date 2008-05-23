@@ -600,6 +600,28 @@ ff2theora ff2theora_init (){
     return this;
 }
 
+void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *output_buffered) {
+    /* pysical pages */
+    yuv->y_width = this->frame_width;
+    yuv->y_height = this->frame_height;
+    yuv->y_stride = output_buffered->linesize[0];
+
+    yuv->uv_width = this->frame_width / 2;
+    yuv->uv_height = this->frame_height / 2;
+    yuv->uv_stride = output_buffered->linesize[1];
+
+    yuv->y = output_buffered->data[0];
+    yuv->u = output_buffered->data[1];
+    yuv->v = output_buffered->data[2];
+    if (y_lut_used) {
+        lut_apply(y_lut, yuv->y, yuv->y, yuv->y_width, yuv->y_height, yuv->y_stride);
+    }
+    if (uv_lut_used) {
+        lut_apply(uv_lut, yuv->u, yuv->u, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
+        lut_apply(uv_lut, yuv->v, yuv->v, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
+    }
+}
+
 void ff2theora_output(ff2theora this) {
     int i;
     AVCodecContext *aenc = NULL;
@@ -1042,11 +1064,6 @@ void ff2theora_output(ff2theora this) {
                   ks->subtitles_count++;
               }
           }
-          else {
-            ks->filename=NULL;
-            ks->num_subtitles=0;
-            ks->subtitles=NULL;
-          }
         }
 
         if(info.audio_only && (this->end_time>0 || this->start_time>0)){
@@ -1183,28 +1200,11 @@ void ff2theora_output(ff2theora this) {
                         len -= len1;
                     }
                     //now output_resized
+
                     if(!first) {
-                      /* pysical pages */
-                      yuv.y_width = this->frame_width;
-                      yuv.y_height = this->frame_height;
-                      yuv.y_stride = output_buffered->linesize[0];
-
-                      yuv.uv_width = this->frame_width / 2;
-                      yuv.uv_height = this->frame_height / 2;
-                      yuv.uv_stride = output_buffered->linesize[1];
-
-                      yuv.y = output_buffered->data[0];
-                      yuv.u = output_buffered->data[1];
-                      yuv.v = output_buffered->data[2];
                       if(got_picture || e_o_s) {
+                        prepare_yuv_buffer(this, &yuv, output_buffered);
                         do {
-                          if (y_lut_used) {
-                              lut_apply(y_lut, yuv.y, yuv.y, yuv.y_width, yuv.y_height, yuv.y_stride);
-                          }
-                          if (uv_lut_used) {
-                              lut_apply(uv_lut, yuv.u, yuv.u, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
-                              lut_apply(uv_lut, yuv.v, yuv.v, yuv.uv_width, yuv.uv_height, yuv.uv_stride);
-                          }
                           oggmux_add_video(&info, &yuv, e_o_s);
                           this->frame_count++;
                         } while(dups--);
