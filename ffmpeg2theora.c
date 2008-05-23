@@ -1,7 +1,7 @@
 /* -*- tab-width:4;c-file-style:"cc-mode"; -*- */
 /*
  * ffmpeg2theora.c -- Convert ffmpeg supported a/v files to  Ogg Theora / Ogg Vorbis
- * Copyright (C) 2003-2006 <j@v2v.cc>
+ * Copyright (C) 2003-2008 <j@v2v.cc>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
