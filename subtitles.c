@@ -56,7 +56,7 @@ static void add_kate_stream(ff2theora this){
 /*
  * sets the filename of the next subtitles file
  */
-static void set_subtitles_file(ff2theora this,const char *filename){
+void set_subtitles_file(ff2theora this,const char *filename){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
     if (!this->kate_streams[n].filename) break;
@@ -68,7 +68,7 @@ static void set_subtitles_file(ff2theora this,const char *filename){
 /*
  * sets the language of the next subtitles file
  */
-static void set_subtitles_language(ff2theora this,const char *language){
+void set_subtitles_language(ff2theora this,const char *language){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
     if (!this->kate_streams[n].subtitles_language[0]) break;
@@ -81,7 +81,7 @@ static void set_subtitles_language(ff2theora this,const char *language){
 /*
  * sets the category of the next subtitles file
  */
-static void set_subtitles_category(ff2theora this,const char *category){
+void set_subtitles_category(ff2theora this,const char *category){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
     if (!this->kate_streams[n].subtitles_category[0]) break;
@@ -94,7 +94,7 @@ static void set_subtitles_category(ff2theora this,const char *category){
 /**
   * sets the encoding of the next subtitles file
   */
-static void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
+void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
     if (this->kate_streams[n].subtitles_encoding==ENC_UNSET) break;
@@ -104,7 +104,7 @@ static void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
 }
 
 
-static void report_unknown_subtitle_encoding(const char *name)
+void report_unknown_subtitle_encoding(const char *name)
 {
   fprintf(stderr, "Unknown character encoding: %s\n",name);
   fprintf(stderr, "Valid character encodings are:\n");
