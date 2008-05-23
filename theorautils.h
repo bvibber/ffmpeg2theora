@@ -17,6 +17,8 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
+#ifndef _F2T_THEORAUTILS_H_
+#define _F2T_THEORAUTILS_H_
 
 #include <stdint.h>
 #include "theora/theora.h"
@@ -127,7 +129,7 @@ typedef struct
 }
 oggmux_info;
 
-extern void init_info(oggmux_info *info);
+void init_info(oggmux_info *info);
 extern void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams);
 extern void oggmux_init (oggmux_info *info);
 extern void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s);
@@ -136,3 +138,6 @@ extern void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double 
 extern void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t);
 extern void oggmux_flush (oggmux_info *info, int e_o_s);
 extern void oggmux_close (oggmux_info *info);
+
+
+#endif

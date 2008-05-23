@@ -36,15 +36,13 @@
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
 
-#ifdef HAVE_KATE
-#include "kate/kate.h"
-#endif
-
 #ifdef WIN32
 #include "fcntl.h"
 #endif
 
 #include "theorautils.h"
+#include "subtitles.h"
+#include "ffmpeg2theora.h"
 
 #ifdef __linux__
   #define VIDEO4LINUX_ENABLED
@@ -83,11 +81,6 @@ enum {
   V2V_PRESET_PADMASTREAM,
 } F2T_PRESETS;
 
-typedef enum {
-  ENC_UNSET,
-  ENC_UTF8,
-  ENC_ISO_8859_1,
-} F2T_ENCODING;
 
 #define PAL_HALF_WIDTH 384
 #define PAL_HALF_HEIGHT 288
@@ -101,361 +94,6 @@ typedef enum {
 
 
 static int sws_flags = SWS_BICUBIC;
-
-typedef struct ff2theora_subtitle{
-    char *text;
-    size_t len;
-    double t0;
-    double t1;
-} ff2theora_subtitle;
-
-typedef struct ff2theora_kate_stream{
-    const char *filename;
-    size_t num_subtitles;
-    ff2theora_subtitle *subtitles;
-    size_t subtitles_count; /* total subtitles output so far */
-    F2T_ENCODING subtitles_encoding;
-    char subtitles_language[16];
-    char subtitles_category[16];
-} ff2theora_kate_stream;
-
-typedef struct ff2theora{
-    AVFormatContext *context;
-    int video_index;
-    int audio_index;
-
-    int deinterlace;
-    int vhook;
-    int audiostream;
-    int sample_rate;
-    int channels;
-    int disable_audio;
-    float audio_quality;
-    int audio_bitrate;
-    int preset;
-
-    int picture_width;
-    int picture_height;
-    double fps;
-    struct SwsContext *sws_colorspace_ctx; /* for image resampling/resizing */
-    struct SwsContext *sws_scale_ctx; /* for image resampling/resizing */
-    ReSampleContext *audio_resample_ctx;
-    ogg_int32_t aspect_numerator;
-    ogg_int32_t aspect_denominator;
-    double    frame_aspect;
-
-    int pix_fmt;
-    int video_quality;
-    int video_bitrate;
-    int sharpness;
-    int keyint;
-    char pp_mode[255];
-
-    double force_input_fps;
-    int sync;
-
-    /* cropping */
-    int frame_topBand;
-    int frame_bottomBand;
-    int frame_leftBand;
-    int frame_rightBand;
-
-    int frame_width;
-    int frame_height;
-    int frame_x_offset;
-    int frame_y_offset;
-
-    /* In seconds */
-    int start_time;
-    int end_time;
-
-    AVRational framerate_new;
-
-    double pts_offset; /* between given input pts and calculated output pts */
-    int64_t frame_count; /* total video frames output so far */
-    int64_t sample_count; /* total audio samples output so far */
-
-    size_t n_kate_streams;
-    ff2theora_kate_stream *kate_streams;
-}
-*ff2theora;
-
-
-// gamma lookup table code
-
-// ffmpeg2theora --nosound -f dv -H 32000 -S 0 -v 8 -x 384 -y 288 -G 1.5 input.dv
-static double video_gamma  = 0.0;
-static double video_bright = 0.0;
-static double video_contr  = 0.0;
-static double video_satur  = 1.0;
-static int y_lut_used = 0;
-static int uv_lut_used = 0;
-static unsigned char y_lut[256];
-static unsigned char uv_lut[256];
-
-#define SUPPORTED_ENCODINGS "utf-8, utf8, iso-8859-1, latin1"
-
-static void report_unknown_subtitle_encoding(const char *name)
-{
-  fprintf(stderr, "Unknown character encoding: %s\n",name);
-  fprintf(stderr, "Valid character encodings are:\n");
-  fprintf(stderr, "  " SUPPORTED_ENCODINGS "\n");
-}
-
-static char *fgets2(char *s,size_t sz,FILE *f)
-{
-    char *ret = fgets(s, sz, f);
-    /* fixup DOS newline character */
-    char *ptr=strchr(s, '\r');
-    if (ptr) *ptr='\n';
-    return ret;
-}
-
-#ifndef __GNUC__
-/* Windows doesn't have strcasecmp but stricmp (at least, DOS had)
-   (or was that strcmpi ? Might have been Borland C) */
-#define strcasecmp(s1, s2) stricmp(s1, s2)
-#endif
-
-static double hmsms2s(int h,int m,int s,int ms)
-{
-    return h*3600+m*60+s+ms/1000.0;
-}
-
-/* very simple implementation when no iconv */
-static void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text)
-{
-  size_t nbytes;
-  unsigned char *ptr,*newtext;
-
-  if (!text || !*text) return;
-
-  switch (encoding) {
-    case ENC_UNSET:
-      /* we don't know what encoding this is, assume utf-8 and we'll yell if it ain't */
-      break;
-    case ENC_UTF8:
-      /* nothing to do, already in utf-8 */
-      break;
-    case ENC_ISO_8859_1:
-      /* simple, characters above 0x7f are broken in two,
-         and code points map to the iso-8859-1 8 bit codes */
-      nbytes=0;
-      for (ptr=text;*ptr;++ptr) {
-        nbytes++;
-        if (0x80&*ptr) nbytes++;
-      }
-      newtext=(unsigned char*)malloc(1+nbytes);
-      if (!newtext) {
-        fprintf(stderr, "Memory allocation failed - cannot convert text\n");
-        return;
-      }
-      nbytes=0;
-      for (ptr=text;*ptr;++ptr) {
-        if (0x80&*ptr) {
-          newtext[nbytes++]=0xc0|((*ptr)>>6);
-          newtext[nbytes++]=0x80|((*ptr)&0x3f);
-        }
-        else {
-          newtext[nbytes++]=*ptr;
-        }
-      }
-      newtext[nbytes++]=0;
-      memcpy(text,newtext,nbytes);
-      free(newtext);
-      break;
-    default:
-      fprintf(stderr, "ERROR: encoding %d not handled in conversion!\n", encoding);
-      break;
-  }
-}
-
-static int load_subtitles(ff2theora_kate_stream *this)
-{
-#ifdef HAVE_KATE
-    enum { need_id, need_timing, need_text };
-    int need = need_id;
-    int last_seen_id=0;
-    int ret;
-    int id;
-    static char text[4096];
-    int h0,m0,s0,ms0,h1,m1,s1,ms1;
-    double t0,t1;
-    static char str[4096];
-    int warned=0;
-
-    FILE *f = fopen(this->filename, "r");
-    if (!f) {
-        fprintf(stderr,"WARNING - Failed to open subtitles file %s (%s)\n", this->filename, strerror(errno));
-        return -1;
-    }
-
-    /* first, check for a BOM */
-    ret=fread(str,1,3,f);
-    if (ret<3 || memcmp(str,"\xef\xbb\xbf",3)) {
-      /* No BOM, rewind */
-      fseek(f,0,SEEK_SET);
-    }
-
-    fgets2(str,sizeof(str),f);
-    while (!feof(f)) {
-      switch (need) {
-        case need_id:
-          ret=sscanf(str,"%d\n",&id);
-          if (ret!=1) {
-            fprintf(stderr,"WARNING - Syntax error: %s\n",str);
-            fclose(f);
-            return -1;
-          }
-          if (id!=last_seen_id+1) {
-            fprintf(stderr,"WARNING - non consecutive ids: %s - pretending not to have noticed\n",str);
-          }
-          last_seen_id=id;
-          need=need_timing;
-          strcpy(text,"");
-          break;
-        case need_timing:
-          ret=sscanf(str,"%d:%d:%d%*[.,]%d --> %d:%d:%d%*[.,]%d\n",&h0,&m0,&s0,&ms0,&h1,&m1,&s1,&ms1);
-          if (ret!=8) {
-            fprintf(stderr,"WARNING - Syntax error: %s\n",str);
-            fclose(f);
-            return -1;
-          }
-          else {
-            t0=hmsms2s(h0,m0,s0,ms0);
-            t1=hmsms2s(h1,m1,s1,ms1);
-          }
-          need=need_text;
-          break;
-        case need_text:
-          if (*str=='\n') {
-            convert_subtitle_to_utf8(this->subtitles_encoding,(unsigned char*)text);
-            size_t len = strlen(text);
-            this->subtitles = (ff2theora_subtitle*)realloc(this->subtitles, (this->num_subtitles+1)*sizeof(ff2theora_subtitle));
-            if (!this->subtitles) {
-              fprintf(stderr, "Out of memory\n");
-              fclose(f);
-              return -1;
-            }
-            ret=kate_text_validate(kate_utf8,text,len+1);
-            if (ret<0) {
-              if (!warned) {
-                fprintf(stderr,"WARNING: subtitle %s is not valid utf-8\n",text);
-                fprintf(stderr,"  further invalid subtitles will NOT be flagged\n");
-                warned=1;
-              }
-            }
-            else {
-              /* kill off trailing \n characters */
-              while (len>0) {
-                if (text[len-1]=='\n') text[--len]=0; else break;
-              }
-              this->subtitles[this->num_subtitles].text = (char*)malloc(len+1);
-              memcpy(this->subtitles[this->num_subtitles].text, text, len+1);
-              this->subtitles[this->num_subtitles].len = len;
-              this->subtitles[this->num_subtitles].t0 = t0;
-              this->subtitles[this->num_subtitles].t1 = t1;
-              this->num_subtitles++;
-            }
-            need=need_id;
-          }
-          else {
-            strcat(text,str);
-          }
-          break;
-      }
-      fgets2(str,sizeof(str),f);
-    }
-
-    fclose(f);
-
-    /* fprintf(stderr,"  %u subtitles loaded.\n", this->num_subtitles); */
-
-    return this->num_subtitles;
-#else
-    return 0;
-#endif
-}
-
-static void free_subtitles(ff2theora this)
-{
-    size_t i,n;
-    for (i=0; i<this->n_kate_streams; ++i) {
-        ff2theora_kate_stream *ks=this->kate_streams+i;
-        for (n=0; n<ks->num_subtitles; ++n) free(ks->subtitles[n].text);
-        free(ks->subtitles);
-    }
-    free(this->kate_streams);
-}
-
-static void y_lut_init(unsigned char *lut, double c, double b, double g) {
-    int i;
-    double v;
-
-    if ((g < 0.01) || (g > 100.0)) g = 1.0;
-    if ((c < 0.01) || (c > 100.0)) c = 1.0;
-    if ((b < -1.0) || (b > 1.0))   b = 0.0;
-
-    if (g == 1.0 && c == 1.0 && b == 0.0) return;
-    y_lut_used = 1;
-
-    printf("  Video correction: gamma=%g, contrast=%g, brightness=%g\n", g, c, b);
-
-    g = 1.0 / g;    // larger values shall make brighter video.
-
-    for (i = 0; i < 256; i++) {
-        v = (double) i / 255.0;
-        v = c * v + b * 0.1;
-        if (v < 0.0) v = 0.0;
-        v = pow(v, g) * 255.0;    // mplayer's vf_eq2.c multiplies with 256 here, strange...
-
-        if (v >= 255)
-            lut[i] = 255;
-        else
-            lut[i] = (unsigned char)(v+0.5);
-    }
-}
-
-
-static void uv_lut_init(unsigned char *lut, double s) {
-    int i;
-    double v;
-
-    if ((s < 0.0) || (s > 100.0)) s = 1.0;
-
-    if (s == 1.0) return;
-    uv_lut_used = 1;
-
-    printf("  Color correction: saturation=%g\n", s);
-
-    for (i = 0; i < 256; i++) {
-        v = 127.0 + (s * ((double)i - 127.0));
-        if (v < 0.0) v = 0.0;
-
-        if (v >= 255.0)
-            lut[i] = 255;
-        else
-            lut[i] = (unsigned char)(v+0.5);
-    }
-}
-
-static void lut_init(double c, double b, double g, double s) {
-  y_lut_init(y_lut, c, b, g);
-  uv_lut_init(uv_lut, s);
-}
-
-static void lut_apply(unsigned char *lut, unsigned char *src, unsigned char *dst, int width, int height, int stride) {
-    int x, y;
-
-    for (y = 0; y < height; y++) {
-        for (x = 0; x < width; x++) {
-            dst[x] = lut[src[x]];
-        }
-        src += stride;
-        dst += stride;
-    }
-}
-
 
 oggmux_info info;
 
@@ -482,72 +120,6 @@ AVFrame *frame_alloc (int pix_fmt, int width, int height) {
     avpicture_fill ((AVPicture *) picture, picture_buf,
             pix_fmt, width, height);
     return picture;
-}
-
-/**
-  * adds a new kate stream structure
-  */
-static void add_kate_stream(ff2theora this){
-    ff2theora_kate_stream *ks;
-    this->kate_streams=(ff2theora_kate_stream*)realloc(this->kate_streams,(this->n_kate_streams+1)*sizeof(ff2theora_kate_stream));
-    ks=&this->kate_streams[this->n_kate_streams++];
-    ks->filename = NULL;
-    ks->num_subtitles = 0;
-    ks->subtitles = 0;
-    ks->subtitles_count = 0; /* denotes not set yet */
-    ks->subtitles_encoding = ENC_UNSET;
-    strcpy(ks->subtitles_language, "");
-    strcpy(ks->subtitles_category, "");
-}
-
-/*
- * sets the filename of the next subtitles file
- */
-static void set_subtitles_file(ff2theora this,const char *filename){
-  size_t n;
-  for (n=0; n<this->n_kate_streams;++n) {
-    if (!this->kate_streams[n].filename) break;
-  }
-  if (n==this->n_kate_streams) add_kate_stream(this);
-  this->kate_streams[n].filename = filename;
-}
-
-/*
- * sets the language of the next subtitles file
- */
-static void set_subtitles_language(ff2theora this,const char *language){
-  size_t n;
-  for (n=0; n<this->n_kate_streams;++n) {
-    if (!this->kate_streams[n].subtitles_language[0]) break;
-  }
-  if (n==this->n_kate_streams) add_kate_stream(this);
-  strncpy(this->kate_streams[n].subtitles_language, language, 16);
-  this->kate_streams[n].subtitles_language[15] = 0;
-}
-
-/*
- * sets the category of the next subtitles file
- */
-static void set_subtitles_category(ff2theora this,const char *category){
-  size_t n;
-  for (n=0; n<this->n_kate_streams;++n) {
-    if (!this->kate_streams[n].subtitles_category[0]) break;
-  }
-  if (n==this->n_kate_streams) add_kate_stream(this);
-  strncpy(this->kate_streams[n].subtitles_category, category, 16);
-  this->kate_streams[n].subtitles_category[15] = 0;
-}
-
-/**
-  * sets the encoding of the next subtitles file
-  */
-static void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
-  size_t n;
-  for (n=0; n<this->n_kate_streams;++n) {
-    if (this->kate_streams[n].subtitles_encoding==ENC_UNSET) break;
-  }
-  if (n==this->n_kate_streams) add_kate_stream(this);
-  this->kate_streams[n].subtitles_encoding = encoding;
 }
 
 /**
@@ -596,11 +168,97 @@ ff2theora ff2theora_init (){
         this->kate_streams=NULL;
 
         this->pix_fmt = PIX_FMT_YUV420P;
+
+        // ffmpeg2theora --nosound -f dv -H 32000 -S 0 -v 8 -x 384 -y 288 -G 1.5 input.dv
+        this->video_gamma  = 0.0;
+        this->video_bright = 0.0;
+        this->video_contr  = 0.0;
+        this->video_satur  = 1.0;
+
+        this->y_lut_used = 0;
+        this->uv_lut_used = 0;
+        this->y_lut[256];
+        this->uv_lut[256];
     }
     return this;
 }
 
-void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *output_buffered) {
+// gamma lookup table code
+
+static void y_lut_init(ff2theora this) {
+    int i;
+    double v;
+
+    double c = this->video_contr;
+    double b = this->video_bright;
+    double g = this->video_gamma;
+ 
+    if ((g < 0.01) || (g > 100.0)) g = 1.0;
+    if ((c < 0.01) || (c > 100.0)) c = 1.0;
+    if ((b < -1.0) || (b > 1.0))   b = 0.0;
+
+    if (g == 1.0 && c == 1.0 && b == 0.0) return;
+    this->y_lut_used = 1;
+
+    printf("  Video correction: gamma=%g, contrast=%g, brightness=%g\n", g, c, b);
+
+    g = 1.0 / g;    // larger values shall make brighter video.
+
+    for (i = 0; i < 256; i++) {
+        v = (double) i / 255.0;
+        v = c * v + b * 0.1;
+        if (v < 0.0) v = 0.0;
+        v = pow(v, g) * 255.0;    // mplayer's vf_eq2.c multiplies with 256 here, strange...
+
+        if (v >= 255)
+            this->y_lut[i] = 255;
+        else
+            this->y_lut[i] = (unsigned char)(v+0.5);
+    }
+}
+
+
+static void uv_lut_init(ff2theora this) {
+    int i;
+    double v, s;
+    s = this->video_satur;
+
+    if ((s < 0.0) || (s > 100.0)) s = 1.0;
+
+    if (s == 1.0) return;
+    this->uv_lut_used = 1;
+
+    printf("  Color correction: saturation=%g\n", s);
+
+    for (i = 0; i < 256; i++) {
+        v = 127.0 + (s * ((double)i - 127.0));
+        if (v < 0.0) v = 0.0;
+
+        if (v >= 255.0)
+            this->uv_lut[i] = 255;
+        else
+            this->uv_lut[i] = (unsigned char)(v+0.5);
+    }
+}
+
+static void lut_init(ff2theora this) {
+    y_lut_init(this);
+    uv_lut_init(this);
+}
+
+static void lut_apply(unsigned char *lut, unsigned char *src, unsigned char *dst, int width, int height, int stride) {
+    int x, y;
+
+    for (y = 0; y < height; y++) {
+        for (x = 0; x < width; x++) {
+            dst[x] = lut[src[x]];
+        }
+        src += stride;
+        dst += stride;
+    }
+}
+
+static void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *output_buffered) {
     /* pysical pages */
     yuv->y_width = this->frame_width;
     yuv->y_height = this->frame_height;
@@ -613,12 +271,12 @@ void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *output_buffere
     yuv->y = output_buffered->data[0];
     yuv->u = output_buffered->data[1];
     yuv->v = output_buffered->data[2];
-    if (y_lut_used) {
-        lut_apply(y_lut, yuv->y, yuv->y, yuv->y_width, yuv->y_height, yuv->y_stride);
+    if (this->y_lut_used) {
+        lut_apply(this->y_lut, yuv->y, yuv->y, yuv->y_width, yuv->y_height, yuv->y_stride);
     }
-    if (uv_lut_used) {
-        lut_apply(uv_lut, yuv->u, yuv->u, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
-        lut_apply(uv_lut, yuv->v, yuv->v, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
+    if (this->uv_lut_used) {
+        lut_apply(this->uv_lut, yuv->u, yuv->u, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
+        lut_apply(this->uv_lut, yuv->v, yuv->v, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
     }
 }
 
@@ -879,8 +537,7 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr,"\n");
         }
 
-        if (video_gamma != 0.0 || video_bright != 0.0 || video_contr != 0.0 || video_satur != 1.0)
-            lut_init(video_contr, video_bright, video_gamma, video_satur);
+        lut_init(this);
     }
     if (this->framerate_new.num > 0) {
         fprintf(stderr,"  Resample Framerate: %0.2f => %0.2f\n",
@@ -1841,16 +1498,16 @@ int main (int argc, char **argv){
                 convert->audio_quality = -990;
                 break;
             case 'G':
-                video_gamma = atof(optarg);
+                convert->video_gamma = atof(optarg);
                 break;
             case 'C':
-                video_contr = atof(optarg);
+                convert->video_contr = atof(optarg);
                 break;
             case 'Z':
-                video_satur = atof(optarg);
+                convert->video_satur = atof(optarg);
                 break;
             case 'B':
-                video_bright = atof(optarg);
+                convert->video_bright = atof(optarg);
                 break;
             case 'S':
                 convert->sharpness = atoi(optarg);
