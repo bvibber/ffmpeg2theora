@@ -576,11 +576,15 @@ void ff2theora_output(ff2theora this) {
         }
     }
 
-    if (this->video_index >= 0 || this->audio_index >=0){
+    if (this->video_index >= 0 || this->audio_index >= 0){
         AVFrame *frame=NULL;
         AVFrame *output=NULL;
+        AVFrame *output_p=NULL;
+        AVFrame *output_tmp_p=NULL;
         AVFrame *output_tmp=NULL;
+        AVFrame *output_resized_p=NULL;
         AVFrame *output_resized=NULL;
+        AVFrame *output_buffered_p=NULL;
         AVFrame *output_buffered=NULL;
 
         AVPacket pkt;
@@ -591,8 +595,9 @@ void ff2theora_output(ff2theora this) {
         int e_o_s = 0;
         int ret;
         uint8_t *ptr;
-        int16_t *audio_buf= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
-        int16_t *resampled= av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
+        int16_t *audio_buf=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
+        int16_t *resampled=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
+        int16_t *audio_p;
         int no_frames;
 
         double framerate_add;
@@ -611,13 +616,13 @@ void ff2theora_output(ff2theora this) {
         if(!info.audio_only){
             frame = frame_alloc(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
-            output_tmp =frame_alloc(this->pix_fmt,
+            output_tmp_p = output_tmp = frame_alloc(this->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
-            output =frame_alloc(this->pix_fmt,
+            output_p = output = frame_alloc(this->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
-            output_resized =frame_alloc(this->pix_fmt,
+            output_resized_p = output_resized = frame_alloc(this->pix_fmt,
                             this->frame_width, this->frame_height);
-            output_buffered =frame_alloc(this->pix_fmt,
+            output_buffered_p = output_buffered = frame_alloc(this->pix_fmt,
                             this->frame_width, this->frame_height);
 
             /* video settings here */
@@ -899,12 +904,13 @@ void ff2theora_output(ff2theora this) {
                             samples_out = samples;
                             if(this->audio_resample_ctx){
                                 samples_out = audio_resample(this->audio_resample_ctx, resampled, audio_buf, samples);
+                                audio_p = resampled;
                             }
                             else
-                                resampled=audio_buf;
+                                audio_p = audio_buf;
                         }
                     }
-                    oggmux_add_audio(&info, resampled,
+                    oggmux_add_audio(&info, audio_p,
                         samples_out *(this->channels),samples_out,e_o_s);
                     this->sample_count += samples_out;
                     if(e_o_s && len <= 0){
@@ -951,9 +957,23 @@ void ff2theora_output(ff2theora this) {
             }
         }
 
+        if (this->video_index >= 0) {
+            avcodec_close(venc);
+        }
+        if (this->audio_index >= 0) {
+            avcodec_close(aenc);
+        }
         oggmux_close (&info);
         if(ppContext)
             pp_free_context(ppContext);
+        if (!info.audio_only) {
+            av_free(frame);
+            av_free(output_p);
+            av_free(output_tmp_p);
+            av_free(output_resized_p);
+        }
+        av_free(audio_buf);
+        av_free(resampled);
     }
     else{
         fprintf (stderr, "No video or audio stream found.\n");
@@ -961,6 +981,8 @@ void ff2theora_output(ff2theora this) {
 }
 
 void ff2theora_close (ff2theora this){
+    sws_freeContext(this->sws_colorspace_ctx);
+    sws_freeContext(this->sws_scale_ctx);
     /* clear out state */
     free_subtitles(this);
     av_free (this);
@@ -1661,17 +1683,6 @@ int main (int argc, char **argv){
         exit(1);
     }
 
-    /* could go, but so far no player supports offset_x/y */
-    if(convert->picture_width % 8 ||  convert->picture_height % 8){
-        fprintf(stderr,"Output size must be a multiple of 8 for now.\n");
-        exit(1);
-    }
-    /*
-    if(convert->picture_width % 4 ||  convert->picture_height % 4){
-        fprintf(stderr,"Output width and height size must be a multiple of 2.\n");
-        exit(1);
-    }
-    */
     if(convert->end_time>0 && convert->end_time <= convert->start_time){
         fprintf(stderr,"End time has to be bigger than start time.\n");
         exit(1);
