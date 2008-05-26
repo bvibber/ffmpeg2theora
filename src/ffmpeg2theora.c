@@ -1708,6 +1708,11 @@ int main (int argc, char **argv){
               ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
               ks->subtitles_category[0]?ks->subtitles_category:"subtitles");
         }
+        else {
+          ks->filename = NULL;
+          ks->num_subtitles = 0;
+          ks->subtitles = NULL;
+        }
     }
 
     if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0){
