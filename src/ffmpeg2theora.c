@@ -44,10 +44,6 @@
 #include "subtitles.h"
 #include "ffmpeg2theora.h"
 
-#ifdef __linux__
-  #define VIDEO4LINUX_ENABLED
-#endif
-
 enum {
   NULL_FLAG,
   DEINTERLACE_FLAG,
@@ -159,7 +155,8 @@ static ff2theora ff2theora_init (){
         this->video_bitrate=0;
         this->sharpness=0;
         this->keyint=64;
-        this->force_input_fps=0;
+        this->force_input_fps.num = -1;
+        this->force_input_fps.den = 1;
         this->sync=0;
         this->aspect_numerator=0;
         this->aspect_denominator=0;
@@ -339,8 +336,8 @@ void ff2theora_output(ff2theora this) {
         if (fps > 10000)
             fps /= 1000;
 
-        if(this->force_input_fps)
-            fps=this->force_input_fps;
+        if(this->force_input_fps.num > 0)
+            fps=(double)this->force_input_fps.num / this->force_input_fps.den;
         if (vcodec == NULL || avcodec_open (venc, vcodec) < 0) {
             this->video_index = -1;
         }
@@ -549,9 +546,9 @@ void ff2theora_output(ff2theora this) {
 
         lut_init(this);
     }
-    if (this->framerate_new.num > 0) {
+    if (this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
         fprintf(stderr,"  Resample Framerate: %0.2f => %0.2f\n",
-                        this->fps,(double)this->framerate_new.num / this->framerate_new.den);
+                        this->fps, (double)this->framerate_new.num / this->framerate_new.den);
     }
     if (this->audio_index >= 0){
         astream = this->context->streams[this->audio_index];
@@ -647,23 +644,16 @@ void ff2theora_output(ff2theora this) {
             info.ti.frame_height = this->picture_height;
             info.ti.offset_x = this->frame_x_offset;
             info.ti.offset_y = this->frame_y_offset;
-            if(this->force_input_fps) {
-                info.ti.fps_numerator = 1000000 * (this->fps);    /* fps= numerator/denominator */
-                info.ti.fps_denominator = 1000000;
+            if (this->framerate_new.num > 0) {
+                // new framerate is interger only right now,
+                // so denominator is always 1
+                info.ti.fps_numerator = this->framerate_new.num;
+                info.ti.fps_denominator = this->framerate_new.den;
             }
             else {
-                if (this->framerate_new.num > 0) {
-                    // new framerate is interger only right now,
-                    // so denominator is always 1
-                    info.ti.fps_numerator = this->framerate_new.num;
-                    info.ti.fps_denominator = this->framerate_new.den;
-                }
-                else {
-                    info.ti.fps_numerator=vstream->r_frame_rate.num;
-                    info.ti.fps_denominator = vstream->r_frame_rate.den;
-                }
+                info.ti.fps_numerator=vstream->r_frame_rate.num;
+                info.ti.fps_denominator = vstream->r_frame_rate.den;
             }
-
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
             info.ti.aspect_denominator=this->aspect_denominator;
@@ -704,9 +694,9 @@ void ff2theora_output(ff2theora this) {
             if (ks->num_subtitles > 0) {
                 kate_info_set_language(ki, ks->subtitles_language);
                 kate_info_set_category(ki, ks->subtitles_category[0]?ks->subtitles_category:"subtitles");
-                if(this->force_input_fps) {
-                    ki->gps_numerator = 1000000 * (this->fps);    /* fps= numerator/denominator */
-                    ki->gps_denominator = 1000000;
+                if(this->force_input_fps.num > 0) {
+                    ki->gps_numerator = this->force_input_fps.num;    /* fps= numerator/denominator */
+                    ki->gps_denominator = this->force_input_fps.den;
                 }
                 else {
                     if (this->framerate_new.num > 0) {
@@ -1216,14 +1206,12 @@ void print_usage (){
         "  cat something.dv | ffmpeg2theora -f dv -o output.ogv -\n"
         "\n"
         "  Encode a series of images:\n"
-        "    ffmpeg2theora -f image2 frame%%06d.png -o output.ogv\n"
+        "    ffmpeg2theora frame%%06d.png -o output.ogv\n"
         "\n"
-#if 0
         "  Live streaming from V4L Device:\n"
-        "    ffmpeg2theora  /dev/video0 -fps 15 -x 160 -y 128 -o - \\\n"
+        "    ffmpeg2theora /dev/video0 -fps 15 -x 160 -y 128 -o - \\\n"
         "     | oggfwd iccast2server 8000 password /theora.ogv\n"
         "\n"
-#endif
         "  Live encoding from a DV camcorder (needs a fast machine):\n"
         "    dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogv -\n"
         "\n"
@@ -1247,7 +1235,7 @@ int main (int argc, char **argv){
     static int metadata_flag = 0;
 
     AVInputFormat *input_fmt = NULL;
-    AVFormatParameters *formatParams = NULL;
+    AVFormatParameters params, *formatParams = &params;
 
     int c,long_option_index;
     const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
@@ -1392,7 +1380,7 @@ int main (int argc, char **argv){
                             flag = -1;
                             break;
                         case INPUTFPS_FLAG:
-                            convert->force_input_fps = atof(optarg);
+                            convert->force_input_fps = get_framerate(optarg);
                             flag = -1;
                             break;
                         case AUDIOSTREAM_FLAG:
@@ -1664,30 +1652,6 @@ int main (int argc, char **argv){
         optind++;
     }
 
-#ifdef VIDEO4LINUX_ENABLED
-    if(formatParams != NULL) {
-        formatParams->channel = 0;
-        formatParams->width = PAL_HALF_WIDTH;
-        formatParams->height = PAL_HALF_HEIGHT;
-        if(convert->picture_width)
-            formatParams->width = convert->picture_width;
-        if(convert->picture_height)
-            formatParams->height = convert->picture_height;
-
-        formatParams->time_base.den = 25;
-        formatParams->time_base.num = 1;
-        if(convert->force_input_fps) {
-
-            formatParams->time_base.den = convert->force_input_fps * 1000;
-            formatParams->time_base.num = 1000;
-
-        }
-        formatParams->standard = "pal";
-        input_fmt = av_find_input_format("video4linux");
-        sprintf(inputfile_name,"");
-    }
-#endif
-
     //FIXME: is using_stdin still neded? is it needed as global variable?
     using_stdin |= !strcmp(inputfile_name, "pipe:" ) ||
                    !strcmp( inputfile_name, "/dev/stdin" );
@@ -1728,7 +1692,34 @@ int main (int argc, char **argv){
           ks->subtitles = NULL;
         }
     }
-
+    //detect image sequences and set framerate if provided
+    fprintf(stderr, "test, %d\n", strcmp(input_fmt->name, "video4linux"));
+    if(av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
+       (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
+        memset(formatParams, 0, sizeof(*formatParams));
+        if(convert->force_input_fps.num > 0) {
+            formatParams->time_base.den = convert->force_input_fps.num;
+            formatParams->time_base.num = convert->force_input_fps.den;
+        }
+        if(input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
+            formatParams->channel = 0;
+            formatParams->width = PAL_HALF_WIDTH;
+            formatParams->height = PAL_HALF_HEIGHT;
+            formatParams->time_base.den = 25;
+            formatParams->time_base.num = 2;
+            if(convert->picture_width)
+                formatParams->width = convert->picture_width;
+            if(convert->picture_height)
+                formatParams->height = convert->picture_height;
+        }
+        fprintf(stderr, "height: %d\n", formatParams->height);
+        fprintf(stderr, "width: %d\n", formatParams->width);
+        if(convert->force_input_fps.num > 0) {
+            formatParams->time_base.den = convert->force_input_fps.num;
+            formatParams->time_base.num = convert->force_input_fps.den;
+        }
+        formatParams->video_codec_id = av_guess_image2_codec(inputfile_name);
+    }
     if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0){
         if (av_find_stream_info (convert->context) >= 0){
 #ifdef WIN32

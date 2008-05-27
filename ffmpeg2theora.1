@@ -209,10 +209,10 @@ Encode Videos:
   cat something.dv | ffmpeg2theora -f dv -o output.ogv \-
 
 Encode a series of images:
-  ffmpeg2theora -f image2 frame%06d.png -o output.ogv
+  ffmpeg2theora frame%06d.png -o output.ogv
 
 Live streaming from V4L Device:
-  ffmpeg2theora \-\-v4l /dev/video0 \-\-inputfps 15 \-x 160 \-y 128 \-o \- \\
+  ffmpeg2theora /dev/video0 \-\-inputfps 15 \-x 160 \-y 128 \-o \- \\
     | oggfwd iccast2server 8000 password /theora.ogv
 
 Live encoding from a DV camcorder (needs a fast machine):

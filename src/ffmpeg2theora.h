@@ -59,7 +59,7 @@ typedef struct ff2theora{
     int keyint;
     char pp_mode[255];
 
-    double force_input_fps;
+    AVRational force_input_fps;
     int sync;
 
     /* cropping */
