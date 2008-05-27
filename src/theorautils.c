@@ -35,7 +35,6 @@
 #include "theorautils.h"
 
 
-
 static double rint(double x)
 {
   if (x < 0.0)
@@ -253,11 +252,11 @@ void oggmux_init (oggmux_info *info){
         theora_encode_init (&info->td, &info->ti);
 
         if(info->speed_level >= 0) {
-          int max_speed_level;
-          theora_control(&info->td, TH_ENCCTL_GET_SPLEVEL_MAX, &max_speed_level, sizeof(int));
-          if(info->speed_level > max_speed_level)
+            int max_speed_level;
+            theora_control(&info->td, TH_ENCCTL_GET_SPLEVEL_MAX, &max_speed_level, sizeof(int));
+            if(info->speed_level > max_speed_level)
             info->speed_level = max_speed_level;
-          theora_control(&info->td, TH_ENCCTL_SET_SPLEVEL, &info->speed_level, sizeof(int));
+            theora_control(&info->td, TH_ENCCTL_SET_SPLEVEL, &info->speed_level, sizeof(int));
         }
     }
     /* init theora done */
@@ -308,9 +307,9 @@ void oggmux_init (oggmux_info *info){
     /* first packet should be skeleton fishead packet, if skeleton is used */
 
     if (info->with_skeleton) {
-    ogg_stream_init (&info->so, rand());
-    add_fishead_packet (info);
-    if (ogg_stream_pageout (&info->so, &og) != 1){
+        ogg_stream_init (&info->so, rand());
+        add_fishead_packet (info);
+        if (ogg_stream_pageout (&info->so, &og) != 1){
             fprintf (stderr, "Internal Ogg library error.\n");
             exit (1);
         }
@@ -392,19 +391,19 @@ void oggmux_init (oggmux_info *info){
 
     /* output the appropriate fisbone packets */
     if (info->with_skeleton) {
-    add_fisbone_packet (info);
-    while (1) {
-        int result = ogg_stream_flush (&info->so, &og);
-            if (result < 0){
-            /* can't get here */
-            fprintf (stderr, "Internal Ogg library error.\n");
-        exit (1);
-            }
-        if (result == 0)
-            break;
-            fwrite (og.header, 1, og.header_len, info->outfile);
-        fwrite (og.body, 1, og.body_len, info->outfile);
-    }
+        add_fisbone_packet (info);
+        while (1) {
+            int result = ogg_stream_flush (&info->so, &og);
+                if (result < 0){
+                /* can't get here */
+                fprintf (stderr, "Internal Ogg library error.\n");
+            exit (1);
+                }
+            if (result == 0)
+                break;
+                fwrite (og.header, 1, og.header_len, info->outfile);
+            fwrite (og.body, 1, og.body_len, info->outfile);
+        }
     }
 
     if (!info->audio_only) {
@@ -458,17 +457,17 @@ void oggmux_init (oggmux_info *info){
     }
 
     if (info->with_skeleton) {
-    int result;
+        int result;
 
-    /* build and add the e_o_s packet */
-    memset (&op, 0, sizeof (op));
-        op.b_o_s = 0;
-    op.e_o_s = 1; /* its the e_o_s packet */
-        op.granulepos = 0;
-    op.bytes = 0; /* e_o_s packet is an empty packet */
-        ogg_stream_packetin (&info->so, &op);
+        /* build and add the e_o_s packet */
+        memset (&op, 0, sizeof (op));
+            op.b_o_s = 0;
+        op.e_o_s = 1; /* its the e_o_s packet */
+            op.granulepos = 0;
+        op.bytes = 0; /* e_o_s packet is an empty packet */
+            ogg_stream_packetin (&info->so, &op);
 
-    result = ogg_stream_flush (&info->so, &og);
+        result = ogg_stream_flush (&info->so, &og);
         if (result < 0){
             /* can't get here */
             fprintf (stderr, "Internal Ogg library error.\n");
@@ -491,8 +490,8 @@ void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s){
     ogg_packet op;
     theora_encode_YUVin (&info->td, yuv);
     while(theora_encode_packetout (&info->td, e_o_s, &op)) {
-      ogg_stream_packetin (&info->to, &op);
-      info->v_pkg++;
+        ogg_stream_packetin (&info->to, &op);
+        info->v_pkg++;
     }
 }
 
@@ -603,14 +602,14 @@ static double get_remaining(oggmux_info *info, double timebase) {
   double remaining = 0;
   double to_encode, time_so_far;
 
-  if(info->duration != -1 && timebase > 0) {
-    time_so_far = time(NULL) - info->start_time;
-    to_encode = info->duration - timebase;
-    if(to_encode > 0) {
-      remaining = (time_so_far / timebase) * to_encode;
+    if(info->duration != -1 && timebase > 0) {
+        time_so_far = time(NULL) - info->start_time;
+        to_encode = info->duration - timebase;
+        if(to_encode > 0) {
+            remaining = (time_so_far / timebase) * to_encode;
+        }
     }
-  }
-  return remaining;
+    return remaining;
 }
 
 static void print_stats(oggmux_info *info, double timebase){
@@ -920,9 +919,9 @@ void oggmux_close (oggmux_info *info){
         fclose (info->outfile);
 
     if(info->videopage)
-      free(info->videopage);
+        free(info->videopage);
     if(info->audiopage)
-      free(info->audiopage);
+        free(info->audiopage);
 
     for (n=0; n<info->n_kate_streams; ++n) {
         if(info->kate_streams[n].katepage)
