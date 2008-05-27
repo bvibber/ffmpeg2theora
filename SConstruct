@@ -9,7 +9,7 @@ pkg_version="0.21+svn"
 pkg_name="ffmpeg2theora"
 
 #parse config variables
-static = False
+static = True
 
 env = Environment()
 pkg_flags="--cflags --libs"

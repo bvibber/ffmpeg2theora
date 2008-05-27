@@ -1693,7 +1693,6 @@ int main (int argc, char **argv){
         }
     }
     //detect image sequences and set framerate if provided
-    fprintf(stderr, "test, %d\n", strcmp(input_fmt->name, "video4linux"));
     if(av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
        (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
         memset(formatParams, 0, sizeof(*formatParams));
@@ -1712,8 +1711,6 @@ int main (int argc, char **argv){
             if(convert->picture_height)
                 formatParams->height = convert->picture_height;
         }
-        fprintf(stderr, "height: %d\n", formatParams->height);
-        fprintf(stderr, "width: %d\n", formatParams->width);
         if(convert->force_input_fps.num > 0) {
             formatParams->time_base.den = convert->force_input_fps.num;
             formatParams->time_base.num = convert->force_input_fps.den;
