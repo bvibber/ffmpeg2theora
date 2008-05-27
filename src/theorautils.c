@@ -555,6 +555,7 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
     ret = kate_ogg_encode_text(&ks->k, t0, t1, text, len, &op);
     if (ret>=0) {
         ogg_stream_packetin (&ks->ko, &op);
+        ogg_packet_clear (&op);
         info->k_pkg++;
     }
     else {
@@ -565,6 +566,7 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
         ret = kate_ogg_encode_finish(&ks->k, -1, &op);
         if (ret>=0) {
             ogg_stream_packetin (&ks->ko, &op);
+            ogg_packet_clear (&op);
             info->k_pkg++;
         }
         else {
@@ -588,6 +590,7 @@ void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t){
     ret = kate_ogg_encode_finish(&ks->k, t, &op);
     if (ret>=0) {
         ogg_stream_packetin (&ks->ko, &op);
+        ogg_packet_clear (&op);
         info->k_pkg++;
     }
     else {
@@ -898,6 +901,7 @@ void oggmux_close (oggmux_info *info){
     vorbis_info_clear (&info->vi);
 
     ogg_stream_clear (&info->to);
+    theora_comment_clear (&info->tc);
     theora_clear (&info->td);
 
 #ifdef HAVE_KATE
@@ -908,6 +912,9 @@ void oggmux_close (oggmux_info *info){
         kate_clear (&info->kate_streams[n].k);
     }
 #endif
+
+    if (info->with_skeleton)
+        ogg_stream_clear (&info->so);
 
     if (info->outfile && info->outfile != stdout)
         fclose (info->outfile);
@@ -921,4 +928,5 @@ void oggmux_close (oggmux_info *info){
         if(info->kate_streams[n].katepage)
           free(info->kate_streams[n].katepage);
     }
+    free(info->kate_streams);
 }

@@ -187,6 +187,7 @@ int load_subtitles(ff2theora_kate_stream *this)
     static char str[4096];
     int warned=0;
 
+    this->subtitles = NULL;
     FILE *f = fopen(this->filename, "r");
     if (!f) {
         fprintf(stderr,"WARNING - Failed to open subtitles file %s (%s)\n", this->filename, strerror(errno));
@@ -208,6 +209,7 @@ int load_subtitles(ff2theora_kate_stream *this)
           if (ret!=1) {
             fprintf(stderr,"WARNING - Syntax error: %s\n",str);
             fclose(f);
+            free(this->subtitles);
             return -1;
           }
           if (id!=last_seen_id+1) {
@@ -222,6 +224,7 @@ int load_subtitles(ff2theora_kate_stream *this)
           if (ret!=8) {
             fprintf(stderr,"WARNING - Syntax error: %s\n",str);
             fclose(f);
+            free(this->subtitles);
             return -1;
           }
           else {
@@ -238,6 +241,7 @@ int load_subtitles(ff2theora_kate_stream *this)
             if (!this->subtitles) {
               fprintf(stderr, "Out of memory\n");
               fclose(f);
+              free(this->subtitles);
               return -1;
             }
             ret=kate_text_validate(kate_utf8,text,len+1);

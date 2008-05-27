@@ -103,7 +103,7 @@ static int using_stdin = 0;
 /**
  * Allocate and initialise an AVFrame.
  */
-AVFrame *frame_alloc (int pix_fmt, int width, int height) {
+static AVFrame *frame_alloc (int pix_fmt, int width, int height) {
     AVFrame *picture;
     uint8_t *picture_buf;
     int size;
@@ -123,10 +123,20 @@ AVFrame *frame_alloc (int pix_fmt, int width, int height) {
 }
 
 /**
+ * Frees an AVFrame.
+ */
+static void frame_dealloc (AVFrame *frame) {
+    if (frame) {
+        avpicture_free((AVPicture*)frame);
+        av_free(frame);
+    }
+}
+
+/**
  * initialize ff2theora with default values
  * @return ff2theora struct
  */
-ff2theora ff2theora_init (){
+static ff2theora ff2theora_init (){
     ff2theora this = calloc (1, sizeof (*this));
     if (this != NULL){
         this->disable_audio=0;
@@ -258,19 +268,19 @@ static void lut_apply(unsigned char *lut, unsigned char *src, unsigned char *dst
     }
 }
 
-static void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *output_buffered) {
+static void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *frame) {
     /* pysical pages */
     yuv->y_width = this->frame_width;
     yuv->y_height = this->frame_height;
-    yuv->y_stride = output_buffered->linesize[0];
+    yuv->y_stride = frame->linesize[0];
 
     yuv->uv_width = this->frame_width / 2;
     yuv->uv_height = this->frame_height / 2;
-    yuv->uv_stride = output_buffered->linesize[1];
+    yuv->uv_stride = frame->linesize[1];
 
-    yuv->y = output_buffered->data[0];
-    yuv->u = output_buffered->data[1];
-    yuv->v = output_buffered->data[2];
+    yuv->y = frame->data[0];
+    yuv->u = frame->data[1];
+    yuv->v = frame->data[2];
     if (this->y_lut_used) {
         lut_apply(this->y_lut, yuv->y, yuv->y, yuv->y_width, yuv->y_height, yuv->y_stride);
     }
@@ -578,6 +588,7 @@ void ff2theora_output(ff2theora this) {
 
     if (this->video_index >= 0 || this->audio_index >= 0){
         AVFrame *frame=NULL;
+        AVFrame *frame_p=NULL;
         AVFrame *output=NULL;
         AVFrame *output_p=NULL;
         AVFrame *output_tmp_p=NULL;
@@ -614,7 +625,7 @@ void ff2theora_output(ff2theora this) {
             info.video_only=1;
 
         if(!info.audio_only){
-            frame = frame_alloc(vstream->codec->pix_fmt,
+            frame_p = frame = frame_alloc(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
             output_tmp_p = output_tmp = frame_alloc(this->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
@@ -961,16 +972,19 @@ void ff2theora_output(ff2theora this) {
             avcodec_close(venc);
         }
         if (this->audio_index >= 0) {
+            if (this->audio_resample_ctx)
+              audio_resample_close(this->audio_resample_ctx);
             avcodec_close(aenc);
         }
         oggmux_close (&info);
         if(ppContext)
             pp_free_context(ppContext);
         if (!info.audio_only) {
-            av_free(frame);
-            av_free(output_p);
-            av_free(output_tmp_p);
-            av_free(output_resized_p);
+            frame_dealloc(frame_p);
+            frame_dealloc(output_p);
+            frame_dealloc(output_tmp_p);
+            frame_dealloc(output_resized_p);
+            frame_dealloc(output_buffered_p);
         }
         av_free(audio_buf);
         av_free(resampled);
