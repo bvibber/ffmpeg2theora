@@ -1,3 +1,8 @@
+0.22 ??? 
+    - enable v4l input again (-f video4linux or -f video4linux2)
+    - ability to set framerate for image sequences (--inputfps)
+    - fix several memory leaks 
+
 0.21 2008-05-19 
     - switch default extension to .ogv 
     - enable Ogg Skeleton by default
