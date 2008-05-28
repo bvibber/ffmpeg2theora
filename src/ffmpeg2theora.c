@@ -1696,10 +1696,6 @@ int main (int argc, char **argv){
     if(av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
        (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
         memset(formatParams, 0, sizeof(*formatParams));
-        if(convert->force_input_fps.num > 0) {
-            formatParams->time_base.den = convert->force_input_fps.num;
-            formatParams->time_base.num = convert->force_input_fps.den;
-        }
         if(input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
             formatParams->channel = 0;
             formatParams->width = PAL_HALF_WIDTH;
@@ -1714,6 +1710,9 @@ int main (int argc, char **argv){
         if(convert->force_input_fps.num > 0) {
             formatParams->time_base.den = convert->force_input_fps.num;
             formatParams->time_base.num = convert->force_input_fps.den;
+        } else if(convert->framerate_new.num > 0) {
+            formatParams->time_base.den = convert->framerate_new.num;
+            formatParams->time_base.num = convert->framerate_new.den;
         }
         formatParams->video_codec_id = av_guess_image2_codec(inputfile_name);
     }
