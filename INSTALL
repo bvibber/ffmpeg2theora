@@ -23,18 +23,26 @@ point to your ffmpeg source:
  export PKG_CONFIG_PATH=/path/to/ffmpeg_src:$PKG_CONFIG_PATH
 
 now you can build ffmpeg2theora:
-./configure
-make
+ scons
+
+to make a static binary
+ scons static=1
+
 
 Installation
 ------------
+install ffmpeg2theora in /usr/local/bin:
 
-make install
+ scons install
 
-Unless you specify a different --prefix option to ./configure, you will
-need root privileges for this, ie.:
+Unless you specify a different prefix,
+you will need root privileges for this, ie.:
 
-sudo make install
+ sudo scons install
+
+to install to another prefix:
+
+ scons install prefix=/usr
 
 vhook suppport
 --------------

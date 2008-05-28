@@ -8,21 +8,40 @@ import SCons
 pkg_version="0.21+svn"
 pkg_name="ffmpeg2theora"
 
-#parse config variables
-static = False
+opts = Options()
+opts.AddOptions(
+  BoolOption('static', 'Set to 1 for static linking', 0),
+  ('prefix', 'install architecture-independent files in', '/usr/local'),
+  ('bindir', 'user executables', 'PREFIX/bin'),
+  ('mandir', 'man documentation', 'PREFIX/man'),
+  ('destdir', 'extra install time prefix', ''),
+  ('APPEND_CCFLAGS', 'Additional C/C++ compiler flags'),
+  ('APPEND_LINKFLAGS', 'Additional linker flags')
+)
+env = Environment(options = opts)
+Help(opts.GenerateHelpText(env))
 
-env = Environment()
 pkg_flags="--cflags --libs"
-if static:
+if env['static']:
   pkg_flags+=" --static"
   env.Append(LINKFLAGS=["-static"])
 
+prefix = env['prefix']
+if env['destdir']:
+  if prefix.startswith('/'): prefix = prefix[1:]
+  prefix = os.path.join(env['destdir'], prefix)
+man_dir = env['mandir'].replace('PREFIX', prefix)
+bin_dir = env['bindir'].replace('PREFIX', prefix)
+
 env.Append(CPPPATH=['.'])
 env.Append(CCFLAGS=[
-  '-DPACKAGE_VERSION=\\"%s\\"' %pkg_version,
-  '-DPACKAGE_STRING=\\"%s-%s\\"' %(pkg_name, pkg_version),
+  '-DPACKAGE_VERSION=\\"%s\\"' % pkg_version,
+  '-DPACKAGE_STRING=\\"%s-%s\\"' % (pkg_name, pkg_version),
   '-DPACKAGE=\\"%s\\"' % pkg_name,
 ])
+env.Append(CCFLAGS = Split('$APPEND_CCFLAGS'))
+env.Append(LINKFLAGS = Split('$APPEND_LINKFLAGS'))
+
 #if env['CC'] == 'gcc':
 #  env.Append(CCFLAGS=["-g", "-O2", "-Wall"])
 
@@ -90,3 +109,8 @@ env = conf.Finish()
 ffmpeg2theora = env.Copy()
 ffmpeg2theora_sources = glob('src/*.c')
 ffmpeg2theora.Program('ffmpeg2theora', ffmpeg2theora_sources)
+
+ffmpeg2theora.Install(bin_dir, 'ffmpeg2theora')
+ffmpeg2theora.Install(man_dir + "/man1", 'ffmpeg2theora.1')
+ffmpeg2theora.Alias('install', prefix)
+
