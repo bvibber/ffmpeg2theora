@@ -123,7 +123,6 @@ static AVFrame *frame_alloc (int pix_fmt, int width, int height) {
  */
 static void frame_dealloc (AVFrame *frame) {
     if (frame) {
-        avpicture_free((AVPicture*)frame);
         av_free(frame);
     }
 }
@@ -1040,6 +1039,9 @@ AVRational get_framerate(const char* arg)
 {
     const char *p;
     AVRational framerate;
+
+    framerate.num = -1;
+    framerate.den = 1;
 
     p = strchr(arg, ':');
     if (!p) {
