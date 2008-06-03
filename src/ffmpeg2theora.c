@@ -124,6 +124,7 @@ static AVFrame *frame_alloc (int pix_fmt, int width, int height) {
  */
 static void frame_dealloc (AVFrame *frame) {
     if (frame) {
+        avpicture_free((AVPicture*)frame);
         av_free(frame);
     }
 }
@@ -969,7 +970,6 @@ void ff2theora_output(ff2theora this) {
         if(ppContext)
             pp_free_context(ppContext);
         if (!info.audio_only) {
-            frame_dealloc(frame_p);
             frame_dealloc(output_p);
             frame_dealloc(output_tmp_p);
             frame_dealloc(output_resized_p);
