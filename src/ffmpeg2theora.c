@@ -1237,7 +1237,7 @@ int main (int argc, char **argv){
     static int metadata_flag = 0;
 
     AVInputFormat *input_fmt = NULL;
-    AVFormatParameters params, *formatParams = &params;
+    AVFormatParameters params, *formatParams = NULL;
 
     int c,long_option_index;
     const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
@@ -1697,6 +1697,7 @@ int main (int argc, char **argv){
     //detect image sequences and set framerate if provided
     if(av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
        (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
+        formatParams = &params;
         memset(formatParams, 0, sizeof(*formatParams));
         if(input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
             formatParams->channel = 0;
