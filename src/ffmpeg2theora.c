@@ -671,7 +671,7 @@ void ff2theora_output(ff2theora this) {
             info.ti.keyframe_auto_p = 1;
             info.ti.keyframe_frequency = this->keyint;
             info.ti.keyframe_frequency_force = this->keyint;
-            info.ti.keyframe_data_target_bitrate = info.ti.target_bitrate * 1.5;
+            info.ti.keyframe_data_target_bitrate = info.ti.target_bitrate * 5;
             info.ti.keyframe_auto_threshold = 80;
             info.ti.keyframe_mindistance = 8;
             info.ti.noise_sensitivity = 1;
