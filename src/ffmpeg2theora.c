@@ -970,6 +970,7 @@ void ff2theora_output(ff2theora this) {
         if(ppContext)
             pp_free_context(ppContext);
         if (!info.audio_only) {
+            av_free(frame_p);
             frame_dealloc(output_p);
             frame_dealloc(output_tmp_p);
             frame_dealloc(output_resized_p);
