@@ -29,6 +29,7 @@
 
 #include "libavformat/avformat.h"
 #include "libavdevice/avdevice.h"
+#include "libavformat/framehook.h"
 #include "libswscale/swscale.h"
 #include "libpostproc/postprocess.h"
 
@@ -183,8 +184,6 @@ static ff2theora ff2theora_init (){
 
         this->y_lut_used = 0;
         this->uv_lut_used = 0;
-        this->y_lut[256];
-        this->uv_lut[256];
     }
     return this;
 }
@@ -296,7 +295,7 @@ void ff2theora_output(ff2theora this) {
     AVCodec *vcodec = NULL;
     pp_mode_t *ppMode = NULL;
     pp_context_t *ppContext = NULL;
-    float frame_aspect;
+    float frame_aspect = 0;
     double fps = 0.0;
 
     if(this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
@@ -604,10 +603,10 @@ void ff2theora_output(ff2theora this) {
         uint8_t *ptr;
         int16_t *audio_buf=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int16_t *resampled=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
-        int16_t *audio_p;
+        int16_t *audio_p=NULL;
         int no_frames;
 
-        double framerate_add;
+        double framerate_add = 0;
         double framerate_tmpcount = 0;
 
         if(this->video_index >= 0)
@@ -760,7 +759,7 @@ void ff2theora_output(ff2theora this) {
 
             ptr = pkt.data;
             len = pkt.size;
-            if (e_o_s && !info.audio_only || (ret >= 0 && pkt.stream_index == this->video_index)){
+            if ((e_o_s && !info.audio_only) || (ret >= 0 && pkt.stream_index == this->video_index)){
                 if(len == 0 && !first && !e_o_s){
                     fprintf (stderr, "no frame available\n");
                 }
@@ -832,6 +831,7 @@ void ff2theora_output(ff2theora this) {
                                 output=output_tmp;
                             }
                             // now output
+
                             if(ppMode)
                                 pp_postprocess(output->data, output->linesize,
                                                output->data, output->linesize,
@@ -839,7 +839,7 @@ void ff2theora_output(ff2theora this) {
                                                output->qscale_table, output->qstride,
                                                ppMode, ppContext, this->pix_fmt);
                             if(this->vhook)
-                                frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height);
+                                frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height, 0);
 
                             if (this->frame_topBand || this->frame_leftBand) {
                                 if (av_picture_crop((AVPicture *)output_tmp, (AVPicture *)output,
@@ -882,7 +882,7 @@ void ff2theora_output(ff2theora this) {
                 }
 
             }
-            if(e_o_s && !info.video_only
+            if((e_o_s && !info.video_only)
                      || (ret >= 0 && pkt.stream_index == this->audio_index)){
                 this->pts_offset = (double) pkt.pts / AV_TIME_BASE -
                     (double) this->sample_count / this->sample_rate;
@@ -1735,7 +1735,7 @@ int main (int argc, char **argv){
                 info.outfile = fopen(outputfile_name,"wb");
 #endif
                 if(info.frontend) {
-                  fprintf(stderr, "\nf2t ;duration: %d;\n", convert->context->duration / AV_TIME_BASE);
+                  fprintf(stderr, "\nf2t ;duration: %d;\n", (int)(convert->context->duration / AV_TIME_BASE));
                 }
                 else {
                   dump_format (convert->context, 0,inputfile_name, 0);

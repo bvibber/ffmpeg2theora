@@ -40,7 +40,7 @@
 /**
   * adds a new kate stream structure
   */
-static void add_kate_stream(ff2theora this){
+void add_kate_stream(ff2theora this){
     ff2theora_kate_stream *ks;
     this->kate_streams=(ff2theora_kate_stream*)realloc(this->kate_streams,(this->n_kate_streams+1)*sizeof(ff2theora_kate_stream));
     ks=&this->kate_streams[this->n_kate_streams++];
@@ -111,7 +111,7 @@ void report_unknown_subtitle_encoding(const char *name)
   fprintf(stderr, "  " SUPPORTED_ENCODINGS "\n");
 }
 
-static char *fgets2(char *s,size_t sz,FILE *f)
+char *fgets2(char *s,size_t sz,FILE *f)
 {
     char *ret = fgets(s, sz, f);
     /* fixup DOS newline character */
@@ -120,13 +120,13 @@ static char *fgets2(char *s,size_t sz,FILE *f)
     return ret;
 }
 
-static double hmsms2s(int h,int m,int s,int ms)
+double hmsms2s(int h,int m,int s,int ms)
 {
     return h*3600+m*60+s+ms/1000.0;
 }
 
 /* very simple implementation when no iconv */
-static void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text)
+void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text)
 {
   size_t nbytes;
   unsigned char *ptr,*newtext;
@@ -183,7 +183,8 @@ int load_subtitles(ff2theora_kate_stream *this)
     int id;
     static char text[4096];
     int h0,m0,s0,ms0,h1,m1,s1,ms1;
-    double t0,t1;
+    double t0=0.0;
+    double t1=0.0;
     static char str[4096];
     int warned=0;
 
