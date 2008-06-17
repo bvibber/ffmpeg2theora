@@ -93,6 +93,8 @@ if not conf.CheckPKG(FFMPEG_LIBS):
 env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, FFMPEG_LIBS))
 
 KATE_LIBS="oggkate"
+if os.path.exists("./libkate/misc/pkgconfig"):
+  os.environ['PKG_CONFIG_PATH'] = "./libkate/misc/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
 if os.path.exists("./libkate/pkg/pkgconfig"):
   os.environ['PKG_CONFIG_PATH'] = "./libkate/pkg/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
 if conf.CheckPKG(KATE_LIBS):

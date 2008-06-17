@@ -29,8 +29,8 @@ PKG_CHECK_MODULES(XIPH,ogg >= 1.1 vorbis vorbisenc theora >= 1.0beta1)
 AC_SUBST(XIPH_CFLAGS)
 AC_SUBST(XIPH_LIBS)
 
-export PKG_CONFIG_PATH=./libkate/pkg/pkgconfig:$PKG_CONFIG_PATH
-PKG_CHECK_MODULES(KATE,oggkate, 
+export PKG_CONFIG_PATH=./libkate/misc/pkgconfig:./libkate/pkg/pkgconfig:$PKG_CONFIG_PATH
+PKG_CHECK_MODULES(KATE,oggkate >= 0.1.3,
                   KATE_CFLAGS="-DHAVE_KATE -DHAVE_OGGKATE $KATE_CFLAGS",
                   [AC_MSG_RESULT(
 
