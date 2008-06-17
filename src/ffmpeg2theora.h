@@ -85,7 +85,8 @@ typedef struct ff2theora{
 
     size_t n_kate_streams;
     ff2theora_kate_stream *kate_streams;
-    
+
+    int ignore_non_utf8;
     // ffmpeg2theora --nosound -f dv -H 32000 -S 0 -v 8 -x 384 -y 288 -G 1.5 input.dv
     double video_gamma;
     double video_bright;

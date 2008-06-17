@@ -62,6 +62,7 @@ enum {
   SUBTITLES_ENCODING_FLAG,
   SUBTITLES_LANGUAGE_FLAG,
   SUBTITLES_CATEGORY_FLAG,
+  SUBTITLES_IGNORE_NON_UTF8_FLAG,
   VHOOK_FLAG,
   FRONTEND_FLAG,
   SPEEDLEVEL_FLAG,
@@ -174,6 +175,7 @@ static ff2theora ff2theora_init (){
 
         this->n_kate_streams=0;
         this->kate_streams=NULL;
+        this->ignore_non_utf8 = 0;
 
         this->pix_fmt = PIX_FMT_YUV420P;
 
@@ -1182,6 +1184,7 @@ void print_usage (){
         "             supported are " SUPPORTED_ENCODINGS "\n"
         "      --subtitles-language language    set subtitles language (de, en_GB, etc)\n"
         "      --subtitles-category category    set subtitles category (default \"subtitles\")\n"
+        "      --subtitles-ignore-non-utf8      ignores any non utf-8 sequence in utf-8 text\n"
         "\n"
 #endif
         "Metadata options:\n"
@@ -1278,6 +1281,7 @@ int main (int argc, char **argv){
       {"audiostream",required_argument,&flag,AUDIOSTREAM_FLAG},
       {"subtitles",required_argument,&flag,SUBTITLES_FLAG},
       {"subtitles-encoding",required_argument,&flag,SUBTITLES_ENCODING_FLAG},
+      {"subtitles-ignore-non-utf8",0,&flag,SUBTITLES_IGNORE_NON_UTF8_FLAG},
       {"subtitles-language",required_argument,&flag,SUBTITLES_LANGUAGE_FLAG},
       {"subtitles-category",required_argument,&flag,SUBTITLES_CATEGORY_FLAG},
       {"starttime",required_argument,NULL,'s'},
@@ -1407,6 +1411,10 @@ int main (int argc, char **argv){
                             else report_unknown_subtitle_encoding(optarg);
                             flag = -1;
                             break;
+                        case SUBTITLES_IGNORE_NON_UTF8_FLAG:
+                            convert->ignore_non_utf8 = 1;
+                            flag = -1;
+                            break;
                         case SUBTITLES_LANGUAGE_FLAG:
                             if (strlen(optarg)>15) {
                               fprintf(stderr, "WARNING - language is limited to 15 characters, and will be truncated\n");
@@ -1424,6 +1432,7 @@ int main (int argc, char **argv){
 #else
                         case SUBTITLES_FLAG:
                         case SUBTITLES_ENCODING_FLAG:
+                        case SUBTITLES_IGNORE_NON_UTF8_FLAG:
                         case SUBTITLES_LANGUAGE_FLAG:
                         case SUBTITLES_CATEGORY_FLAG:
                             fprintf(stderr, "WARNING - Kate support not compiled in, subtitles will not be output\n"
@@ -1683,7 +1692,7 @@ int main (int argc, char **argv){
 
     for (n=0; n<convert->n_kate_streams; ++n) {
         ff2theora_kate_stream *ks=convert->kate_streams+n;
-        if (load_subtitles(ks)>=0) {
+        if (load_subtitles(ks,convert->ignore_non_utf8)>=0) {
           printf("Muxing Kate stream %d from %s as %s %s\n",
               n,ks->filename,
               ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",

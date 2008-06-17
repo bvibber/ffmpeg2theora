@@ -1,9 +1,10 @@
-Subtitles can be embedded in an Ogg stream alongside a Theora video.
+Text subtitles can be embedded in an Ogg stream alongside a Theora video.
 
  * Overview
  * Subtitles related options
  * Converting non-utf-8 files to utf-8
  * Examples
+ * Playing subtitles
 
 
 
@@ -59,6 +60,12 @@ different languages and/or categories. See below for examples of this.
   to convert the input file to utf-8. See below for more information on
   converting other encoding to utf-8.
   If unspecified, the default is utf-8.
+
+--subtitles-ignore-non-utf8
+  Any invalid sequence in utf-8 text will be ignored. This may be useful
+  when using an utf-8 file with stray non utf-8 characters. This is not
+  a substitute for converting a non utf-8 file to utf-8, however, as the
+  non utf-8 sequence will be missing from the output stream.
 
 
 
@@ -128,4 +135,10 @@ read them.
                       --subtitles-category commentary \
                       input.avi
 
+
+ * Playing subtitles
+
+At the moment, only VLC has playback support for Kate streams. However, the
+libkate distribution includes patches for other players and media frameworks
+(MPlayer, GStreamer).
 

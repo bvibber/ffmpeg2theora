@@ -111,34 +111,81 @@ void report_unknown_subtitle_encoding(const char *name)
   fprintf(stderr, "  " SUPPORTED_ENCODINGS "\n");
 }
 
-char *fgets2(char *s,size_t sz,FILE *f)
+#ifdef HAVE_KATE
+
+static char *fgets2(char *s,size_t sz,FILE *f)
 {
     char *ret = fgets(s, sz, f);
     /* fixup DOS newline character */
     char *ptr=strchr(s, '\r');
-    if (ptr) *ptr='\n';
+    if (ptr) {
+      *ptr='\n';
+      *(ptr+1)=0;
+    }
     return ret;
 }
 
-double hmsms2s(int h,int m,int s,int ms)
+static double hmsms2s(int h,int m,int s,int ms)
 {
     return h*3600+m*60+s+ms/1000.0;
 }
 
 /* very simple implementation when no iconv */
-void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text)
+static void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text,int ignore_non_utf8)
 {
   size_t nbytes;
-  unsigned char *ptr,*newtext;
+  char *ptr,*newtext;
+  int errors=0;
 
   if (!text || !*text) return;
 
   switch (encoding) {
     case ENC_UNSET:
       /* we don't know what encoding this is, assume utf-8 and we'll yell if it ain't */
-      break;
+      /* fall through */
     case ENC_UTF8:
       /* nothing to do, already in utf-8 */
+      if (ignore_non_utf8) {
+        /* actually, give the user the option of just ignoring non UTF8 characters */
+        char *wptr;
+        size_t wlen0;
+
+        nbytes = strlen(text)+1;
+        newtext=(unsigned char*)malloc(nbytes);
+        if (!newtext) {
+          fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
+          return;
+        }
+        ptr = text;
+        wptr = newtext;
+        wlen0 = nbytes;
+        while (nbytes>0) {
+          int ret=kate_text_get_character(kate_utf8, (const char ** const)&ptr, &nbytes);
+          if (ret>=0) {
+            /* valid character */
+            ret=kate_text_set_character(kate_utf8, ret, &wptr, &wlen0);
+            if (ret<0) {
+              fprintf(stderr, "WARNING - failed to filter utf8 text: %s\n", text);
+              free(newtext);
+              return;
+            }
+            if (ret==0) break;
+          }
+          else {
+            /* skip offending byte - we can't skip the terminating zero as we do byte by byte */
+            ++errors;
+            ++ptr;
+            --nbytes;
+          }
+        }
+
+        if (errors) {
+          fprintf(stderr, "WARNING - Found non utf8 character(s) in string %s, scrubbed out\n", text);
+        }
+
+        strcpy(text,newtext);
+        free(newtext);
+      }
       break;
     case ENC_ISO_8859_1:
       /* simple, characters above 0x7f are broken in two,
@@ -150,7 +197,7 @@ void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text)
       }
       newtext=(unsigned char*)malloc(1+nbytes);
       if (!newtext) {
-        fprintf(stderr, "Memory allocation failed - cannot convert text\n");
+        fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
         return;
       }
       nbytes=0;
@@ -173,7 +220,15 @@ void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text)
   }
 }
 
-int load_subtitles(ff2theora_kate_stream *this)
+static void remove_last_newline(char *text)
+{
+  char *ptr = text+strlen(text)-1;
+  if (*ptr=='\n') *ptr=0;
+}
+
+#endif
+
+int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
 {
 #ifdef HAVE_KATE
     enum { need_id, need_timing, need_text };
@@ -236,7 +291,11 @@ int load_subtitles(ff2theora_kate_stream *this)
           break;
         case need_text:
           if (*str=='\n') {
-            convert_subtitle_to_utf8(this->subtitles_encoding,(unsigned char*)text);
+            /* we have all the lines for that subtitle, remove the last \n */
+            remove_last_newline(text);
+
+            /* we want all text to be UTF8 */
+            convert_subtitle_to_utf8(this->subtitles_encoding,(unsigned char*)text,ignore_non_utf8);
             size_t len = strlen(text);
             this->subtitles = (ff2theora_subtitle*)realloc(this->subtitles, (this->num_subtitles+1)*sizeof(ff2theora_subtitle));
             if (!this->subtitles) {

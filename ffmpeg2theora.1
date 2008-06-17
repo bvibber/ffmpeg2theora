@@ -166,6 +166,11 @@ be set in the corresponding Kate stream so a video player may make
 this available to the user for selection. The default category is
 "subtitles". Suggested other categories may include "transcript",
 "commentary", "lyrics", etc.
+.TP
+.B \-\-subtitles-ignore-non-utf8
+When reading an utf-8 subtitles text file, any invalid utf-8 sequence
+will be ignored. This may be useful if there are stray sequences in
+an otherwise utf-8 file.
 .SS Metadata options:
 .TP
 .B \-\-artist
