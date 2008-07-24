@@ -42,7 +42,7 @@ PKG_CHECK_MODULES(KATE,oggkate >= 0.1.3,
 AC_SUBST(KATE_LIBS)
 AC_SUBST(KATE_CFLAGS)
 
-export PKG_CONFIG_PATH=./ffmpeg:$PKG_CONFIG_PATH
+export PKG_CONFIG_PATH=./ffmpeg/libavutil:./ffmpeg/libavformat:./ffmpeg/libavcodec:./ffmpeg/libavdevice:./ffmpeg/libswscale:./ffmpeg/libpostproc:$PKG_CONFIG_PATH
 PKG_CHECK_MODULES(FFMPEG, libavformat libavcodec libavdevice libswscale libpostproc, HAVE_FFMPEG=yes, 
         AC_MSG_ERROR([
 
