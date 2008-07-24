@@ -1215,7 +1215,7 @@ void print_usage (){
         "    ffmpeg2theora frame%%06d.png -o output.ogv\n"
         "\n"
         "  Live streaming from V4L Device:\n"
-        "    ffmpeg2theora /dev/video0 -f video4linux -fps 15 -x 160 -y 128 -o - \\\n"
+        "    ffmpeg2theora /dev/video0 -f video4linux --inputfps 15 -x 160 -y 128 -o - \\\n"
         "     | oggfwd iccast2server 8000 password /theora.ogv\n"
         "\n"
         "  Live encoding from a DV camcorder (needs a fast machine):\n"
