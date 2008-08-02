@@ -80,7 +80,7 @@ env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, XIPH_LIBS))
 
 FFMPEG_LIBS="libavformat libavcodec libavdevice libswscale libpostproc"
 if os.path.exists("./ffmpeg"):
-  os.environ['PKG_CONFIG_PATH'] = "./ffmpeg:" + os.environ.get('PKG_CONFIG_PATH', '')
+  os.environ['PKG_CONFIG_PATH'] = "./ffmpeg/libavutil:./ffmpeg/libavformat:./ffmpeg/libavcodec:./ffmpeg/libavdevice:./ffmpeg/libswscale:./ffmpeg/libpostproc:" + os.environ.get('PKG_CONFIG_PATH', '')
 if not conf.CheckPKG(FFMPEG_LIBS): 
   print """
       Could not find %s.
