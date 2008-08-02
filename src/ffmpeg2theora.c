@@ -344,6 +344,12 @@ void ff2theora_output(ff2theora this) {
         }
         this->fps = fps;
 
+        if(this->picture_width && !this->picture_height) {
+            this->picture_height = this->picture_width / ((double)venc->width/venc->height);
+        }
+        if(this->picture_height && !this->picture_width) {
+            this->picture_width = this->picture_height * ((double)venc->width/venc->height);
+        }
 
         if(this->preset == V2V_PRESET_PREVIEW){
             if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
