@@ -289,7 +289,7 @@ static void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *frame) 
 }
 
 void ff2theora_output(ff2theora this) {
-    int i;
+    unsigned int i;
     AVCodecContext *aenc = NULL;
     AVCodecContext *venc = NULL;
     AVStream *astream = NULL;
@@ -1339,7 +1339,7 @@ int main (int argc, char **argv){
                             break;
                         case PP_FLAG:
                             if(!strcmp(optarg, "help")) {
-                                fprintf(stdout, pp_help);
+                                fprintf(stdout, "%s", pp_help);
                                 exit(1);
                             }
                             snprintf(convert->pp_mode,sizeof(convert->pp_mode),"%s",optarg);
@@ -1496,7 +1496,8 @@ int main (int argc, char **argv){
                 info.with_skeleton=1;
                 break;
             case 'P':
-                sprintf(pidfile_name,optarg);
+                snprintf(pidfile_name, sizeof(pidfile_name), "%s", optarg);
+                pidfile_name[sizeof(pidfile_name)-1] = '\0';
                 break;
             case 'f':
                 input_fmt=av_find_input_format(optarg);

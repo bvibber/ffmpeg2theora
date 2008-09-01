@@ -73,6 +73,7 @@ void init_info(oggmux_info *info) {
 
     info->with_kate = 0;
     info->n_kate_streams = 0;
+    info->kate_streams = NULL;
 }
 
 void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
@@ -80,6 +81,7 @@ void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
     int n;
 
     info->n_kate_streams = n_kate_streams;
+    info->kate_streams = NULL;
     if (n_kate_streams == 0) return;
     info->kate_streams = (oggmux_kate_stream*)malloc(n_kate_streams*sizeof(oggmux_kate_stream));
     for (n=0; n<n_kate_streams; ++n) {
@@ -295,9 +297,15 @@ void oggmux_init (oggmux_info *info){
             oggmux_kate_stream *ks=info->kate_streams+n;
             ogg_stream_init (&ks->ko, rand ());    /* oops, add one ot the above */
             ret = kate_encode_init (&ks->k, &ks->ki);
-            if (ret<0) fprintf(stderr, "kate_encode_init: %d\n",ret);
+            if (ret<0) {
+              fprintf(stderr, "kate_encode_init: %d\n",ret);
+              exit(1);
+            }
             ret = kate_comment_init(&ks->kc);
-            if (ret<0) fprintf(stderr, "kate_comment_init: %d\n",ret);
+            if (ret<0) {
+              fprintf(stderr, "kate_comment_init: %d\n",ret);
+              exit(1);
+            }
             kate_comment_add_tag (&ks->kc, "ENCODER",PACKAGE_STRING);
         }
 #endif

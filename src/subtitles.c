@@ -131,7 +131,7 @@ static double hmsms2s(int h,int m,int s,int ms)
 }
 
 /* very simple implementation when no iconv */
-static void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text,int ignore_non_utf8)
+static void convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore_non_utf8)
 {
   size_t nbytes;
   char *ptr,*newtext;
@@ -151,7 +151,7 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text,i
         size_t wlen0;
 
         nbytes = strlen(text)+1;
-        newtext=(unsigned char*)malloc(nbytes);
+        newtext=(char*)malloc(nbytes);
         if (!newtext) {
           fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
           return;
@@ -193,18 +193,18 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text,i
       nbytes=0;
       for (ptr=text;*ptr;++ptr) {
         nbytes++;
-        if (0x80&*ptr) nbytes++;
+        if (0x80&*(unsigned char*)ptr) nbytes++;
       }
-      newtext=(unsigned char*)malloc(1+nbytes);
+      newtext=(char*)malloc(1+nbytes);
       if (!newtext) {
         fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
         return;
       }
       nbytes=0;
       for (ptr=text;*ptr;++ptr) {
-        if (0x80&*ptr) {
-          newtext[nbytes++]=0xc0|((*ptr)>>6);
-          newtext[nbytes++]=0x80|((*ptr)&0x3f);
+        if (0x80&*(unsigned char*)ptr) {
+          newtext[nbytes++]=0xc0|((*(unsigned char*)ptr)>>6);
+          newtext[nbytes++]=0x80|((*(unsigned char*)ptr)&0x3f);
         }
         else {
           newtext[nbytes++]=*ptr;
@@ -222,8 +222,10 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,unsigned char *text,i
 
 static void remove_last_newline(char *text)
 {
-  char *ptr = text+strlen(text)-1;
-  if (*ptr=='\n') *ptr=0;
+  if (*text) {
+    char *ptr = text+strlen(text)-1;
+    if (*ptr=='\n') *ptr=0;
+  }
 }
 
 #endif
@@ -242,9 +244,12 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
     double t1=0.0;
     static char str[4096];
     int warned=0;
+    FILE *f;
+    size_t len;
+    unsigned int line=0;
 
     this->subtitles = NULL;
-    FILE *f = fopen(this->filename, "r");
+    f = fopen(this->filename, "r");
     if (!f) {
         fprintf(stderr,"WARNING - Failed to open subtitles file %s (%s)\n", this->filename, strerror(errno));
         return -1;
@@ -258,27 +263,33 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
     }
 
     fgets2(str,sizeof(str),f);
+    ++line;
     while (!feof(f)) {
       switch (need) {
         case need_id:
-          ret=sscanf(str,"%d\n",&id);
-          if (ret!=1) {
-            fprintf(stderr,"WARNING - Syntax error: %s\n",str);
-            fclose(f);
-            free(this->subtitles);
-            return -1;
+          if (!strcmp(str,"\n")) {
+            /* be nice and ignore extra empty lines between records */
           }
-          if (id!=last_seen_id+1) {
-            fprintf(stderr,"WARNING - non consecutive ids: %s - pretending not to have noticed\n",str);
+          else {
+            ret=sscanf(str,"%d\n",&id);
+            if (ret!=1) {
+              fprintf(stderr,"WARNING - %s:%u: Syntax error: %s\n",this->filename,line,str);
+              fclose(f);
+              free(this->subtitles);
+              return -1;
+            }
+            if (id!=last_seen_id+1) {
+              fprintf(stderr,"WARNING - %s:%u: non consecutive ids: %s - pretending not to have noticed\n",this->filename,line,str);
+            }
+            last_seen_id=id;
+            need=need_timing;
+            strcpy(text,"");
           }
-          last_seen_id=id;
-          need=need_timing;
-          strcpy(text,"");
           break;
         case need_timing:
           ret=sscanf(str,"%d:%d:%d%*[.,]%d --> %d:%d:%d%*[.,]%d\n",&h0,&m0,&s0,&ms0,&h1,&m1,&s1,&ms1);
           if (ret!=8) {
-            fprintf(stderr,"WARNING - Syntax error: %s\n",str);
+            fprintf(stderr,"WARNING - %s:%u: Syntax error: %s\n",this->filename,line,str);
             fclose(f);
             free(this->subtitles);
             return -1;
@@ -295,8 +306,8 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             remove_last_newline(text);
 
             /* we want all text to be UTF8 */
-            convert_subtitle_to_utf8(this->subtitles_encoding,(unsigned char*)text,ignore_non_utf8);
-            size_t len = strlen(text);
+            convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8);
+            len = strlen(text);
             this->subtitles = (ff2theora_subtitle*)realloc(this->subtitles, (this->num_subtitles+1)*sizeof(ff2theora_subtitle));
             if (!this->subtitles) {
               fprintf(stderr, "Out of memory\n");
@@ -307,7 +318,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             ret=kate_text_validate(kate_utf8,text,len+1);
             if (ret<0) {
               if (!warned) {
-                fprintf(stderr,"WARNING: subtitle %s is not valid utf-8\n",text);
+                fprintf(stderr,"WARNING - %s:%u: subtitle %s is not valid utf-8\n",this->filename,line,text);
                 fprintf(stderr,"  further invalid subtitles will NOT be flagged\n");
                 warned=1;
               }
@@ -327,14 +338,26 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             need=need_id;
           }
           else {
-            strcat(text,str);
+            /* in case of very long subtitles */
+            len=strlen(text);
+            if (len+strlen(str) >= sizeof(text)) {
+              fprintf(stderr,"WARNING - %s:%u: subtitle text is too long - truncated\n",this->filename,line);
+            }
+            strncpy(text+len,str,sizeof(text)-len);
+            text[sizeof(text)-1]=0;
           }
           break;
       }
       fgets2(str,sizeof(str),f);
+      ++line;
     }
 
     fclose(f);
+
+    if (need!=need_id) {
+      /* shouldn't be a problem though, but warn */
+      fprintf(stderr,"WARNING - %s:%u: missing data in %s - truncated file ?\n",this->filename,line,this->filename);
+    }
 
     /* fprintf(stderr,"  %u subtitles loaded.\n", this->num_subtitles); */
 

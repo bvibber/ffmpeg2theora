@@ -1,5 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.TH FFMPEG2THEORA 1 "December 30, 2005"
+.TH FFMPEG2THEORA 1 "August 31, 2008"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -148,29 +148,34 @@ issues with A/V sync.
 .TP
 .B \-\-subtitles
 Encode subtitles from the given file to a multiplexed Kate stream.
-The input file should be in SubRip (.srt) format, encoded in utf-8,
+The input file should be in SubRip (.srt) format, encoded in UTF-8,
 unless the --subtitles-encoding option is also given.
 .TP
 .B \-\-subtitles-encoding encoding
 Assumes the corresponding subtitles file is encoded in the given
-encoding (utf-8 and iso-8859-1 (aka latin1) are supported).
+encoding (UTF-8 and iso-8859-1 (aka latin1) are supported). The
+default is UTF-8.
 .TP
 .B \-\-subtitles-language language
 Sets the language of the corresponding subtitles stream. This will
 be set in the corresponding Kate stream so a video player may make
-this available to the user for language selection.
+this available to the user for language selection. Language is an
+ISO 639-1 or RFC 3066 ASCII string and is limited to 15 characters.
 .TP
 .B \-\-subtitles-category category
 Sets the category of the corresponding subtitles stream. This will
 be set in the corresponding Kate stream so a video player may make
 this available to the user for selection. The default category is
 "subtitles". Suggested other categories may include "transcript",
-"commentary", "lyrics", etc.
+"commentary", "lyrics", etc. Category is an ASCII string and is
+limited to 15 characters
 .TP
 .B \-\-subtitles-ignore-non-utf8
-When reading an utf-8 subtitles text file, any invalid utf-8 sequence
+When reading an UTF-8 subtitles text file, any invalid UTF-8 sequence
 will be ignored. This may be useful if there are stray sequences in
-an otherwise utf-8 file.
+an otherwise UTF-8 file. Note that, since those invalid sequences
+will be removed from the output, this option is not a substitute to
+converting a non UTF-8 file to UTF-8.
 .SS Metadata options:
 .TP
 .B \-\-artist

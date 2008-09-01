@@ -12,7 +12,7 @@ Text subtitles can be embedded in an Ogg stream alongside a Theora video.
 
 Subtitles are read from SubRip (.srt) format files and converted to
 Kate streams. Those SubRip files must be encoded in utf-8 (7 bit ASCII
-is a subset of utf-8 so are valid input as well). See below for more
+is a subset of utf-8 so is valid input as well). See below for more
 information on converting SubRip files with other encodings to utf-8.
 
 Subtitles support requires libkate, available from:
@@ -41,7 +41,8 @@ different languages and/or categories. See below for examples of this.
   a language tag according to RFC 3066 (usually a two letter language
   code, optionally followed by a dash (or underscore) and a region code.
   Examples include en, it, ja, en_GB, de_DE, etc.
-  If unspecified, the default is to not set a language.
+  If unspecified, the default is to not set a language. It is however
+  strongly encouraged to set the language.
 
 --subtitles-category <category>
   Sets the category of the relevant subtitles stream. Category must be
