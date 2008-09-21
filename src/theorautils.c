@@ -552,9 +552,8 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
  * @param t1 the hide time of the text
  * @param text the utf-8 text
  * @param len the number of bytes in the text
- * @param e_o_s 1 indicates end of stream
  */
-void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len, int e_o_s){
+void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len){
 #ifdef HAVE_KATE
     ogg_packet op;
     oggmux_kate_stream *ks=info->kate_streams+idx;
@@ -568,17 +567,6 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
     else {
         fprintf(stderr, "Failed to encode kate data packet (%f --> %f, [%s]): %d",
             t0, t1, text, ret);
-    }
-    if(e_o_s) {
-        ret = kate_ogg_encode_finish(&ks->k, -1, &op);
-        if (ret>=0) {
-            ogg_stream_packetin (&ks->ko, &op);
-            ogg_packet_clear (&op);
-            info->k_pkg++;
-        }
-        else {
-            fprintf(stderr, "Failed to encode kate end packet: %d", ret);
-        }
     }
 #endif
 }

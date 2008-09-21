@@ -942,8 +942,7 @@ void ff2theora_output(ff2theora this) {
                            be held till the right time. If we don't do that, we can insert late and
                            oggz-validate moans */
                         while (ks->subtitles_count < ks->num_subtitles && sub->t0-1.0 <= avtime+this->start_time) {
-                            int eos = (ks->subtitles_count == ks->num_subtitles-1);
-                            oggmux_add_kate_text(&info, i, sub->t0, sub->t1, sub->text, sub->len, eos);
+                            oggmux_add_kate_text(&info, i, sub->t0, sub->t1, sub->text, sub->len);
                             ks->subtitles_count++;
                             ++sub;
                         }
@@ -959,7 +958,7 @@ void ff2theora_output(ff2theora this) {
 
         for (i=0; i<this->n_kate_streams; ++i) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
-            if (ks->num_subtitles > 0 && ks->subtitles_count<ks->num_subtitles) {
+            if (ks->num_subtitles > 0) {
                 double t = (info.videotime<info.audiotime?info.audiotime:info.videotime)+this->start_time;
                 oggmux_add_kate_end_packet(&info, i, t);
                 oggmux_flush (&info, e_o_s);
