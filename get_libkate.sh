@@ -1,6 +1,6 @@
 #!/bin/bash
 
-version=0.1.3
+version=0.1.11
 baseurl="http://libkate.googlecode.com/files/libkate-$version.tar.gz"
 
 which wget >& /dev/null
@@ -26,5 +26,5 @@ fi
 
 tar xfz "libkate-$version.tar.gz"
 ln -fs -T "libkate-$version" libkate
-cd libkate && make staticlib
+cd libkate && ./configure && make
 
