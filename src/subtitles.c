@@ -249,6 +249,12 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
     unsigned int line=0;
 
     this->subtitles = NULL;
+
+    if (!this->filename) {
+        fprintf(stderr,"WARNING - No subtitles file to load from\n");
+        return -1;
+    }
+
     f = fopen(this->filename, "r");
     if (!f) {
         fprintf(stderr,"WARNING - Failed to open subtitles file %s (%s)\n", this->filename, strerror(errno));
@@ -272,7 +278,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
           }
           else {
             ret=sscanf(str,"%d\n",&id);
-            if (ret!=1) {
+            if (ret!=1 || id<0) {
               fprintf(stderr,"WARNING - %s:%u: Syntax error: %s\n",this->filename,line,str);
               fclose(f);
               free(this->subtitles);
@@ -288,7 +294,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
           break;
         case need_timing:
           ret=sscanf(str,"%d:%d:%d%*[.,]%d --> %d:%d:%d%*[.,]%d\n",&h0,&m0,&s0,&ms0,&h1,&m1,&s1,&ms1);
-          if (ret!=8) {
+          if (ret!=8 || (h0|m0|s0|ms0)<0 || (h1|m1|s1|ms1)<0) {
             fprintf(stderr,"WARNING - %s:%u: Syntax error: %s\n",this->filename,line,str);
             fclose(f);
             free(this->subtitles);
@@ -301,7 +307,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
           need=need_text;
           break;
         case need_text:
-          if (*str=='\n') {
+          if (str[0]=='\n') {
             /* we have all the lines for that subtitle, remove the last \n */
             remove_last_newline(text);
 

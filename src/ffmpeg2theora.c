@@ -699,6 +699,9 @@ void ff2theora_output(ff2theora this) {
             kate_info *ki = &info.kate_streams[i].ki;
             kate_info_init(ki);
             if (ks->num_subtitles > 0) {
+                if (!ks->subtitles_language[0]) {
+                  fprintf(stderr, "WARNING - Subtitles language not set for input file %d\n",i);
+                }
                 kate_info_set_language(ki, ks->subtitles_language);
                 kate_info_set_category(ki, ks->subtitles_category[0]?ks->subtitles_category:"subtitles");
                 if(this->force_input_fps.num > 0) {
@@ -1694,22 +1697,25 @@ int main (int argc, char **argv){
         }
     }
 
-    oggmux_setup_kate_streams(&info, convert->n_kate_streams);
-
     for (n=0; n<convert->n_kate_streams; ++n) {
         ff2theora_kate_stream *ks=convert->kate_streams+n;
-        if (load_subtitles(ks,convert->ignore_non_utf8)>=0) {
+        if (load_subtitles(ks,convert->ignore_non_utf8)>0) {
           printf("Muxing Kate stream %d from %s as %s %s\n",
               n,ks->filename,
               ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
               ks->subtitles_category[0]?ks->subtitles_category:"subtitles");
         }
         else {
-          ks->filename = NULL;
-          ks->num_subtitles = 0;
-          ks->subtitles = NULL;
+          if (n!=convert->n_kate_streams) {
+            memmove(convert->kate_streams+n,convert->kate_streams+n+1,(convert->n_kate_streams-n-1)*sizeof(ff2theora_kate_stream));
+            --convert->n_kate_streams;
+            --n;
+          }
         }
     }
+
+    oggmux_setup_kate_streams(&info, convert->n_kate_streams);
+
     //detect image sequences and set framerate if provided
     if(av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
        (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
