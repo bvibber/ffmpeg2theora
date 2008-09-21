@@ -218,8 +218,8 @@ Encode a series of images:
   ffmpeg2theora frame%06d.png -o output.ogv
 
 Live streaming from V4L Device:
-  ffmpeg2theora /dev/video0 \-f video4linux \-\-inputfps 15 \-x 160 \-y 128 \-o \- \\
-    | oggfwd iccast2server 8000 password /theora.ogv
+  ffmpeg2theora /dev/video0 \-f video4linux \-\-inputfps 15 \-x 160 \-y 128 \\
+                 \-o \- | oggfwd iccast2server 8000 password /theora.ogv
 
 Live encoding from a DV camcorder (needs a fast machine):
   dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogv -\n"
