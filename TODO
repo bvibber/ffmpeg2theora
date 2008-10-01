@@ -1,4 +1,3 @@
 - remove global variable info
 - more commandline options
-- allow frame size not multiple of 16.
 - add option for pixel aspect ratio
