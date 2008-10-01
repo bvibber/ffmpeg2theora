@@ -78,7 +78,7 @@ if not conf.CheckPKG(XIPH_LIBS):
   Exit(1) 
 env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, XIPH_LIBS))
 
-FFMPEG_LIBS="libavformat libavcodec libavdevice libswscale libpostproc"
+FFMPEG_LIBS="libavcodec libavformat libavdevice libpostproc libswscale"
 if os.path.exists("./ffmpeg"):
   os.environ['PKG_CONFIG_PATH'] = "./ffmpeg/libavutil:./ffmpeg/libavformat:./ffmpeg/libavcodec:./ffmpeg/libavdevice:./ffmpeg/libswscale:./ffmpeg/libpostproc:" + os.environ.get('PKG_CONFIG_PATH', '')
 if not conf.CheckPKG(FFMPEG_LIBS): 
@@ -90,7 +90,8 @@ if not conf.CheckPKG(FFMPEG_LIBS):
       or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
   """ %(FFMPEG_LIBS, " ".join(["%s-dev"%l for l in FFMPEG_LIBS.split()]))
   Exit(1) 
-env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, FFMPEG_LIBS))
+for lib in FFMPEG_LIBS.split():
+    env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, lib))
 
 KATE_LIBS="oggkate"
 if os.path.exists("./libkate/misc/pkgconfig"):
