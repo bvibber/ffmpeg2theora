@@ -1,11 +1,5 @@
 Compiling from SVN
-------------------
-If you donwloaded ffmpeg2theora from svn you need
-automake 1.8 or later to build the configure script.
-To do this run ./autogen.sh
-Then build as you would from a tarball.
-
-Compiling from tarball:
+Compiling from tarball or from svn:
 -----------------------
 you need
 - the latest version of libtheora <http://downloads.xiph.org/releases/theora/>
@@ -62,8 +56,8 @@ be merged into the output Ogg stream as multiplexed Kate streams.
 For example, to encode a video with both German and Italian subtitles:
 
 ./ffmpeg2theora -o ouput.ogv --subtitles german.srt --subtitles-language de_DE \
-                             --subtitles italian.srt --subtitles-language it \
+                             --subtitles italian.srt --subtitles-language it   \
                    input.avi
 
-See subtitles.txt for more information on how to add subtitles to your
-videos.
+See subtitles.txt for more information on how to add subtitles to your videos.
+
