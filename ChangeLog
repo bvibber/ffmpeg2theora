@@ -1,8 +1,9 @@
-0.22 ??? 
+0.22 svn
     - enable v4l input again (-f video4linux or -f video4linux2)
     - ability to set framerate for image sequences (--inputfps)
     - fix several memory leaks
     - if only width or height are given, the other is set to preserve aspect ratio
+    - remove autotools build system, only scons build is supported now.
 
 0.21 2008-05-19 
     - switch default extension to .ogv 
