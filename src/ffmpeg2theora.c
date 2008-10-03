@@ -346,9 +346,11 @@ void ff2theora_output(ff2theora this) {
 
         if(this->picture_width && !this->picture_height) {
             this->picture_height = this->picture_width / ((double)venc->width/venc->height);
+            this->picture_height = this->picture_height - this->picture_height%2;
         }
         if(this->picture_height && !this->picture_width) {
             this->picture_width = this->picture_height * ((double)venc->width/venc->height);
+            this->picture_width = this->picture_width - this->picture_width%2;
         }
 
         if(this->preset == V2V_PRESET_PREVIEW){
