@@ -8,6 +8,14 @@ import SCons
 pkg_version="0.21+svn"
 pkg_name="ffmpeg2theora"
 
+scons_version=(0,98,0)
+
+try:
+    EnsureSConsVersion(*scons_version)
+except TypeError:
+    print 'SCons %d.%d.%d or greater is required, but you have an older version' % scons_version
+    Exit(2)
+
 opts = Options()
 opts.AddOptions(
   BoolOption('static', 'Set to 1 for static linking', 0),
@@ -17,7 +25,8 @@ opts.AddOptions(
   ('mandir', 'man documentation', 'PREFIX/man'),
   ('destdir', 'extra install time prefix', ''),
   ('APPEND_CCFLAGS', 'Additional C/C++ compiler flags'),
-  ('APPEND_LINKFLAGS', 'Additional linker flags')
+  ('APPEND_LINKFLAGS', 'Additional linker flags'),
+  BoolOption('crossmingw', 'Set to 1 for crosscompile with mingw', 0)
 )
 env = Environment(options = opts)
 Help(opts.GenerateHelpText(env))
@@ -26,6 +35,9 @@ pkg_flags="--cflags --libs"
 if env['static']:
   pkg_flags+=" --static"
   env.Append(LINKFLAGS=["-static"])
+
+if env['crossmingw']:
+    env.Tool('crossmingw', toolpath = ['scons-tools'])
 
 prefix = env['prefix']
 if env['destdir']:
@@ -39,16 +51,28 @@ env.Append(CCFLAGS=[
   '-DPACKAGE_VERSION=\\"%s\\"' % pkg_version,
   '-DPACKAGE_STRING=\\"%s-%s\\"' % (pkg_name, pkg_version),
   '-DPACKAGE=\\"%s\\"' % pkg_name,
+  '-D_FILE_OFFSET_BITS=64'
 ])
+
 env.Append(CCFLAGS = Split('$APPEND_CCFLAGS'))
 env.Append(LINKFLAGS = Split('$APPEND_LINKFLAGS'))
 
 if env['debug'] and env['CC'] == 'gcc':
   env.Append(CCFLAGS=["-g", "-O2", "-Wall"])
 
+if GetOption("help"):
+    Return()
+
+def TryAction(action):
+    import os
+    ret = os.system(action)
+    if ret == 0:
+        return (1, '')
+    return (0, '')
+
 def CheckPKGConfig(context, version): 
   context.Message( 'Checking for pkg-config... ' ) 
-  ret = context.TryAction('pkg-config --atleast-pkgconfig-version=%s' % version)[0] 
+  ret = TryAction('pkg-config --atleast-pkgconfig-version=%s' % version)[0] 
   context.Result( ret ) 
   return ret 
 
@@ -58,7 +82,7 @@ def CheckPKG(context, name):
     action = 'PKG_CONFIG_PATH=%s pkg-config --exists "%s"' % (os.environ['PKG_CONFIG_PATH'], name)
   else:
     action = 'pkg-config --exists "%s"' % name
-  ret = context.TryAction(action)[0]
+  ret = TryAction(action)[0]
   context.Result( ret ) 
   return ret
 
@@ -66,9 +90,10 @@ conf = Configure(env, custom_tests = {
   'CheckPKGConfig' : CheckPKGConfig,
   'CheckPKG' : CheckPKG,
   })
-  
-if not conf.CheckPKGConfig('0.15.0'): 
-   print 'pkg-config >= 0.15.0 not found.' 
+
+pkg_version='0.15.0'
+if not conf.CheckPKGConfig(pkg_version): 
+   print 'pkg-config >= %s not found.' % pkg_version 
    Exit(1)
 
 XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theora >= 1.0beta1"
@@ -93,6 +118,11 @@ if not conf.CheckPKG(FFMPEG_LIBS):
 for lib in FFMPEG_LIBS.split():
     env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, lib))
 
+if conf.CheckCHeader('libavformat/framehook.h'):
+    env.Append(CCFLAGS=[
+      '-DHAVE_FRAMEHOOK'
+    ])
+
 KATE_LIBS="oggkate"
 if os.path.exists("./libkate/misc/pkgconfig"):
   os.environ['PKG_CONFIG_PATH'] = "./libkate/misc/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
@@ -110,7 +140,7 @@ else:
 env = conf.Finish()
 
 # ffmpeg2theora 
-ffmpeg2theora = env.Copy()
+ffmpeg2theora = env.Clone()
 ffmpeg2theora_sources = glob('src/*.c')
 ffmpeg2theora.Program('ffmpeg2theora', ffmpeg2theora_sources)
 

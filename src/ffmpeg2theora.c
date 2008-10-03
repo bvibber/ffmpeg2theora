@@ -29,7 +29,9 @@
 
 #include "libavformat/avformat.h"
 #include "libavdevice/avdevice.h"
+#ifdef HAVE_FRAMEHOOK
 #include "libavformat/framehook.h"
+#endif
 #include "libswscale/swscale.h"
 #include "libpostproc/postprocess.h"
 
@@ -852,9 +854,10 @@ void ff2theora_output(ff2theora this) {
                                                venc->width, venc->height,
                                                output->qscale_table, output->qstride,
                                                ppMode, ppContext, this->pix_fmt);
+#ifdef HAVE_FRAMEHOOK
                             if(this->vhook)
                                 frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height, 0);
-
+#endif
                             if (this->frame_topBand || this->frame_leftBand) {
                                 if (av_picture_crop((AVPicture *)output_tmp, (AVPicture *)output,
                                     this->pix_fmt, this->frame_topBand, this->frame_leftBand) < 0) {
@@ -1032,6 +1035,7 @@ double aspect_check(const char *arg)
 
 static void add_frame_hooker(const char *arg)
 {
+#ifdef HAVE_FRAMEHOOK
     int argc = 0;
     char *argv[64];
     int i;
@@ -1046,6 +1050,7 @@ static void add_frame_hooker(const char *arg)
         fprintf(stderr, "Failed to add video hook function: %s\n", arg);
         exit(1);
     }
+#endif
 }
 
 AVRational get_framerate(const char* arg)
@@ -1177,8 +1182,10 @@ void print_usage (){
         "Input options:\n"
         "      --deinterlace      force deinterlace, otherwise only material\n"
         "                          marked as interlaced will be deinterlaced\n"
+#ifdef HAVE_FRAMEHOOK
         "      --vhook            you can use ffmpeg's vhook system, example:\n"
         "        ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv\n"
+#endif
         "  -f, --format           specify input format\n"
         "      --inputfps fps     override input fps\n"
         "      --audiostream id   by default the last audio stream is selected,\n"
@@ -1278,7 +1285,9 @@ int main (int argc, char **argv){
       {"contrast",required_argument,NULL,'C'},
       {"saturation",required_argument,NULL,'Z'},
       {"nosound",0,&flag,NOSOUND_FLAG},
+#ifdef HAVE_FRAMEHOOK
       {"vhook",required_argument,&flag,VHOOK_FLAG},
+#endif
       {"framerate",required_argument,NULL,'F'},
       {"aspect",required_argument,&flag,ASPECT_FLAG},
       {"v2v-preset",required_argument,NULL,'p'},
