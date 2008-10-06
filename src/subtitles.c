@@ -131,13 +131,14 @@ static double hmsms2s(int h,int m,int s,int ms)
 }
 
 /* very simple implementation when no iconv */
-static void convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore_non_utf8)
+static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore_non_utf8)
 {
   size_t nbytes;
-  char *ptr,*newtext;
+  char *ptr;
+  char *newtext = NULL;
   int errors=0;
 
-  if (!text || !*text) return;
+  if (!text) return NULL;
 
   switch (encoding) {
     case ENC_UNSET:
@@ -154,7 +155,7 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore
         newtext=(char*)malloc(nbytes);
         if (!newtext) {
           fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
-          return;
+          return NULL;
         }
         ptr = text;
         wptr = newtext;
@@ -167,7 +168,7 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore
             if (ret<0) {
               fprintf(stderr, "WARNING - failed to filter utf8 text: %s\n", text);
               free(newtext);
-              return;
+              return NULL;
             }
             if (ret==0) break;
           }
@@ -182,9 +183,6 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore
         if (errors) {
           fprintf(stderr, "WARNING - Found non utf8 character(s) in string %s, scrubbed out\n", text);
         }
-
-        strcpy(text,newtext);
-        free(newtext);
       }
       break;
     case ENC_ISO_8859_1:
@@ -198,7 +196,7 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore
       newtext=(char*)malloc(1+nbytes);
       if (!newtext) {
         fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
-        return;
+        return NULL;
       }
       nbytes=0;
       for (ptr=text;*ptr;++ptr) {
@@ -211,13 +209,13 @@ static void convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore
         }
       }
       newtext[nbytes++]=0;
-      memcpy(text,newtext,nbytes);
-      free(newtext);
       break;
     default:
       fprintf(stderr, "ERROR: encoding %d not handled in conversion!\n", encoding);
+      newtext = strdup("");
       break;
   }
+  return newtext;
 }
 
 static void remove_last_newline(char *text)
@@ -247,6 +245,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
     FILE *f;
     size_t len;
     unsigned int line=0;
+    char *utf8;
 
     this->subtitles = NULL;
 
@@ -312,19 +311,27 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             remove_last_newline(text);
 
             /* we want all text to be UTF8 */
-            convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8);
-            len = strlen(text);
+            utf8=convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8);
+            if (!utf8) {
+              fclose(f);
+              free(this->subtitles);
+              return -1;
+              break;
+            }
+
+            len = strlen(utf8);
             this->subtitles = (ff2theora_subtitle*)realloc(this->subtitles, (this->num_subtitles+1)*sizeof(ff2theora_subtitle));
             if (!this->subtitles) {
+              free(utf8);
               fprintf(stderr, "Out of memory\n");
               fclose(f);
               free(this->subtitles);
               return -1;
             }
-            ret=kate_text_validate(kate_utf8,text,len+1);
+            ret=kate_text_validate(kate_utf8,utf8,len+1);
             if (ret<0) {
               if (!warned) {
-                fprintf(stderr,"WARNING - %s:%u: subtitle %s is not valid utf-8\n",this->filename,line,text);
+                fprintf(stderr,"WARNING - %s:%u: subtitle %s is not valid utf-8\n",this->filename,line,utf8);
                 fprintf(stderr,"  further invalid subtitles will NOT be flagged\n");
                 warned=1;
               }
@@ -332,10 +339,9 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             else {
               /* kill off trailing \n characters */
               while (len>0) {
-                if (text[len-1]=='\n') text[--len]=0; else break;
+                if (utf8[len-1]=='\n') utf8[--len]=0; else break;
               }
-              this->subtitles[this->num_subtitles].text = (char*)malloc(len+1);
-              memcpy(this->subtitles[this->num_subtitles].text, text, len+1);
+              this->subtitles[this->num_subtitles].text = utf8;
               this->subtitles[this->num_subtitles].len = len;
               this->subtitles[this->num_subtitles].t0 = t0;
               this->subtitles[this->num_subtitles].t1 = t1;
