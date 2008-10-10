@@ -52,7 +52,8 @@ enum {
   DEINTERLACE_FLAG,
   OPTIMIZE_FLAG,
   SYNC_FLAG,
-  NOSOUND_FLAG,
+  NOAUDIO_FLAG,
+  NOVIDEO_FLAG,
   CROPTOP_FLAG,
   CROPBOTTOM_FLAG,
   CROPRIGHT_FLAG,
@@ -140,6 +141,7 @@ static ff2theora ff2theora_init (){
     ff2theora this = calloc (1, sizeof (*this));
     if (this != NULL){
         this->disable_audio=0;
+        this->disable_video=0;
         this->video_index = -1;
         this->audio_index = -1;
         this->start_time=0;
@@ -318,7 +320,7 @@ void ff2theora_output(ff2theora this) {
         AVCodecContext *enc = this->context->streams[i]->codec;
         switch (enc->codec_type){
             case CODEC_TYPE_VIDEO:
-              if (this->video_index < 0)
+              if (this->video_index < 0 && !this->disable_video)
                     this->video_index = i;
                 break;
             case CODEC_TYPE_AUDIO:
@@ -1177,7 +1179,8 @@ void print_usage (){
         "  -A, --audiobitrate     [32 to 500] encoding bitrate for audio (kb/s)\n"
         "  -c, --channels         set number of output channels\n"
         "  -H, --samplerate       set output samplerate (in Hz)\n"
-        "      --nosound          disable the sound from input\n"
+        "      --noaudio          disable audio from input\n"
+        "      --novideo          disable video from input\n"
         "\n"
         "Input options:\n"
         "      --deinterlace      force deinterlace, otherwise only material\n"
@@ -1284,7 +1287,9 @@ int main (int argc, char **argv){
       {"brightness",required_argument,NULL,'B'},
       {"contrast",required_argument,NULL,'C'},
       {"saturation",required_argument,NULL,'Z'},
-      {"nosound",0,&flag,NOSOUND_FLAG},
+      {"nosound",0,&flag,NOAUDIO_FLAG},
+      {"noaudio",0,&flag,NOAUDIO_FLAG},
+      {"novideo",0,&flag,NOVIDEO_FLAG},
 #ifdef HAVE_FRAMEHOOK
       {"vhook",required_argument,&flag,VHOOK_FLAG},
 #endif
@@ -1368,8 +1373,12 @@ int main (int argc, char **argv){
                             convert->sync = 1;
                             flag = -1;
                             break;
-                        case NOSOUND_FLAG:
+                        case NOAUDIO_FLAG:
                             convert->disable_audio = 1;
+                            flag = -1;
+                            break;
+                        case NOVIDEO_FLAG:
+                            convert->disable_video = 1;
                             flag = -1;
                             break;
                         case OPTIMIZE_FLAG:
@@ -1776,6 +1785,9 @@ int main (int argc, char **argv){
                 }
                 if(convert->disable_audio){
                     fprintf(stderr,"  [audio disabled].\n");
+                }
+                if(convert->disable_video){
+                    fprintf(stderr,"  [video disabled].\n");
                 }
                 if(convert->sync){
                     fprintf(stderr,"  Use A/V Sync from input container.\n");
