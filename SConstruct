@@ -8,7 +8,10 @@ import SCons
 pkg_version="0.21+svn"
 pkg_name="ffmpeg2theora"
 
-scons_version=(0,98,0)
+scons_version=(0,97,0)
+#this is needed to make scons -h work, so not checking for it right now
+#(i.e. ubuntu hardy only ships with 0.97..)
+#scons_version=(0,98,0)
 
 try:
     EnsureSConsVersion(*scons_version)
