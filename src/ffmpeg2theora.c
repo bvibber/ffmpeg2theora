@@ -620,6 +620,7 @@ void ff2theora_output(ff2theora this) {
         int16_t *resampled=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int16_t *audio_p=NULL;
         int no_frames;
+        int no_samples;
 
         double framerate_add = 0;
         double framerate_tmpcount = 0;
@@ -745,11 +746,6 @@ void ff2theora_output(ff2theora this) {
           }
         }
 
-        if(info.audio_only && (this->end_time>0 || this->start_time>0)){
-            fprintf(stderr,"Sorry, right now start/end time does not work for audio only files.\n");
-            exit(1);
-        }
-
         if (this->framerate_new.num > 0) {
             double framerate_new = (double)this->framerate_new.num / this->framerate_new.den;
             framerate_add = framerate_new/this->fps;
@@ -759,12 +755,19 @@ void ff2theora_output(ff2theora this) {
 
         /*check for end time and calculate number of frames to encode*/
         no_frames = this->fps*(this->end_time - this->start_time);
-        if(this->end_time > 0 && no_frames <= 0){
+        no_samples = this->sample_rate * (this->end_time - this->start_time);
+        if((info.audio_only && this->end_time > 0 && no_samples <= 0)
+           || (!info.audio_only && this->end_time > 0 && no_frames <= 0)){
             fprintf(stderr,"End time has to be bigger than start time.\n");
             exit(1);
         }
         /* main decoding loop */
         do{
+            if(info.audio_only && no_samples > 0){
+                if(this->sample_count > no_samples){
+                    break;
+                }
+            }
             if(no_frames > 0){
                 if(this->frame_count > no_frames){
                     break;
@@ -1505,10 +1508,10 @@ int main (int argc, char **argv){
                 }
                 break;
             case 'e':
-                convert->end_time = atoi(optarg);
+                convert->end_time = atof(optarg);
                 break;
             case 's':
-                convert->start_time = atoi(optarg);
+                convert->start_time = atof(optarg);
                 break;
             case 'o':
                 snprintf(outputfile_name,sizeof(outputfile_name),"%s",optarg);

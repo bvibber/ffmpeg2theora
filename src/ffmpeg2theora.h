@@ -76,8 +76,8 @@ typedef struct ff2theora{
     int frame_y_offset;
 
     /* In seconds */
-    int start_time;
-    int end_time;
+    double start_time;
+    double end_time;
 
     AVRational framerate_new;
 
