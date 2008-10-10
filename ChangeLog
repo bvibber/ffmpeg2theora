@@ -1,4 +1,4 @@
-0.22 svn
+0.22 2008-10-10
     - enable v4l input again (-f video4linux or -f video4linux2)
     - ability to set framerate for image sequences (--inputfps)
     - fix several memory leaks
