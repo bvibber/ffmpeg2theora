@@ -3,6 +3,8 @@
     - ability to set framerate for image sequences (--inputfps)
     - fix several memory leaks
     - if only width or height are given, the other is set to preserve aspect ratio
+    - -start / -end options now work with audio only input
+    - new option --novideo to disable input video 
     - remove autotools build system, only scons build is supported now.
 
 0.21 2008-05-19 

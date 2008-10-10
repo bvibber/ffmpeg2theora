@@ -94,9 +94,9 @@ conf = Configure(env, custom_tests = {
   'CheckPKG' : CheckPKG,
   })
 
-pkg_version='0.15.0'
-if not conf.CheckPKGConfig(pkg_version): 
-   print 'pkg-config >= %s not found.' % pkg_version 
+pkgconfig_version='0.15.0'
+if not conf.CheckPKGConfig(pkgconfig_version): 
+   print 'pkg-config >= %s not found.' % pkgconfig_version 
    Exit(1)
 
 XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theora >= 1.0beta1"
