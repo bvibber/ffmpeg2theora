@@ -868,7 +868,8 @@ void ff2theora_output(ff2theora this) {
                                     this->pix_fmt, this->frame_topBand, this->frame_leftBand) < 0) {
                                     av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
                                 }
-                                output = output_tmp;
+                                av_picture_copy(output, output_tmp, this->pix_fmt, 
+                                                venc->width, venc->height);
                             }
                             if(this->sws_scale_ctx){
                               sws_scale(this->sws_scale_ctx,
