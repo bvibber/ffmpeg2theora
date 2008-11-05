@@ -840,7 +840,7 @@ void ff2theora_output(ff2theora this) {
 
                             }
                             else{
-                                av_picture_copy(output_tmp, frame, this->pix_fmt, 
+                                av_picture_copy((AVPicture *)output_tmp, (AVPicture *)frame, this->pix_fmt, 
                                                 venc->width, venc->height);
                                 output_tmp_p=NULL;
                             }
@@ -851,7 +851,7 @@ void ff2theora_output(ff2theora this) {
                                 }
                             }
                             else{
-                                av_picture_copy(output, output_tmp, this->pix_fmt, 
+                                av_picture_copy((AVPicture *)output, (AVPicture *)output_tmp, this->pix_fmt, 
                                                 venc->width, venc->height);
                             }
                             // now output
@@ -871,7 +871,7 @@ void ff2theora_output(ff2theora this) {
                                     this->pix_fmt, this->frame_topBand, this->frame_leftBand) < 0) {
                                     av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
                                 }
-                                av_picture_copy(output, output_tmp, this->pix_fmt, 
+                                av_picture_copy((AVPicture *)output, (AVPicture *)output_tmp, this->pix_fmt, 
                                                 venc->width, venc->height);
                             }
                             if(this->sws_scale_ctx){
@@ -880,7 +880,7 @@ void ff2theora_output(ff2theora this) {
                                 output_resized->data, output_resized->linesize);
                             }
                             else{
-                                av_picture_copy(output_resized, output, this->pix_fmt, 
+                                av_picture_copy((AVPicture *)output_resized, (AVPicture *)output, this->pix_fmt, 
                                                 venc->width, venc->height);
                             }
 
