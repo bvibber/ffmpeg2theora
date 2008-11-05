@@ -840,7 +840,9 @@ void ff2theora_output(ff2theora this) {
 
                             }
                             else{
-                                output_tmp = frame;
+                                av_picture_copy(output_tmp, frame, this->pix_fmt, 
+                                                venc->width, venc->height);
+                                output_tmp_p=NULL;
                             }
                             if(frame->interlaced_frame || this->deinterlace){
                                 if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,venc->width,venc->height)<0){
@@ -849,7 +851,8 @@ void ff2theora_output(ff2theora this) {
                                 }
                             }
                             else{
-                                output=output_tmp;
+                                av_picture_copy(output, output_tmp, this->pix_fmt, 
+                                                venc->width, venc->height);
                             }
                             // now output
 
@@ -877,7 +880,8 @@ void ff2theora_output(ff2theora this) {
                                 output_resized->data, output_resized->linesize);
                             }
                             else{
-                                output_resized=output;
+                                av_picture_copy(output_resized, output, this->pix_fmt, 
+                                                venc->width, venc->height);
                             }
 
                         }
