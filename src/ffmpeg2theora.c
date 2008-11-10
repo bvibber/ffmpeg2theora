@@ -59,6 +59,7 @@ enum {
   CROPRIGHT_FLAG,
   CROPLEFT_FLAG,
   ASPECT_FLAG,
+  XY_FLAG,
   INPUTFPS_FLAG,
   AUDIOSTREAM_FLAG,
   SUBTITLES_FLAG,
@@ -167,6 +168,7 @@ static ff2theora ff2theora_init (){
         this->aspect_numerator=0;
         this->aspect_denominator=0;
         this->frame_aspect=0;
+        this->xy_max=-1;
         this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace.
         this->vhook=0;
         this->framerate_new.num = -1;
@@ -455,6 +457,24 @@ void ff2theora_output(ff2theora this) {
               }
             }
 
+        }
+        if(this->xy_max > 0){
+          int width = venc->width-this->frame_leftBand-this->frame_rightBand;
+          int height = venc->height-this->frame_topBand-this->frame_bottomBand;
+          if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+            height = ((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+          }
+          if(this->frame_aspect == 0)
+            this->frame_aspect = (float)width/height;
+          if(width > height) {
+            this->picture_width = this->xy_max;
+            this->picture_height = this->xy_max / this->frame_aspect;
+            this->picture_height = this->picture_height + this->picture_height%2;
+          } else {
+            this->picture_height = this->xy_max;
+            this->picture_width = this->xy_max * this->frame_aspect;
+            this->picture_width = this->picture_width + this->picture_width%2;
+          }
         }
         if(this->picture_height==0 &&
             (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
@@ -1161,6 +1181,8 @@ void print_usage (){
         "      --speedlevel       [0 2] encoding is faster with higher values the cost is quality and bandwidth\n"
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
+        "      --xy               scale output frame to be withing box of \n"
+        "                         given size (in pixels)\n"
         "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
         "  -F, --framerate        output framerate e.g 25:2 or 16\n"
         "      --croptop, --cropbottom, --cropleft, --cropright\n"
@@ -1281,6 +1303,7 @@ int main (int argc, char **argv){
       {"format",required_argument,NULL,'f'},
       {"width",required_argument,NULL,'x'},
       {"height",required_argument,NULL,'y'},
+      {"xy",required_argument,&flag,XY_FLAG},
       {"videoquality",required_argument,NULL,'v'},
       {"videobitrate",required_argument,NULL,'V'},
       {"audioquality",required_argument,NULL,'a'},
@@ -1420,6 +1443,10 @@ int main (int argc, char **argv){
                             break;
                         case ASPECT_FLAG:
                             convert->frame_aspect = aspect_check(optarg);
+                            flag = -1;
+                            break;
+                        case XY_FLAG:
+                            convert->xy_max = atoi(optarg);
                             flag = -1;
                             break;
                         case INPUTFPS_FLAG:
