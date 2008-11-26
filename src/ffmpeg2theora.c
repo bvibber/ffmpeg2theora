@@ -59,7 +59,7 @@ enum {
   CROPRIGHT_FLAG,
   CROPLEFT_FLAG,
   ASPECT_FLAG,
-  XY_FLAG,
+  MAXSIZE_FLAG,
   INPUTFPS_FLAG,
   AUDIOSTREAM_FLAG,
   SUBTITLES_FLAG,
@@ -69,6 +69,7 @@ enum {
   SUBTITLES_IGNORE_NON_UTF8_FLAG,
   VHOOK_FLAG,
   FRONTEND_FLAG,
+  FRONTENDFILE_FLAG,
   SPEEDLEVEL_FLAG,
   PP_FLAG,
   NOSKELETON
@@ -168,7 +169,7 @@ static ff2theora ff2theora_init (){
         this->aspect_numerator=0;
         this->aspect_denominator=0;
         this->frame_aspect=0;
-        this->xy_max=-1;
+        this->max_size=-1;
         this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace.
         this->vhook=0;
         this->framerate_new.num = -1;
@@ -311,10 +312,10 @@ void ff2theora_output(ff2theora this) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
         if (enc->codec_type == CODEC_TYPE_AUDIO) {
             this->audio_index = this->audiostream;
-            fprintf(stderr,"  Using stream #0.%d as audio input\n",this->audio_index);
+            fprintf(stderr, "  Using stream #0.%d as audio input\n",this->audio_index);
         }
         else {
-            fprintf(stderr,"  The selected stream is not audio, falling back to automatic selection\n");
+            fprintf(stderr, "  The selected stream is not audio, falling back to automatic selection\n");
         }
     }
 
@@ -458,7 +459,7 @@ void ff2theora_output(ff2theora this) {
             }
 
         }
-        if(this->xy_max > 0){
+        if(this->max_size > 0){
           int width = venc->width-this->frame_leftBand-this->frame_rightBand;
           int height = venc->height-this->frame_topBand-this->frame_bottomBand;
           if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
@@ -467,12 +468,12 @@ void ff2theora_output(ff2theora this) {
           if(this->frame_aspect == 0)
             this->frame_aspect = (float)width/height;
           if(width > height) {
-            this->picture_width = this->xy_max;
-            this->picture_height = this->xy_max / this->frame_aspect;
+            this->picture_width = this->max_size;
+            this->picture_height = this->max_size / this->frame_aspect;
             this->picture_height = this->picture_height + this->picture_height%2;
           } else {
-            this->picture_height = this->xy_max;
-            this->picture_width = this->xy_max * this->frame_aspect;
+            this->picture_height = this->max_size;
+            this->picture_width = this->max_size * this->frame_aspect;
             this->picture_width = this->picture_width + this->picture_width%2;
           }
         }
@@ -525,17 +526,17 @@ void ff2theora_output(ff2theora this) {
                           (this->aspect_denominator*this->picture_height);
         }
         if(this->aspect_denominator && frame_aspect){
-            fprintf(stderr,"  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
-            fprintf(stderr,"  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
+            fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
+            fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
         }
 
         if (this->deinterlace==1)
-            fprintf(stderr,"  Deinterlace: on\n");
+            fprintf(stderr, "  Deinterlace: on\n");
 
         if (strcmp(this->pp_mode, "")) {
           ppContext = pp_get_context(venc->width, venc->height, PP_FORMAT_420);
           ppMode = pp_get_mode_by_name_and_quality(this->pp_mode, PP_QUALITY_MAX);
-          fprintf(stderr,"  Postprocessing: %s\n", this->pp_mode);
+          fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
         }
 
         if(!this->picture_width)
@@ -564,23 +565,23 @@ void ff2theora_output(ff2theora this) {
                           this->frame_width, this->frame_height, this->pix_fmt,
                           sws_flags, NULL, NULL, NULL
             );
-            fprintf(stderr,"  Resize: %dx%d",venc->width,venc->height);
+            fprintf(stderr, "  Resize: %dx%d",venc->width,venc->height);
             if(this->frame_topBand || this->frame_bottomBand ||
             this->frame_leftBand || this->frame_rightBand){
-                fprintf(stderr," => %dx%d",
+                fprintf(stderr, " => %dx%d",
                     venc->width-this->frame_leftBand-this->frame_rightBand,
                     venc->height-this->frame_topBand-this->frame_bottomBand);
             }
             if(this->picture_width != (venc->width-this->frame_leftBand - this->frame_rightBand)
                 || this->picture_height != (venc->height-this->frame_topBand-this->frame_bottomBand))
-                fprintf(stderr," => %dx%d",this->picture_width, this->picture_height);
-            fprintf(stderr,"\n");
+                fprintf(stderr, " => %dx%d",this->picture_width, this->picture_height);
+            fprintf(stderr, "\n");
         }
 
         lut_init(this);
     }
     if (this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
-        fprintf(stderr,"  Resample Framerate: %0.2f => %0.2f\n",
+        fprintf(stderr, "  Resample Framerate: %0.2f => %0.2f\n",
                         this->fps, (double)this->framerate_new.num / this->framerate_new.den);
     }
     if (this->audio_index >= 0){
@@ -603,9 +604,9 @@ void ff2theora_output(ff2theora this) {
             if(this->sample_rate != aenc->sample_rate || this->channels != aenc->channels){
                 this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->sample_rate,aenc->sample_rate);
                 if(this->sample_rate!=aenc->sample_rate)
-                    fprintf(stderr,"  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
+                    fprintf(stderr, "  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
                 if(this->channels!=aenc->channels)
-                    fprintf(stderr,"  Channels: %d => %d\n",aenc->channels,this->channels);
+                    fprintf(stderr, "  Channels: %d => %d\n",aenc->channels,this->channels);
             }
             else{
                 this->audio_resample_ctx=NULL;
@@ -769,7 +770,7 @@ void ff2theora_output(ff2theora this) {
         if (this->framerate_new.num > 0) {
             double framerate_new = (double)this->framerate_new.num / this->framerate_new.den;
             framerate_add = framerate_new/this->fps;
-            //fprintf(stderr,"calculating framerate addition to %f\n",framerate_add);
+            //fprintf(stderr, "calculating framerate addition to %f\n",framerate_add);
             this->fps = framerate_new;
         }
 
@@ -778,7 +779,7 @@ void ff2theora_output(ff2theora this) {
         no_samples = this->sample_rate * (this->end_time - this->start_time);
         if((info.audio_only && this->end_time > 0 && no_samples <= 0)
            || (!info.audio_only && this->end_time > 0 && no_frames <= 0)){
-            fprintf(stderr,"End time has to be bigger than start time.\n");
+            fprintf(stderr, "End time has to be bigger than start time.\n");
             exit(1);
         }
         /* main decoding loop */
@@ -866,7 +867,7 @@ void ff2theora_output(ff2theora this) {
                             }
                             if(frame->interlaced_frame || this->deinterlace){
                                 if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,venc->width,venc->height)<0){
-                                        fprintf(stderr,"Deinterlace failed.\n");
+                                        fprintf(stderr, "Deinterlace failed.\n");
                                         exit(1);
                                 }
                             }
@@ -1181,7 +1182,7 @@ void print_usage (){
         "      --speedlevel       [0 2] encoding is faster with higher values the cost is quality and bandwidth\n"
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
-        "      --xy               scale output frame to be withing box of \n"
+        "      --max_size         scale output frame to be withing box of \n"
         "                         given size (in pixels)\n"
         "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
         "  -F, --framerate        output framerate e.g 25:2 or 16\n"
@@ -1303,7 +1304,7 @@ int main (int argc, char **argv){
       {"format",required_argument,NULL,'f'},
       {"width",required_argument,NULL,'x'},
       {"height",required_argument,NULL,'y'},
-      {"xy",required_argument,&flag,XY_FLAG},
+      {"max_size",required_argument,&flag,MAXSIZE_FLAG},
       {"videoquality",required_argument,NULL,'v'},
       {"videobitrate",required_argument,NULL,'V'},
       {"audioquality",required_argument,NULL,'a'},
@@ -1345,6 +1346,7 @@ int main (int argc, char **argv){
       {"optimize",0,&flag,OPTIMIZE_FLAG},
       {"speedlevel",required_argument,&flag,SPEEDLEVEL_FLAG},
       {"frontend",0,&flag,FRONTEND_FLAG},
+      {"frontendfile",required_argument,&flag,FRONTENDFILE_FLAG},
 
       {"artist",required_argument,&metadata_flag,10},
       {"title",required_argument,&metadata_flag,11},
@@ -1421,7 +1423,12 @@ int main (int argc, char **argv){
                             flag = -1;
                             break;
                         case FRONTEND_FLAG:
-                            info.frontend = 1;
+                            info.frontend = stderr;
+                            flag = -1;
+                            break;
+                        case FRONTENDFILE_FLAG:
+                            fprintf(stderr, "set output: %s!!!\n", optarg);
+                            info.frontend = fopen(optarg, "w");
                             flag = -1;
                             break;
                         /* crop */
@@ -1445,8 +1452,8 @@ int main (int argc, char **argv){
                             convert->frame_aspect = aspect_check(optarg);
                             flag = -1;
                             break;
-                        case XY_FLAG:
-                            convert->xy_max = atoi(optarg);
+                        case MAXSIZE_FLAG:
+                            convert->max_size = atoi(optarg);
                             flag = -1;
                             break;
                         case INPUTFPS_FLAG:
@@ -1568,7 +1575,7 @@ int main (int argc, char **argv){
             case 'v':
                 convert->video_quality = rint(atof(optarg)*6.3);
                 if(convert->video_quality <0 || convert->video_quality >63){
-                        fprintf(stderr,"Only values from 0 to 10 are valid for video quality.\n");
+                        fprintf(stderr, "Only values from 0 to 10 are valid for video quality.\n");
                         exit(1);
                 }
                 convert->video_bitrate=0;
@@ -1584,7 +1591,7 @@ int main (int argc, char **argv){
             case 'a':
                 convert->audio_quality=atof(optarg);
                 if(convert->audio_quality<-2 || convert->audio_quality>10){
-                    fprintf(stderr,"Only values from -2 to 10 are valid for audio quality.\n");
+                    fprintf(stderr, "Only values from -2 to 10 are valid for audio quality.\n");
                     exit(1);
                 }
                 convert->audio_bitrate=0;
@@ -1592,7 +1599,7 @@ int main (int argc, char **argv){
             case 'A':
                 convert->audio_bitrate=atof(optarg)*1000;
                 if(convert->audio_bitrate<0){
-                    fprintf(stderr,"Only values >0 are valid for audio bitrate.\n");
+                    fprintf(stderr, "Only values >0 are valid for audio bitrate.\n");
                     exit(1);
                 }
                 convert->audio_quality = -990;
@@ -1684,7 +1691,7 @@ int main (int argc, char **argv){
                     info.speed_level = 0;
                 }
                 else{
-                    fprintf(stderr,"\nUnknown preset.\n\n");
+                    fprintf(stderr, "\nUnknown preset.\n\n");
                     print_presets_info();
                     exit(1);
                 }
@@ -1694,7 +1701,7 @@ int main (int argc, char **argv){
                 if (n) {
 #ifndef _WIN32
                     if (nice(n)<0) {
-                        fprintf(stderr,"Error setting `%d' for niceness.", n);
+                        fprintf(stderr, "Error setting `%d' for niceness.", n);
                     }
 #endif
                 }
@@ -1732,13 +1739,13 @@ int main (int argc, char **argv){
     using_stdin |= !strcmp(inputfile_name, "pipe:" ) ||
                    !strcmp( inputfile_name, "/dev/stdin" );
 
-    if(outputfile_set!=1){
-        fprintf(stderr,"You have to specify an output file with -o output.ogv.\n");
+    if(outputfile_set != 1){
+        fprintf(stderr, "You have to specify an output file with -o output.ogv.\n");
         exit(1);
     }
 
     if(convert->end_time>0 && convert->end_time <= convert->start_time){
-        fprintf(stderr,"End time has to be bigger than start time.\n");
+        fprintf(stderr, "End time has to be bigger than start time.\n");
         exit(1);
     }
 
@@ -1813,26 +1820,28 @@ int main (int argc, char **argv){
                 info.outfile = fopen(outputfile_name,"wb");
 #endif
                 if(info.frontend) {
-                  fprintf(stderr, "\nf2t ;duration: %d;\n", (int)(convert->context->duration / AV_TIME_BASE));
+                  fprintf(info.frontend, "\nf2t ;duration: %d;\n", (int)(convert->context->duration / AV_TIME_BASE));
+                  fflush(info.frontend);
+
                 }
                 else {
                   dump_format (convert->context, 0,inputfile_name, 0);
                 }
                 if(convert->disable_audio){
-                    fprintf(stderr,"  [audio disabled].\n");
+                    fprintf(stderr, "  [audio disabled].\n");
                 }
                 if(convert->disable_video){
-                    fprintf(stderr,"  [video disabled].\n");
+                    fprintf(stderr, "  [video disabled].\n");
                 }
                 if(convert->sync){
-                    fprintf(stderr,"  Use A/V Sync from input container.\n");
+                    fprintf(stderr, "  Use A/V Sync from input container.\n");
                 }
 
                 convert->pts_offset =
                     (double) convert->context->start_time / AV_TIME_BASE;
                 if(!info.outfile) {
                     if(info.frontend)
-                        fprintf(stderr, "\nf2t ;result: Unable to open output file.;\n");
+                        fprintf(info.frontend, "\nf2t ;result: Unable to open output file.;\n");
                     else
                       fprintf (stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
                     return(1);
@@ -1845,7 +1854,7 @@ int main (int argc, char **argv){
             }
             else{
               if(info.frontend)
-                  fprintf(stderr, "\nf2t ;result: input format not suported.;\n");
+                  fprintf(info.frontend, "\nf2t ;result: input format not suported.;\n");
               else
                   fprintf (stderr,"\nUnable to decode input.\n");
               return(1);
@@ -1857,13 +1866,14 @@ int main (int argc, char **argv){
             return(1);
         }
     ff2theora_close (convert);
-    fprintf(stderr,"\n");
+    fprintf(stderr, "\n");
 
     if (*pidfile_name)
         unlink(pidfile_name);
 
     if(info.frontend)
-        fprintf(stderr, "\nf2t ;result: ok;\n");
-
+        fprintf(info.frontend, "\nf2t ;result: ok;\n");
+    if(info.frontend && info.frontend != stderr)
+        fclose(info.frontend);
     return(0);
 }

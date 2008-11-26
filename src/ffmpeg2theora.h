@@ -53,7 +53,7 @@ typedef struct ff2theora{
     ogg_int32_t aspect_numerator;
     ogg_int32_t aspect_denominator;
     double    frame_aspect;
-    int xy_max;
+    int max_size;
 
     int pix_fmt;
     int video_quality;
