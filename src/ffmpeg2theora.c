@@ -54,6 +54,7 @@ enum {
   SYNC_FLAG,
   NOAUDIO_FLAG,
   NOVIDEO_FLAG,
+  NOUPSCALING_FLAG,
   CROPTOP_FLAG,
   CROPBOTTOM_FLAG,
   CROPRIGHT_FLAG,
@@ -144,6 +145,7 @@ static ff2theora ff2theora_init (){
     if (this != NULL){
         this->disable_audio=0;
         this->disable_video=0;
+        this->no_upscaling=0;
         this->video_index = -1;
         this->audio_index = -1;
         this->start_time=0;
@@ -360,6 +362,17 @@ void ff2theora_output(ff2theora this) {
             this->picture_width = this->picture_width - this->picture_width%2;
         }
 
+        if(this->no_upscaling) {
+            if(this->picture_width && this->picture_width > venc->width) {
+                this->picture_width = venc->width;
+                this->picture_height = venc->height;
+            }
+            if(this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
+                this->framerate_new.num = vstream->r_frame_rate.num;
+                this->framerate_new.den = vstream->r_frame_rate.den;
+            }
+        }
+
         if(this->preset == V2V_PRESET_PREVIEW){
             if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
                 this->picture_width=NTSC_HALF_WIDTH;
@@ -559,15 +572,15 @@ void ff2theora_output(ff2theora this) {
                           sws_flags, NULL, NULL, NULL
             );
             this->sws_scale_ctx = sws_getContext(
-                          venc->width  - (this->frame_leftBand + this->frame_rightBand),
-                          venc->height  - (this->frame_topBand + this->frame_bottomBand),
+                          venc->width - (this->frame_leftBand + this->frame_rightBand),
+                          venc->height - (this->frame_topBand + this->frame_bottomBand),
                           this->pix_fmt,
                           this->frame_width, this->frame_height, this->pix_fmt,
                           sws_flags, NULL, NULL, NULL
             );
             fprintf(stderr, "  Resize: %dx%d",venc->width,venc->height);
             if(this->frame_topBand || this->frame_bottomBand ||
-            this->frame_leftBand || this->frame_rightBand){
+               this->frame_leftBand || this->frame_rightBand){
                 fprintf(stderr, " => %dx%d",
                     venc->width-this->frame_leftBand-this->frame_rightBand,
                     venc->height-this->frame_topBand-this->frame_bottomBand);
@@ -600,6 +613,13 @@ void ff2theora_output(ff2theora this) {
         if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
             aenc->channels = this->channels;
 
+        if(this->no_upscaling) {
+            if(this->sample_rate > aenc->sample_rate)
+                this->sample_rate = aenc->sample_rate;
+            if(this->channels > aenc->channels)
+                this->channels = aenc->channels;
+        }
+
         if (acodec != NULL && avcodec_open (aenc, acodec) >= 0){
             if(this->sample_rate != aenc->sample_rate || this->channels != aenc->channels){
                 this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->sample_rate,aenc->sample_rate);
@@ -628,6 +648,9 @@ void ff2theora_output(ff2theora this) {
         AVFrame *output_resized=NULL;
         AVFrame *output_buffered_p=NULL;
         AVFrame *output_buffered=NULL;
+        AVFrame *output_cropped_p=NULL;
+        AVFrame *output_cropped=NULL;
+        
 
         AVPacket pkt;
         int len;
@@ -660,11 +683,14 @@ void ff2theora_output(ff2theora this) {
             frame_p = frame = frame_alloc(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
             output_tmp_p = output_tmp = frame_alloc(this->pix_fmt,
-                            vstream->codec->width,vstream->codec->height);
+                            vstream->codec->width, vstream->codec->height);
             output_p = output = frame_alloc(this->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
             output_resized_p = output_resized = frame_alloc(this->pix_fmt,
                             this->frame_width, this->frame_height);
+            output_cropped_p = output_cropped = frame_alloc(this->pix_fmt,
+                            vstream->codec->width-this->frame_leftBand,
+                            vstream->codec->height-this->frame_topBand);
             output_buffered_p = output_buffered = frame_alloc(this->pix_fmt,
                             this->frame_width, this->frame_height);
 
@@ -885,24 +911,27 @@ void ff2theora_output(ff2theora this) {
                                                ppMode, ppContext, this->pix_fmt);
 #ifdef HAVE_FRAMEHOOK
                             if(this->vhook)
-                                frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height, 0);
+                              frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height, 0);
 #endif
+
                             if (this->frame_topBand || this->frame_leftBand) {
-                                if (av_picture_crop((AVPicture *)output_tmp, (AVPicture *)output,
-                                    this->pix_fmt, this->frame_topBand, this->frame_leftBand) < 0) {
-                                    av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
-                                }
-                                av_picture_copy((AVPicture *)output, (AVPicture *)output_tmp, this->pix_fmt, 
-                                                venc->width, venc->height);
+                              if (av_picture_crop((AVPicture *)output_cropped,
+                                                  (AVPicture *)output, his->pix_fmt,
+                                                  this->frame_topBand, this->frame_leftBand) < 0) {
+                                av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
+                              }
+                              output_cropped_p = NULL;
+                            } else {
+                              output_cropped = output;
                             }
                             if(this->sws_scale_ctx){
                               sws_scale(this->sws_scale_ctx,
-                                output->data, output->linesize, 0, venc->height - (this->frame_topBand + this->frame_bottomBand),
+                                output_cropped->data, output_cropped->linesize, 0,
+                                venc->height - (this->frame_topBand + this->frame_bottomBand),
                                 output_resized->data, output_resized->linesize);
                             }
                             else{
-                                av_picture_copy((AVPicture *)output_resized, (AVPicture *)output, this->pix_fmt, 
-                                                venc->width, venc->height);
+                                output_resized = output_cropped;
                             }
 
                         }
@@ -1021,6 +1050,7 @@ void ff2theora_output(ff2theora this) {
             frame_dealloc(output_tmp_p);
             frame_dealloc(output_resized_p);
             frame_dealloc(output_buffered_p);
+            frame_dealloc(output_cropped_p);
         }
         av_free(audio_buf);
         av_free(resampled);
@@ -1191,6 +1221,8 @@ void print_usage (){
         "  -S, --sharpness        [0 to 2] sharpness of images (default: 0).\n"
         "                          Note: lower values make the video sharper.\n"
         "  -K, --keyint           [1 to 65536] keyframe interval (default: 64)\n"
+        "      --no-upscaling     only scale video or resample audio if input is\n"
+        "                         bigger than provided parameters\n"
         "\n"
         "Video transfer options:\n"
         "  --pp                   Video Postprocessing, denoise, deblock, deinterlacer\n"
@@ -1322,6 +1354,7 @@ int main (int argc, char **argv){
       {"nosound",0,&flag,NOAUDIO_FLAG},
       {"noaudio",0,&flag,NOAUDIO_FLAG},
       {"novideo",0,&flag,NOVIDEO_FLAG},
+      {"no-upscaling",0,&flag,NOUPSCALING_FLAG},
 #ifdef HAVE_FRAMEHOOK
       {"vhook",required_argument,&flag,VHOOK_FLAG},
 #endif
@@ -1412,6 +1445,10 @@ int main (int argc, char **argv){
                             break;
                         case NOVIDEO_FLAG:
                             convert->disable_video = 1;
+                            flag = -1;
+                            break;
+                        case NOUPSCALING_FLAG:
+                            convert->no_upscaling = 1;
                             flag = -1;
                             break;
                         case OPTIMIZE_FLAG:
