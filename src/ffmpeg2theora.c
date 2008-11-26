@@ -916,7 +916,7 @@ void ff2theora_output(ff2theora this) {
 
                             if (this->frame_topBand || this->frame_leftBand) {
                               if (av_picture_crop((AVPicture *)output_cropped,
-                                                  (AVPicture *)output, his->pix_fmt,
+                                                  (AVPicture *)output, this->pix_fmt,
                                                   this->frame_topBand, this->frame_leftBand) < 0) {
                                 av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
                               }
