@@ -1,6 +1,5 @@
-Simple Theora Encoder a PythonCard based cross platform GUI
+Simple Theora Encoder a wxPython based cross platform GUI
 for ffmpeg2theora.
 
 for those that fear the command line
 
-FIXME: figure out how to get smaller binaries

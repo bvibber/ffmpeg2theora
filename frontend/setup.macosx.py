@@ -10,8 +10,8 @@ class mypy2app(py2app):
     print ">>>>> installing ffmpeg2theora <<<<<<"
     resourcesRoot = os.path.join(self.dist_dir, 'Simple Theora Encoder.app/Contents/Resources')
     shutil.copy('ffmpeg2theora', os.path.join(resourcesRoot, 'ffmpeg2theora'))
-    rsrc_file = "Simple Theora Encoder.rsrc.py"
-    shutil.copy(rsrc_file, os.path.join(resourcesRoot, rsrc_file))
+    #rsrc_file = "Simple Theora Encoder.rsrc.py"
+    #shutil.copy(rsrc_file, os.path.join(resourcesRoot, rsrc_file))
 
     imgPath = os.path.join(self.dist_dir, "Simple Theora Encoder.dmg")
     os.system('''hdiutil create -srcfolder "%s" -volname "Simple Theora Encoder" -format UDZO "%s"''' %
@@ -27,7 +27,6 @@ setup(
 	'strip': True,
 	'optimize': 2,
 	'iconfile': 'Simple Theora Encoder.icns',
-	'packages': ['PythonCard', 'wx'],
 	'plist': {'CFBundleIconFile': 'Simple Theora Encoder.icns'},
   }},
   cmdclass = {'py2app': mypy2app }
