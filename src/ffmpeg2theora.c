@@ -575,7 +575,7 @@ void ff2theora_output(ff2theora this) {
                           venc->width - (this->frame_leftBand + this->frame_rightBand),
                           venc->height - (this->frame_topBand + this->frame_bottomBand),
                           this->pix_fmt,
-                          this->frame_width, this->frame_height, this->pix_fmt,
+                          this->picture_width, this->picture_height, this->pix_fmt,
                           sws_flags, NULL, NULL, NULL
             );
             fprintf(stderr, "  Resize: %dx%d",venc->width,venc->height);
