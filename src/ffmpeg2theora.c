@@ -103,6 +103,8 @@ oggmux_info info;
 
 static int using_stdin = 0;
 
+static int padcolor[3] = { 16, 128, 128 };
+
 
 /**
  * Allocate and initialise an AVFrame.
@@ -650,6 +652,9 @@ void ff2theora_output(ff2theora this) {
         AVFrame *output_buffered=NULL;
         AVFrame *output_cropped_p=NULL;
         AVFrame *output_cropped=NULL;
+        AVFrame *output_padded_p=NULL;
+        AVFrame *output_padded=NULL;
+                        
         
 
         AVPacket pkt;
@@ -687,11 +692,13 @@ void ff2theora_output(ff2theora this) {
             output_p = output = frame_alloc(this->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
             output_resized_p = output_resized = frame_alloc(this->pix_fmt,
-                            this->frame_width, this->frame_height);
+                            this->picture_width, this->picture_height);
             output_cropped_p = output_cropped = frame_alloc(this->pix_fmt,
                             vstream->codec->width-this->frame_leftBand,
                             vstream->codec->height-this->frame_topBand);
             output_buffered_p = output_buffered = frame_alloc(this->pix_fmt,
+                            this->frame_width, this->frame_height);
+            output_padded_p = output_padded = frame_alloc(this->pix_fmt,
                             this->frame_width, this->frame_height);
 
             /* video settings here */
@@ -933,7 +940,18 @@ void ff2theora_output(ff2theora this) {
                             else{
                                 output_resized = output_cropped;
                             }
-
+                            if ((this->frame_width!=this->picture_width) || (this->frame_height!=this->picture_height)) {
+                              if (av_picture_pad((AVPicture *)output_padded,
+                                                 (AVPicture *)output_resized,
+                                                 this->frame_height, this->frame_width, this->pix_fmt,
+                                                 0, this->frame_height - this->picture_height,
+                                                 0, this->frame_width - this->picture_width,
+                                                 padcolor ) < 0 ) {
+                                av_log(NULL, AV_LOG_ERROR, "error padding frame\n");
+                              }
+                            } else {
+                              output_padded = output_resized;
+                            }
                         }
                         ptr += len1;
                         len -= len1;
@@ -951,7 +969,7 @@ void ff2theora_output(ff2theora this) {
                     }
                     if(got_picture) {
                       first=0;
-                      av_picture_copy ((AVPicture *)output_buffered, (AVPicture *)output_resized, this->pix_fmt, this->frame_width, this->frame_height);
+                      av_picture_copy ((AVPicture *)output_buffered, (AVPicture *)output_padded, this->pix_fmt, this->frame_width, this->frame_height);
                     }
                     if(!got_picture){
                         break;
@@ -1051,6 +1069,7 @@ void ff2theora_output(ff2theora this) {
             frame_dealloc(output_resized_p);
             frame_dealloc(output_buffered_p);
             frame_dealloc(output_cropped_p);
+            frame_dealloc(output_padded_p);
         }
         av_free(audio_buf);
         av_free(resampled);
