@@ -184,6 +184,9 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
           fprintf(stderr, "WARNING - Found non utf8 character(s) in string %s, scrubbed out\n", text);
         }
       }
+      else {
+        newtext = strdup(text);
+      }
       break;
     case ENC_ISO_8859_1:
       /* simple, characters above 0x7f are broken in two,
