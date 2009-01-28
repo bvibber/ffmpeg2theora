@@ -764,7 +764,7 @@ void ff2theora_output(ff2theora this) {
                   fprintf(stderr, "WARNING - Subtitles language not set for input file %d\n",i);
                 }
                 kate_info_set_language(ki, ks->subtitles_language);
-                kate_info_set_category(ki, ks->subtitles_category[0]?ks->subtitles_category:"subtitles");
+                kate_info_set_category(ki, ks->subtitles_category[0]?ks->subtitles_category:"SUB");
                 if(this->force_input_fps.num > 0) {
                     ki->gps_numerator = this->force_input_fps.num;    /* fps= numerator/denominator */
                     ki->gps_denominator = this->force_input_fps.den;
@@ -1821,7 +1821,7 @@ int main (int argc, char **argv){
           printf("Muxing Kate stream %d from %s as %s %s\n",
               n,ks->filename,
               ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
-              ks->subtitles_category[0]?ks->subtitles_category:"subtitles");
+              ks->subtitles_category[0]?ks->subtitles_category:"SUB");
         }
         else {
           if (n!=convert->n_kate_streams) {
