@@ -1483,7 +1483,6 @@ int main (int argc, char **argv){
                             flag = -1;
                             break;
                         case FRONTENDFILE_FLAG:
-                            fprintf(stderr, "set output: %s!!!\n", optarg);
                             info.frontend = fopen(optarg, "w");
                             flag = -1;
                             break;
