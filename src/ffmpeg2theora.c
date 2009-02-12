@@ -1219,7 +1219,7 @@ void print_usage (){
         "      --no-skeleton      disables ogg skeleton metadata output\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
-        "  -p, --v2v-preset       encode file with v2v preset.\n"
+        "  -p, --preset           encode file with preset.\n"
         "                          Right now there is preview, pro and videobin. Run\n"
         "                          '"PACKAGE" -p info' for more informations\n"
         "\n"
@@ -1379,7 +1379,7 @@ int main (int argc, char **argv){
 #endif
       {"framerate",required_argument,NULL,'F'},
       {"aspect",required_argument,&flag,ASPECT_FLAG},
-      {"v2v-preset",required_argument,NULL,'p'},
+      {"preset",required_argument,NULL,'p'},
       {"nice",required_argument,NULL,'N'},
       {"croptop",required_argument,&flag,CROPTOP_FLAG},
       {"cropbottom",required_argument,&flag,CROPBOTTOM_FLAG},
