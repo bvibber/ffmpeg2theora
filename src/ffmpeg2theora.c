@@ -364,17 +364,6 @@ void ff2theora_output(ff2theora this) {
             this->picture_width = this->picture_width - this->picture_width%2;
         }
 
-        if(this->no_upscaling) {
-            if(this->picture_width && this->picture_width > venc->width) {
-                this->picture_width = venc->width;
-                this->picture_height = venc->height;
-            }
-            if(this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
-                this->framerate_new.num = vstream->r_frame_rate.num;
-                this->framerate_new.den = vstream->r_frame_rate.den;
-            }
-        }
-
         if(this->preset == V2V_PRESET_PREVIEW){
             if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
                 this->picture_width=NTSC_HALF_WIDTH;
@@ -492,6 +481,18 @@ void ff2theora_output(ff2theora this) {
             this->picture_width = this->picture_width + this->picture_width%2;
           }
         }
+
+        if(this->no_upscaling) {
+            if(this->picture_width && this->picture_width > venc->width) {
+                this->picture_width = venc->width;
+                this->picture_height = venc->height;
+            }
+            if(this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
+                this->framerate_new.num = vstream->r_frame_rate.num;
+                this->framerate_new.den = vstream->r_frame_rate.den;
+            }
+        }
+
         if(this->picture_height==0 &&
             (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
             this->picture_height=venc->height-
