@@ -66,6 +66,13 @@ if env['debug'] and env['CC'] == 'gcc':
 if GetOption("help"):
     Return()
 
+def ParsePKGConfig(env, name): 
+  if os.environ.get('PKG_CONFIG_PATH', ''):
+    action = 'PKG_CONFIG_PATH=%s pkg-config %s "%s"' % (os.environ['PKG_CONFIG_PATH'], pkg_flags, name)
+  else:
+    action = 'pkg-config %s "%s"' % (pkg_flags, name)
+  return env.ParseConfig(action)
+
 def TryAction(action):
     import os
     ret = os.system(action)
@@ -104,7 +111,7 @@ XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theora >= 1.0beta1"
 if not conf.CheckPKG(XIPH_LIBS): 
   print 'some xiph libs are missing, ffmpeg2theora depends on %s' % XIPH_LIBS
   Exit(1) 
-env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, XIPH_LIBS))
+ParsePKGConfig(env, XIPH_LIBS)
 
 FFMPEG_LIBS="libavcodec libavformat libavdevice libpostproc libswscale"
 if os.path.exists("./ffmpeg"):
@@ -119,7 +126,7 @@ if not conf.CheckPKG(FFMPEG_LIBS):
   """ %(FFMPEG_LIBS, " ".join(["%s-dev"%l for l in FFMPEG_LIBS.split()]))
   Exit(1) 
 for lib in FFMPEG_LIBS.split():
-    env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, lib))
+    ParsePKGConfig(env, lib)
 
 if conf.CheckCHeader('libavformat/framehook.h'):
     env.Append(CCFLAGS=[
@@ -132,7 +139,7 @@ if os.path.exists("./libkate/misc/pkgconfig"):
 if os.path.exists("./libkate/pkg/pkgconfig"):
   os.environ['PKG_CONFIG_PATH'] = "./libkate/pkg/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
 if conf.CheckPKG(KATE_LIBS):
-  env.ParseConfig('pkg-config %s "%s"' % (pkg_flags, KATE_LIBS))
+  ParsePKGConfig(env, KATE_LIBS)
   env.Append(CCFLAGS=['-DHAVE_KATE', '-DHAVE_OGGKATE'])
 else:
   print """
