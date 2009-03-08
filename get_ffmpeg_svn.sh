@@ -20,7 +20,7 @@ uname | grep MINGW && options="$common --enable-memalign-hack --enable-mingw32 -
 
 #Get ffmpeg from svn
 svn -r $FFMPEG_REVISION co $FFMPEG_SVN $FFMPEG_CO_DIR
-sh -c "$FFMPEG_EXTERNALS_UPDATE"
+svn update -r $FFMPEG_EXTERNALS_REVISION $FFMPEG_CO_DIR/libswscale
 
 #configure and build ffmpeg
 cd ffmpeg && ./configure $options && make

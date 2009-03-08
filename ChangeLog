@@ -1,3 +1,9 @@
+0.24 2009-03-??
+    - fix to make --max_size --no_upscaling work
+    - pad image with black instead of green
+    - long option for -p is --preset now
+    - update to ffmpeg 0.5
+
 0.23 2008-11-30
     - output frontend status to file, for frontends that can not read stdout
     - --no-upscaling new option to only use widht/height, fps, samplerate 
