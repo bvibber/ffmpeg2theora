@@ -1,4 +1,4 @@
-0.24 2009-03-??
+0.24 2009-03-12
     - fix to make --max_size --no_upscaling work
     - pad image with black instead of green
     - long option for -p is --preset now

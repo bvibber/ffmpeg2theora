@@ -5,7 +5,7 @@ import os
 import SCons
 
 
-pkg_version="0.23"
+pkg_version="0.24"
 pkg_name="ffmpeg2theora"
 
 scons_version=(0,97,0)

@@ -5,7 +5,7 @@
 #extra=" --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2"
 
 #apt-get install liba52-dev libfaad-dev libgsm1-dev
-#extra=" --enable-liba52 --enable-libfaad --enable-libgsm"
+#extra=" --enable-libfaad --enable-libgsm"
 
 common="--enable-gpl --enable-swscale --enable-postproc --disable-encoders --enable-libvorbis"
 
