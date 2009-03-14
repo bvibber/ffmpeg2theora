@@ -135,7 +135,7 @@ def generate(env):
     env['SHLINKFLAGS'] = SCons.Util.CLVar('$LINKFLAGS -shared')
     env['SHLINKCOM']   = shlib_action
     env.Append(SHLIBEMITTER = [shlib_emitter])
-    env['LINK'] = mingw_prefix + 'g++'
+    env['LINK'] = mingw_prefix + 'gcc'
     env['AS'] = mingw_prefix + 'as'
     env['WIN32DEFPREFIX']        = ''
     env['WIN32DEFSUFFIX']        = '.def'
