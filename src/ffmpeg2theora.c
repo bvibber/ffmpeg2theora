@@ -311,6 +311,7 @@ void ff2theora_output(ff2theora this) {
     pp_context_t *ppContext = NULL;
     float frame_aspect = 0;
     double fps = 0.0;
+    int display_width, display_height;
 
     if(this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
@@ -343,6 +344,8 @@ void ff2theora_output(ff2theora this) {
         vstream = this->context->streams[this->video_index];
         venc = this->context->streams[this->video_index]->codec;
         vcodec = avcodec_find_decoder (venc->codec_id);
+        display_width = venc->width;
+        display_height = venc->height;
 
         fps = (double) vstream->r_frame_rate.num / vstream->r_frame_rate.den;
         if (fps > 10000)
@@ -356,16 +359,16 @@ void ff2theora_output(ff2theora this) {
         this->fps = fps;
 
         if(this->picture_width && !this->picture_height) {
-            this->picture_height = this->picture_width / ((double)venc->width/venc->height);
+            this->picture_height = this->picture_width / ((double)display_width/display_height);
             this->picture_height = this->picture_height - this->picture_height%2;
         }
         if(this->picture_height && !this->picture_width) {
-            this->picture_width = this->picture_height * ((double)venc->width/venc->height);
+            this->picture_width = this->picture_height * ((double)display_width/display_height);
             this->picture_width = this->picture_width - this->picture_width%2;
         }
 
         if(this->preset == V2V_PRESET_PREVIEW){
-            if(abs(this->fps-30)<1 && (venc->width!=NTSC_HALF_WIDTH || venc->height!=NTSC_HALF_HEIGHT) ){
+            if(abs(this->fps-30)<1 && (display_width!=NTSC_HALF_WIDTH || display_height!=NTSC_HALF_HEIGHT) ){
                 this->picture_width=NTSC_HALF_WIDTH;
                 this->picture_height=NTSC_HALF_HEIGHT;
             }
@@ -375,7 +378,7 @@ void ff2theora_output(ff2theora this) {
             }
         }
         else if(this->preset == V2V_PRESET_PRO){
-            if(abs(this->fps-30)<1 && (venc->width!=NTSC_FULL_WIDTH || venc->height!=NTSC_FULL_HEIGHT) ){
+            if(abs(this->fps-30)<1 && (display_width!=NTSC_FULL_WIDTH || display_height!=NTSC_FULL_HEIGHT) ){
                 this->picture_width=NTSC_FULL_WIDTH;
                 this->picture_height=NTSC_FULL_HEIGHT;
             }
@@ -385,8 +388,8 @@ void ff2theora_output(ff2theora this) {
             }
         }
          else if(this->preset == V2V_PRESET_PADMA){
-             int width=venc->width-this->frame_leftBand-this->frame_rightBand;
-             int height=venc->height-this->frame_topBand-this->frame_bottomBand;
+             int width=display_width-this->frame_leftBand-this->frame_rightBand;
+             int height=display_height-this->frame_topBand-this->frame_bottomBand;
              if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
              }
@@ -417,8 +420,8 @@ void ff2theora_output(ff2theora this) {
 
          }
          else if(this->preset == V2V_PRESET_PADMASTREAM){
-             int width=venc->width-this->frame_leftBand-this->frame_rightBand;
-             int height=venc->height-this->frame_topBand-this->frame_bottomBand;
+             int width=display_width-this->frame_leftBand-this->frame_rightBand;
+             int height=display_height-this->frame_topBand-this->frame_bottomBand;
              if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
              }
@@ -434,8 +437,8 @@ void ff2theora_output(ff2theora this) {
              }
          }
         else if(this->preset == V2V_PRESET_VIDEOBIN){
-            int width=venc->width-this->frame_leftBand-this->frame_rightBand;
-            int height=venc->height-this->frame_topBand-this->frame_bottomBand;
+            int width=display_width-this->frame_leftBand-this->frame_rightBand;
+            int height=display_height-this->frame_topBand-this->frame_bottomBand;
             if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
               height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
             }
@@ -464,8 +467,8 @@ void ff2theora_output(ff2theora this) {
 
         }
         if(this->max_size > 0){
-          int width = venc->width-this->frame_leftBand-this->frame_rightBand;
-          int height = venc->height-this->frame_topBand-this->frame_bottomBand;
+          int width = display_width-this->frame_leftBand-this->frame_rightBand;
+          int height = display_height-this->frame_topBand-this->frame_bottomBand;
           if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
             height = ((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
           }
@@ -483,9 +486,9 @@ void ff2theora_output(ff2theora this) {
         }
 
         if(this->no_upscaling) {
-            if(this->picture_width && this->picture_width > venc->width) {
-                this->picture_width = venc->width;
-                this->picture_height = venc->height;
+            if(this->picture_width && this->picture_width > display_width) {
+                this->picture_width = display_width;
+                this->picture_height = display_height;
             }
             if(this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
                 this->framerate_new.num = vstream->r_frame_rate.num;
@@ -495,12 +498,12 @@ void ff2theora_output(ff2theora this) {
 
         if(this->picture_height==0 &&
             (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
-            this->picture_height=venc->height-
+            this->picture_height=display_height-
                     this->frame_topBand-this->frame_bottomBand;
         }
         if(this->picture_width==0 &&
             (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
-            this->picture_width=venc->width-
+            this->picture_width=display_width-
                     this->frame_leftBand-this->frame_rightBand;
         }
         //so frame_aspect is set on the commandline
@@ -510,8 +513,8 @@ void ff2theora_output(ff2theora this) {
                 this->aspect_denominator = 10000*this->picture_width;
             }
             else{
-                this->aspect_numerator = 10000*this->frame_aspect*venc->height;
-                this->aspect_denominator = 10000*venc->width;
+                this->aspect_numerator = 10000*this->frame_aspect*display_height;
+                this->aspect_denominator = 10000*display_width;
             }
             av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
             frame_aspect=this->frame_aspect;
@@ -522,8 +525,8 @@ void ff2theora_output(ff2theora this) {
             this->aspect_denominator=venc->sample_aspect_ratio.den;
             // or we use ratio for the output
             if(this->picture_height){
-                int width=venc->width-this->frame_leftBand-this->frame_rightBand;
-                int height=venc->height-this->frame_topBand-this->frame_bottomBand;
+                int width=display_width-this->frame_leftBand-this->frame_rightBand;
+                int height=display_height-this->frame_topBand-this->frame_bottomBand;
                 av_reduce(&this->aspect_numerator,&this->aspect_denominator,
                 venc->sample_aspect_ratio.num*width*this->picture_height,
                 venc->sample_aspect_ratio.den*height*this->picture_width,10000);
@@ -531,8 +534,8 @@ void ff2theora_output(ff2theora this) {
                                 (this->aspect_denominator*this->picture_height);
             }
             else{
-                frame_aspect=(float)(this->aspect_numerator*venc->width)/
-                                (this->aspect_denominator*venc->height);
+                frame_aspect=(float)(this->aspect_numerator*display_width)/
+                                (this->aspect_denominator*display_height);
             }
         }
         if((float)this->aspect_numerator/this->aspect_denominator < 1.09){
@@ -550,46 +553,47 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr, "  Deinterlace: on\n");
 
         if (strcmp(this->pp_mode, "")) {
-          ppContext = pp_get_context(venc->width, venc->height, PP_FORMAT_420);
+          ppContext = pp_get_context(display_width, display_height, PP_FORMAT_420);
           ppMode = pp_get_mode_by_name_and_quality(this->pp_mode, PP_QUALITY_MAX);
           fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
         }
 
         if(!this->picture_width)
-            this->picture_width = venc->width;
+            this->picture_width = display_width;
         if(!this->picture_height)
-            this->picture_height = venc->height;
+            this->picture_height = display_height;
 
         /* Theora has a divisible-by-sixteen restriction for the encoded video size */
         /* scale the frame size up to the nearest /16 and calculate offsets */
         this->frame_width = ((this->picture_width + 15) >>4)<<4;
         this->frame_height = ((this->picture_height + 15) >>4)<<4;
 
+
         this->frame_x_offset = 0;
         this->frame_y_offset = 0;
 
         if(this->frame_width > 0 || this->frame_height > 0){
             this->sws_colorspace_ctx = sws_getContext(
-                          venc->width, venc->height, venc->pix_fmt,
-                          venc->width, venc->height, this->pix_fmt,
+                          display_width, display_height, venc->pix_fmt,
+                          display_width, display_height, this->pix_fmt,
                           sws_flags, NULL, NULL, NULL
             );
             this->sws_scale_ctx = sws_getContext(
-                          venc->width - (this->frame_leftBand + this->frame_rightBand),
-                          venc->height - (this->frame_topBand + this->frame_bottomBand),
+                          display_width - (this->frame_leftBand + this->frame_rightBand),
+                          display_height - (this->frame_topBand + this->frame_bottomBand),
                           this->pix_fmt,
                           this->picture_width, this->picture_height, this->pix_fmt,
                           sws_flags, NULL, NULL, NULL
             );
-            fprintf(stderr, "  Resize: %dx%d",venc->width,venc->height);
+            fprintf(stderr, "  Resize: %dx%d",display_width,display_height);
             if(this->frame_topBand || this->frame_bottomBand ||
                this->frame_leftBand || this->frame_rightBand){
                 fprintf(stderr, " => %dx%d",
-                    venc->width-this->frame_leftBand-this->frame_rightBand,
-                    venc->height-this->frame_topBand-this->frame_bottomBand);
+                    display_width-this->frame_leftBand-this->frame_rightBand,
+                    display_height-this->frame_topBand-this->frame_bottomBand);
             }
-            if(this->picture_width != (venc->width-this->frame_leftBand - this->frame_rightBand)
-                || this->picture_height != (venc->height-this->frame_topBand-this->frame_bottomBand))
+            if(this->picture_width != (display_width-this->frame_leftBand - this->frame_rightBand)
+                || this->picture_height != (display_height-this->frame_topBand-this->frame_bottomBand))
                 fprintf(stderr, " => %dx%d",this->picture_width, this->picture_height);
             fprintf(stderr, "\n");
         }
@@ -890,36 +894,36 @@ void ff2theora_output(ff2theora this) {
 
                             if(venc->pix_fmt != this->pix_fmt) {
                                sws_scale(this->sws_colorspace_ctx,
-                                 frame->data, frame->linesize, 0, venc->height,
+                                 frame->data, frame->linesize, 0, display_height,
                                  output_tmp->data, output_tmp->linesize);
 
                             }
                             else{
                                 av_picture_copy((AVPicture *)output_tmp, (AVPicture *)frame, this->pix_fmt, 
-                                                venc->width, venc->height);
+                                                display_width, display_height);
                                 output_tmp_p=NULL;
                             }
                             if(frame->interlaced_frame || this->deinterlace){
-                                if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,venc->width,venc->height)<0){
+                                if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,display_width,display_height)<0){
                                         fprintf(stderr, "Deinterlace failed.\n");
                                         exit(1);
                                 }
                             }
                             else{
                                 av_picture_copy((AVPicture *)output, (AVPicture *)output_tmp, this->pix_fmt, 
-                                                venc->width, venc->height);
+                                                display_width, display_height);
                             }
                             // now output
 
                             if(ppMode)
                                 pp_postprocess(output->data, output->linesize,
                                                output->data, output->linesize,
-                                               venc->width, venc->height,
+                                               display_width, display_height,
                                                output->qscale_table, output->qstride,
                                                ppMode, ppContext, this->pix_fmt);
 #ifdef HAVE_FRAMEHOOK
                             if(this->vhook)
-                              frame_hook_process((AVPicture *)output, this->pix_fmt, venc->width,venc->height, 0);
+                              frame_hook_process((AVPicture *)output, this->pix_fmt, display_width,display_height, 0);
 #endif
 
                             if (this->frame_topBand || this->frame_leftBand) {
@@ -935,7 +939,7 @@ void ff2theora_output(ff2theora this) {
                             if(this->sws_scale_ctx){
                               sws_scale(this->sws_scale_ctx,
                                 output_cropped->data, output_cropped->linesize, 0,
-                                venc->height - (this->frame_topBand + this->frame_bottomBand),
+                                display_height - (this->frame_topBand + this->frame_bottomBand),
                                 output_resized->data, output_resized->linesize);
                             }
                             else{
