@@ -128,11 +128,10 @@ if not conf.CheckPKG(FFMPEG_LIBS):
 for lib in FFMPEG_LIBS.split():
     ParsePKGConfig(env, lib)
 
-#FIXME: this no longer works with ffmpeg trunk
-#if conf.CheckCHeader('libavformat/framehook.h'):
-#    env.Append(CCFLAGS=[
-#      '-DHAVE_FRAMEHOOK'
-#    ])
+if conf.CheckCHeader('libavformat/framehook.h'):
+    env.Append(CCFLAGS=[
+      '-DHAVE_FRAMEHOOK'
+    ])
 
 KATE_LIBS="oggkate"
 if os.path.exists("./libkate/misc/pkgconfig"):
