@@ -311,6 +311,7 @@ void ff2theora_output(ff2theora this) {
     pp_context_t *ppContext = NULL;
     float frame_aspect = 0;
     double fps = 0.0;
+    AVRational vstream_fps;
     int display_width, display_height;
 
     if(this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
@@ -347,7 +348,17 @@ void ff2theora_output(ff2theora this) {
         display_width = venc->width;
         display_height = venc->height;
 
-        fps = (double) vstream->r_frame_rate.num / vstream->r_frame_rate.den;
+        if(vstream->time_base.den && vstream->time_base.num
+                                  && av_q2d(vstream->time_base) > 0.001) {
+            vstream_fps.num = vstream->time_base.den;
+            vstream_fps.den =  vstream->time_base.num;
+            fps = 1/av_q2d(vstream->time_base);
+        } else {
+            fps = (double) vstream->r_frame_rate.num / vstream->r_frame_rate.den;
+            vstream_fps.num = vstream->r_frame_rate.num;
+            vstream_fps.den = vstream->r_frame_rate.den;
+        }
+
         if (fps > 10000)
             fps /= 1000;
 
@@ -491,8 +502,8 @@ void ff2theora_output(ff2theora this) {
                 this->picture_height = display_height;
             }
             if(this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
-                this->framerate_new.num = vstream->r_frame_rate.num;
-                this->framerate_new.den = vstream->r_frame_rate.den;
+                this->framerate_new.num = vstream_fps.num;
+                this->framerate_new.den = vstream_fps.den;
             }
         }
 
@@ -724,8 +735,8 @@ void ff2theora_output(ff2theora this) {
                 info.ti.fps_denominator = this->framerate_new.den;
             }
             else {
-                info.ti.fps_numerator=vstream->r_frame_rate.num;
-                info.ti.fps_denominator = vstream->r_frame_rate.den;
+                info.ti.fps_numerator = vstream_fps.num;
+                info.ti.fps_denominator = vstream_fps.den;
             }
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
@@ -782,8 +793,8 @@ void ff2theora_output(ff2theora this) {
                         ki->gps_denominator = this->framerate_new.den;
                     } 
                     else {
-                        ki->gps_numerator=vstream->r_frame_rate.num;
-                        ki->gps_denominator = vstream->r_frame_rate.den;
+                        ki->gps_numerator = vstream_fps.num;
+                        ki->gps_denominator = vstream_fps.den;
                     }
                 }
                 ki->granule_shift = 32;
