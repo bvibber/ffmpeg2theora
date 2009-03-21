@@ -48,41 +48,41 @@
 #include "ffmpeg2theora.h"
 
 enum {
-  NULL_FLAG,
-  DEINTERLACE_FLAG,
-  OPTIMIZE_FLAG,
-  SYNC_FLAG,
-  NOAUDIO_FLAG,
-  NOVIDEO_FLAG,
-  NOUPSCALING_FLAG,
-  CROPTOP_FLAG,
-  CROPBOTTOM_FLAG,
-  CROPRIGHT_FLAG,
-  CROPLEFT_FLAG,
-  ASPECT_FLAG,
-  MAXSIZE_FLAG,
-  INPUTFPS_FLAG,
-  AUDIOSTREAM_FLAG,
-  SUBTITLES_FLAG,
-  SUBTITLES_ENCODING_FLAG,
-  SUBTITLES_LANGUAGE_FLAG,
-  SUBTITLES_CATEGORY_FLAG,
-  SUBTITLES_IGNORE_NON_UTF8_FLAG,
-  VHOOK_FLAG,
-  FRONTEND_FLAG,
-  FRONTENDFILE_FLAG,
-  SPEEDLEVEL_FLAG,
-  PP_FLAG,
-  NOSKELETON
+    NULL_FLAG,
+    DEINTERLACE_FLAG,
+    OPTIMIZE_FLAG,
+    SYNC_FLAG,
+    NOAUDIO_FLAG,
+    NOVIDEO_FLAG,
+    NOUPSCALING_FLAG,
+    CROPTOP_FLAG,
+    CROPBOTTOM_FLAG,
+    CROPRIGHT_FLAG,
+    CROPLEFT_FLAG,
+    ASPECT_FLAG,
+    MAXSIZE_FLAG,
+    INPUTFPS_FLAG,
+    AUDIOSTREAM_FLAG,
+    SUBTITLES_FLAG,
+    SUBTITLES_ENCODING_FLAG,
+    SUBTITLES_LANGUAGE_FLAG,
+    SUBTITLES_CATEGORY_FLAG,
+    SUBTITLES_IGNORE_NON_UTF8_FLAG,
+    VHOOK_FLAG,
+    FRONTEND_FLAG,
+    FRONTENDFILE_FLAG,
+    SPEEDLEVEL_FLAG,
+    PP_FLAG,
+    NOSKELETON
 } F2T_FLAGS;
 
 enum {
-  V2V_PRESET_NONE,
-  V2V_PRESET_PRO,
-  V2V_PRESET_PREVIEW,
-  V2V_PRESET_VIDEOBIN,
-  V2V_PRESET_PADMA,
-  V2V_PRESET_PADMASTREAM,
+    V2V_PRESET_NONE,
+    V2V_PRESET_PRO,
+    V2V_PRESET_PREVIEW,
+    V2V_PRESET_VIDEOBIN,
+    V2V_PRESET_PADMA,
+    V2V_PRESET_PADMASTREAM,
 } F2T_PRESETS;
 
 
@@ -109,29 +109,28 @@ static int padcolor[3] = { 16, 128, 128 };
 /**
  * Allocate and initialise an AVFrame.
  */
-static AVFrame *frame_alloc (int pix_fmt, int width, int height) {
+static AVFrame *frame_alloc(int pix_fmt, int width, int height) {
     AVFrame *picture;
     uint8_t *picture_buf;
     int size;
 
-    picture = avcodec_alloc_frame ();
+    picture = avcodec_alloc_frame();
     if (!picture)
         return NULL;
     size = avpicture_get_size (pix_fmt, width, height);
     picture_buf = av_malloc (size);
-    if (!picture_buf){
+    if (!picture_buf) {
         av_free (picture);
         return NULL;
     }
-    avpicture_fill ((AVPicture *) picture, picture_buf,
-            pix_fmt, width, height);
+    avpicture_fill((AVPicture *) picture, picture_buf, pix_fmt, width, height);
     return picture;
 }
 
 /**
  * Frees an AVFrame.
  */
-static void frame_dealloc (AVFrame *frame) {
+static void frame_dealloc(AVFrame *frame) {
     if (frame) {
         avpicture_free((AVPicture*)frame);
         av_free(frame);
@@ -142,9 +141,9 @@ static void frame_dealloc (AVFrame *frame) {
  * initialize ff2theora with default values
  * @return ff2theora struct
  */
-static ff2theora ff2theora_init (){
+static ff2theora ff2theora_init() {
     ff2theora this = calloc (1, sizeof (*this));
-    if (this != NULL){
+    if (this != NULL) {
         this->disable_audio=0;
         this->disable_video=0;
         this->no_upscaling=0;
@@ -211,7 +210,7 @@ static void y_lut_init(ff2theora this) {
     double c = this->video_contr;
     double b = this->video_bright;
     double g = this->video_gamma;
- 
+
     if ((g < 0.01) || (g > 100.0)) g = 1.0;
     if ((c < 0.01) || (c > 100.0)) c = 1.0;
     if ((b < -1.0) || (b > 1.0))   b = 0.0;
@@ -314,7 +313,7 @@ void ff2theora_output(ff2theora this) {
     AVRational vstream_fps;
     int display_width, display_height;
 
-    if(this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
+    if (this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
         if (enc->codec_type == CODEC_TYPE_AUDIO) {
             this->audio_index = this->audiostream;
@@ -325,11 +324,11 @@ void ff2theora_output(ff2theora this) {
         }
     }
 
-    for (i = 0; i < this->context->nb_streams; i++){
+    for (i = 0; i < this->context->nb_streams; i++) {
         AVCodecContext *enc = this->context->streams[i]->codec;
-        switch (enc->codec_type){
+        switch (enc->codec_type) {
             case CODEC_TYPE_VIDEO:
-              if (this->video_index < 0 && !this->disable_video)
+                if (this->video_index < 0 && !this->disable_video)
                     this->video_index = i;
                 break;
             case CODEC_TYPE_AUDIO:
@@ -341,14 +340,14 @@ void ff2theora_output(ff2theora this) {
         }
     }
 
-    if (this->video_index >= 0){
+    if (this->video_index >= 0) {
         vstream = this->context->streams[this->video_index];
         venc = this->context->streams[this->video_index]->codec;
         vcodec = avcodec_find_decoder (venc->codec_id);
         display_width = venc->width;
         display_height = venc->height;
 
-        if(vstream->time_base.den && vstream->time_base.num
+        if (vstream->time_base.den && vstream->time_base.num
                                   && av_q2d(vstream->time_base) > 0.001) {
             vstream_fps.num = vstream->time_base.den;
             vstream_fps.den =  vstream->time_base.num;
@@ -362,24 +361,24 @@ void ff2theora_output(ff2theora this) {
         if (fps > 10000)
             fps /= 1000;
 
-        if(this->force_input_fps.num > 0)
+        if (this->force_input_fps.num > 0)
             fps=(double)this->force_input_fps.num / this->force_input_fps.den;
         if (vcodec == NULL || avcodec_open (venc, vcodec) < 0) {
             this->video_index = -1;
         }
         this->fps = fps;
 
-        if(this->picture_width && !this->picture_height) {
+        if (this->picture_width && !this->picture_height) {
             this->picture_height = this->picture_width / ((double)display_width/display_height);
             this->picture_height = this->picture_height - this->picture_height%2;
         }
-        if(this->picture_height && !this->picture_width) {
+        if (this->picture_height && !this->picture_width) {
             this->picture_width = this->picture_height * ((double)display_width/display_height);
             this->picture_width = this->picture_width - this->picture_width%2;
         }
 
-        if(this->preset == V2V_PRESET_PREVIEW){
-            if(abs(this->fps-30)<1 && (display_width!=NTSC_HALF_WIDTH || display_height!=NTSC_HALF_HEIGHT) ){
+        if (this->preset == V2V_PRESET_PREVIEW) {
+            if (abs(this->fps-30)<1 && (display_width!=NTSC_HALF_WIDTH || display_height!=NTSC_HALF_HEIGHT) ) {
                 this->picture_width=NTSC_HALF_WIDTH;
                 this->picture_height=NTSC_HALF_HEIGHT;
             }
@@ -388,8 +387,8 @@ void ff2theora_output(ff2theora this) {
                 this->picture_height=PAL_HALF_HEIGHT;
             }
         }
-        else if(this->preset == V2V_PRESET_PRO){
-            if(abs(this->fps-30)<1 && (display_width!=NTSC_FULL_WIDTH || display_height!=NTSC_FULL_HEIGHT) ){
+        else if (this->preset == V2V_PRESET_PRO) {
+            if (abs(this->fps-30)<1 && (display_width!=NTSC_FULL_WIDTH || display_height!=NTSC_FULL_HEIGHT) ) {
                 this->picture_width=NTSC_FULL_WIDTH;
                 this->picture_height=NTSC_FULL_HEIGHT;
             }
@@ -398,128 +397,126 @@ void ff2theora_output(ff2theora this) {
                 this->picture_height=PAL_FULL_HEIGHT;
             }
         }
-         else if(this->preset == V2V_PRESET_PADMA){
-             int width=display_width-this->frame_leftBand-this->frame_rightBand;
-             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-             if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-               height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
-             }
-             if(this->frame_aspect == 0)
-               this->frame_aspect = (float)width/height;
-             if(this->frame_aspect <= 1.5) {
-               if(width > 640 || height > 480) {
-                 //4:3 640 x 480
-                 this->picture_width=640;
-                 this->picture_height=480;
-               }
-               else {
-                 this->picture_width=width;
-                 this->picture_height=height;
-               }
-             }
-             else {
-               if(width > 640 || height > 360) {
-                 //16:9 640 x 360
-                 this->picture_width=640;
-                 this->picture_height=360;
-               }
-               else {
-                 this->picture_width=width;
-                 this->picture_height=height;
-               }
-             }
-
-         }
-         else if(this->preset == V2V_PRESET_PADMASTREAM){
-             int width=display_width-this->frame_leftBand-this->frame_rightBand;
-             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-             if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-               height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
-             }
-             if(this->frame_aspect == 0)
-               this->frame_aspect = (float)width/height;
-             if(this->frame_aspect <= 1.5) {
-                 this->picture_width=128;
-                 this->picture_height=96;
-             }
-             else {
-                 this->picture_width=128;
-                 this->picture_height=72;
-             }
-         }
-        else if(this->preset == V2V_PRESET_VIDEOBIN){
+        else if (this->preset == V2V_PRESET_PADMA) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-            if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-              height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
             }
-            if( ((float)width /height) <= 1.5) {
-              if(width > 448) {
-                //4:3 448 x 336
-                this->picture_width=448;
-                this->picture_height=336;
-              }
-              else {
-                this->picture_width=width;
-                this->picture_height=height;
-              }
+            if (this->frame_aspect == 0)
+                this->frame_aspect = (float)width/height;
+            if (this->frame_aspect <= 1.5) {
+                if (width > 640 || height > 480) {
+                    //4:3 640 x 480
+                    this->picture_width=640;
+                    this->picture_height=480;
+                }
+                else {
+                    this->picture_width=width;
+                    this->picture_height=height;
+                }
             }
             else {
-              if(width > 512) {
-                //16:9 512 x 288
-                this->picture_width=512;
-                this->picture_height=288;
-              }
-              else {
-                this->picture_width=width;
-                this->picture_height=height;
-              }
+                if (width > 640 || height > 360) {
+                    //16:9 640 x 360
+                    this->picture_width=640;
+                    this->picture_height=360;
+                }
+                else {
+                    this->picture_width=width;
+                    this->picture_height=height;
+                }
             }
-
         }
-        if(this->max_size > 0){
-          int width = display_width-this->frame_leftBand-this->frame_rightBand;
-          int height = display_height-this->frame_topBand-this->frame_bottomBand;
-          if(venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-            height = ((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
-          }
-          if(this->frame_aspect == 0)
-            this->frame_aspect = (float)width/height;
-          if(width > height) {
-            this->picture_width = this->max_size;
-            this->picture_height = this->max_size / this->frame_aspect;
-            this->picture_height = this->picture_height + this->picture_height%2;
-          } else {
-            this->picture_height = this->max_size;
-            this->picture_width = this->max_size * this->frame_aspect;
-            this->picture_width = this->picture_width + this->picture_width%2;
-          }
+        else if (this->preset == V2V_PRESET_PADMASTREAM) {
+            int width=display_width-this->frame_leftBand-this->frame_rightBand;
+            int height=display_height-this->frame_topBand-this->frame_bottomBand;
+            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            }
+            if (this->frame_aspect == 0)
+                this->frame_aspect = (float)width/height;
+            if (this->frame_aspect <= 1.5) {
+                this->picture_width=128;
+                this->picture_height=96;
+            }
+            else {
+                this->picture_width=128;
+                this->picture_height=72;
+            }
+        }
+        else if (this->preset == V2V_PRESET_VIDEOBIN) {
+            int width=display_width-this->frame_leftBand-this->frame_rightBand;
+            int height=display_height-this->frame_topBand-this->frame_bottomBand;
+            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            }
+            if ( ((float)width /height) <= 1.5) {
+                if (width > 448) {
+                    //4:3 448 x 336
+                    this->picture_width=448;
+                    this->picture_height=336;
+                }
+                else {
+                    this->picture_width=width;
+                    this->picture_height=height;
+                }
+            }
+            else {
+                if (width > 512) {
+                    //16:9 512 x 288
+                    this->picture_width=512;
+                    this->picture_height=288;
+                }
+                else {
+                    this->picture_width=width;
+                    this->picture_height=height;
+                }
+            }
+        }
+        if (this->max_size > 0) {
+            int width = display_width-this->frame_leftBand-this->frame_rightBand;
+            int height = display_height-this->frame_topBand-this->frame_bottomBand;
+            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
+                height = ((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            }
+            if (this->frame_aspect == 0)
+                this->frame_aspect = (float)width/height;
+            if (width > height) {
+                this->picture_width = this->max_size;
+                this->picture_height = this->max_size / this->frame_aspect;
+                this->picture_height = this->picture_height + this->picture_height%2;
+            } else {
+                this->picture_height = this->max_size;
+                this->picture_width = this->max_size * this->frame_aspect;
+                this->picture_width = this->picture_width + this->picture_width%2;
+            }
         }
 
-        if(this->no_upscaling) {
-            if(this->picture_width && this->picture_width > display_width) {
+        if (this->no_upscaling) {
+            if (this->picture_width && this->picture_width > display_width) {
                 this->picture_width = display_width;
                 this->picture_height = display_height;
             }
-            if(this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
+            if (this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
                 this->framerate_new.num = vstream_fps.num;
                 this->framerate_new.den = vstream_fps.den;
             }
         }
 
-        if(this->picture_height==0 &&
-            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
+        if (this->picture_height==0 &&
+            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ) {
             this->picture_height=display_height-
                     this->frame_topBand-this->frame_bottomBand;
         }
-        if(this->picture_width==0 &&
-            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ){
+        if (this->picture_width==0 &&
+            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ) {
             this->picture_width=display_width-
                     this->frame_leftBand-this->frame_rightBand;
         }
         //so frame_aspect is set on the commandline
-        if(this->frame_aspect != 0){
-            if(this->picture_height){
+        if (this->frame_aspect != 0) {
+            if (this->picture_height) {
                 this->aspect_numerator = 10000*this->frame_aspect*this->picture_height;
                 this->aspect_denominator = 10000*this->picture_width;
             }
@@ -530,12 +527,12 @@ void ff2theora_output(ff2theora this) {
             av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
             frame_aspect=this->frame_aspect;
         }
-        if(venc->sample_aspect_ratio.num!=0 && this->frame_aspect==0){
+        if (venc->sample_aspect_ratio.num!=0 && this->frame_aspect==0) {
             // just use the ratio from the input
             this->aspect_numerator=venc->sample_aspect_ratio.num;
             this->aspect_denominator=venc->sample_aspect_ratio.den;
             // or we use ratio for the output
-            if(this->picture_height){
+            if (this->picture_height) {
                 int width=display_width-this->frame_leftBand-this->frame_rightBand;
                 int height=display_height-this->frame_topBand-this->frame_bottomBand;
                 av_reduce(&this->aspect_numerator,&this->aspect_denominator,
@@ -549,13 +546,13 @@ void ff2theora_output(ff2theora this) {
                                 (this->aspect_denominator*display_height);
             }
         }
-        if((float)this->aspect_numerator/this->aspect_denominator < 1.09){
-          this->aspect_numerator = 1;
-          this->aspect_denominator = 1;
-          frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
-                          (this->aspect_denominator*this->picture_height);
+        if ((float)this->aspect_numerator/this->aspect_denominator < 1.09) {
+            this->aspect_numerator = 1;
+            this->aspect_denominator = 1;
+            frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
+                                (this->aspect_denominator*this->picture_height);
         }
-        if(this->aspect_denominator && frame_aspect){
+        if (this->aspect_denominator && frame_aspect) {
             fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
             fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
         }
@@ -564,14 +561,14 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr, "  Deinterlace: on\n");
 
         if (strcmp(this->pp_mode, "")) {
-          ppContext = pp_get_context(display_width, display_height, PP_FORMAT_420);
-          ppMode = pp_get_mode_by_name_and_quality(this->pp_mode, PP_QUALITY_MAX);
-          fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
+            ppContext = pp_get_context(display_width, display_height, PP_FORMAT_420);
+            ppMode = pp_get_mode_by_name_and_quality(this->pp_mode, PP_QUALITY_MAX);
+            fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
         }
 
-        if(!this->picture_width)
+        if (!this->picture_width)
             this->picture_width = display_width;
-        if(!this->picture_height)
+        if (!this->picture_height)
             this->picture_height = display_height;
 
         /* Theora has a divisible-by-sixteen restriction for the encoded video size */
@@ -583,27 +580,27 @@ void ff2theora_output(ff2theora this) {
         this->frame_x_offset = 0;
         this->frame_y_offset = 0;
 
-        if(this->frame_width > 0 || this->frame_height > 0){
+        if (this->frame_width > 0 || this->frame_height > 0) {
             this->sws_colorspace_ctx = sws_getContext(
-                          display_width, display_height, venc->pix_fmt,
-                          display_width, display_height, this->pix_fmt,
-                          sws_flags, NULL, NULL, NULL
+                            display_width, display_height, venc->pix_fmt,
+                            display_width, display_height, this->pix_fmt,
+                            sws_flags, NULL, NULL, NULL
             );
             this->sws_scale_ctx = sws_getContext(
-                          display_width - (this->frame_leftBand + this->frame_rightBand),
-                          display_height - (this->frame_topBand + this->frame_bottomBand),
-                          this->pix_fmt,
-                          this->picture_width, this->picture_height, this->pix_fmt,
-                          sws_flags, NULL, NULL, NULL
+                        display_width - (this->frame_leftBand + this->frame_rightBand),
+                        display_height - (this->frame_topBand + this->frame_bottomBand),
+                        this->pix_fmt,
+                        this->picture_width, this->picture_height, this->pix_fmt,
+                        sws_flags, NULL, NULL, NULL
             );
             fprintf(stderr, "  Resize: %dx%d",display_width,display_height);
-            if(this->frame_topBand || this->frame_bottomBand ||
-               this->frame_leftBand || this->frame_rightBand){
+            if (this->frame_topBand || this->frame_bottomBand ||
+                this->frame_leftBand || this->frame_rightBand) {
                 fprintf(stderr, " => %dx%d",
                     display_width-this->frame_leftBand-this->frame_rightBand,
                     display_height-this->frame_topBand-this->frame_bottomBand);
             }
-            if(this->picture_width != (display_width-this->frame_leftBand - this->frame_rightBand)
+            if (this->picture_width != (display_width-this->frame_leftBand - this->frame_rightBand)
                 || this->picture_height != (display_height-this->frame_topBand-this->frame_bottomBand))
                 fprintf(stderr, " => %dx%d",this->picture_width, this->picture_height);
             fprintf(stderr, "\n");
@@ -615,32 +612,32 @@ void ff2theora_output(ff2theora this) {
         fprintf(stderr, "  Resample Framerate: %0.2f => %0.2f\n",
                         this->fps, (double)this->framerate_new.num / this->framerate_new.den);
     }
-    if (this->audio_index >= 0){
+    if (this->audio_index >= 0) {
         astream = this->context->streams[this->audio_index];
         aenc = this->context->streams[this->audio_index]->codec;
         acodec = avcodec_find_decoder (aenc->codec_id);
         if (this->channels < 1) {
             this->channels = aenc->channels;
         }
-        if(this->sample_rate==-1) {
+        if (this->sample_rate==-1) {
             this->sample_rate = aenc->sample_rate;
         }
         if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
             aenc->channels = this->channels;
 
-        if(this->no_upscaling) {
-            if(this->sample_rate > aenc->sample_rate)
+        if (this->no_upscaling) {
+            if (this->sample_rate > aenc->sample_rate)
                 this->sample_rate = aenc->sample_rate;
-            if(this->channels > aenc->channels)
+            if (this->channels > aenc->channels)
                 this->channels = aenc->channels;
         }
 
-        if (acodec != NULL && avcodec_open (aenc, acodec) >= 0){
-            if(this->sample_rate != aenc->sample_rate || this->channels != aenc->channels){
+        if (acodec != NULL && avcodec_open (aenc, acodec) >= 0) {
+            if (this->sample_rate != aenc->sample_rate || this->channels != aenc->channels) {
                 this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->sample_rate,aenc->sample_rate);
-                if(this->sample_rate!=aenc->sample_rate)
+                if (this->sample_rate!=aenc->sample_rate)
                     fprintf(stderr, "  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
-                if(this->channels!=aenc->channels)
+                if (this->channels!=aenc->channels)
                     fprintf(stderr, "  Channels: %d => %d\n",aenc->channels,this->channels);
             }
             else{
@@ -652,7 +649,7 @@ void ff2theora_output(ff2theora this) {
         }
     }
 
-    if (this->video_index >= 0 || this->audio_index >= 0){
+    if (this->video_index >= 0 || this->audio_index >= 0) {
         AVFrame *frame=NULL;
         AVFrame *frame_p=NULL;
         AVFrame *output=NULL;
@@ -667,8 +664,6 @@ void ff2theora_output(ff2theora this) {
         AVFrame *output_cropped=NULL;
         AVFrame *output_padded_p=NULL;
         AVFrame *output_padded=NULL;
-                        
-        
 
         AVPacket pkt;
         int len;
@@ -687,17 +682,17 @@ void ff2theora_output(ff2theora this) {
         double framerate_add = 0;
         double framerate_tmpcount = 0;
 
-        if(this->video_index >= 0)
+        if (this->video_index >= 0)
             info.audio_only=0;
         else
             info.audio_only=1;
 
-        if(this->audio_index>=0)
+        if (this->audio_index>=0)
             info.video_only=0;
         else
             info.video_only=1;
 
-        if(!info.audio_only){
+        if (!info.audio_only) {
             frame_p = frame = frame_alloc(vstream->codec->pix_fmt,
                             vstream->codec->width,vstream->codec->height);
             output_tmp_p = output_tmp = frame_alloc(this->pix_fmt,
@@ -717,7 +712,7 @@ void ff2theora_output(ff2theora this) {
             /* video settings here */
             /* config file? commandline options? v2v presets? */
 
-            theora_info_init (&info.ti);
+            theora_info_init(&info.ti);
 
             info.ti.width = this->frame_width;
             info.ti.height = this->frame_height;
@@ -740,9 +735,9 @@ void ff2theora_output(ff2theora this) {
             info.ti.aspect_denominator=this->aspect_denominator;
             // FIXME: is all input material with fps==25 OC_CS_ITU_REC_470BG?
             // guess not, commandline option to select colorspace would be the best.
-            if((this->fps-25)<1)
+            if ((this->fps-25)<1)
                 info.ti.colorspace = OC_CS_ITU_REC_470BG;
-            else if(abs(this->fps-30)<1)
+            else if (abs(this->fps-30)<1)
                 info.ti.colorspace = OC_CS_ITU_REC_470M;
             else
                 info.ti.colorspace = OC_CS_UNSPECIFIED;
@@ -774,21 +769,21 @@ void ff2theora_output(ff2theora this) {
             kate_info_init(ki);
             if (ks->num_subtitles > 0) {
                 if (!ks->subtitles_language[0]) {
-                  fprintf(stderr, "WARNING - Subtitles language not set for input file %d\n",i);
+                    fprintf(stderr, "WARNING - Subtitles language not set for input file %d\n",i);
                 }
                 kate_info_set_language(ki, ks->subtitles_language);
                 kate_info_set_category(ki, ks->subtitles_category[0]?ks->subtitles_category:"SUB");
-                if(this->force_input_fps.num > 0) {
+                if (this->force_input_fps.num > 0) {
                     ki->gps_numerator = this->force_input_fps.num;    /* fps= numerator/denominator */
                     ki->gps_denominator = this->force_input_fps.den;
                 }
                 else {
                     if (this->framerate_new.num > 0) {
-                        // new framerate is interger only right now, 
+                        // new framerate is interger only right now,
                         // so denominator is always 1
                         ki->gps_numerator = this->framerate_new.num;
                         ki->gps_denominator = this->framerate_new.den;
-                    } 
+                    }
                     else {
                         ki->gps_numerator = vstream_fps.num;
                         ki->gps_denominator = vstream_fps.den;
@@ -798,19 +793,19 @@ void ff2theora_output(ff2theora this) {
             }
         }
 #endif
-        oggmux_init (&info);
+        oggmux_init(&info);
         /*seek to start time*/
-        if(this->start_time) {
-          av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
-          /* discard subtitles by their end time, so we still have those that start before the start time,
+        if (this->start_time) {
+            av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
+            /* discard subtitles by their end time, so we still have those that start before the start time,
              but end after it */
-          for (i=0; i<this->n_kate_streams; ++i) {
-              ff2theora_kate_stream *ks=this->kate_streams+i;
-              while (ks->subtitles_count < ks->num_subtitles && ks->subtitles[ks->subtitles_count].t1 <= this->start_time) {
-                  /* printf("skipping subtitle %u\n", ks->subtitles_count); */
-                  ks->subtitles_count++;
-              }
-          }
+            for (i=0; i<this->n_kate_streams; ++i) {
+                ff2theora_kate_stream *ks=this->kate_streams+i;
+                while (ks->subtitles_count < ks->num_subtitles && ks->subtitles[ks->subtitles_count].t1 <= this->start_time) {
+                    /* printf("skipping subtitle %u\n", ks->subtitles_count); */
+                    ks->subtitles_count++;
+                }
+            }
         }
 
         if (this->framerate_new.num > 0) {
@@ -823,43 +818,43 @@ void ff2theora_output(ff2theora this) {
         /*check for end time and calculate number of frames to encode*/
         no_frames = this->fps*(this->end_time - this->start_time);
         no_samples = this->sample_rate * (this->end_time - this->start_time);
-        if((info.audio_only && this->end_time > 0 && no_samples <= 0)
-           || (!info.audio_only && this->end_time > 0 && no_frames <= 0)){
+        if ((info.audio_only && this->end_time > 0 && no_samples <= 0)
+            || (!info.audio_only && this->end_time > 0 && no_frames <= 0)) {
             fprintf(stderr, "End time has to be bigger than start time.\n");
             exit(1);
         }
         /* main decoding loop */
         do{
-            if(info.audio_only && no_samples > 0){
-                if(this->sample_count > no_samples){
+            if (info.audio_only && no_samples > 0) {
+                if (this->sample_count > no_samples) {
                     break;
                 }
             }
-            if(no_frames > 0){
-                if(this->frame_count > no_frames){
+            if (no_frames > 0) {
+                if (this->frame_count > no_frames) {
                     break;
                 }
             }
             ret = av_read_frame(this->context,&pkt);
-            if(ret<0){
+            if (ret<0) {
                 e_o_s=1;
             }
 
             ptr = pkt.data;
             len = pkt.size;
-            if ((e_o_s && !info.audio_only) || (ret >= 0 && pkt.stream_index == this->video_index)){
-                if(len == 0 && !first && !e_o_s){
+            if ((e_o_s && !info.audio_only) || (ret >= 0 && pkt.stream_index == this->video_index)) {
+                if (len == 0 && !first && !e_o_s) {
                     fprintf (stderr, "no frame available\n");
                 }
-                while(e_o_s || len > 0){
+                while(e_o_s || len > 0) {
                     int dups = 0;
                     yuv_buffer yuv;
                     len1 = avcodec_decode_video(vstream->codec, frame, &got_picture, ptr, len);
-                    if(len1>=0) {
-                        if(got_picture){
+                    if (len1>=0) {
+                        if (got_picture) {
                             // this is disabled by default since it does not work
                             // for all input formats the way it should.
-                            if(this->sync == 1) {
+                            if (this->sync == 1) {
                                 double delta = ((double) pkt.dts /
                                     AV_TIME_BASE - this->pts_offset) *
                                     this->fps - this->frame_count;
@@ -868,8 +863,7 @@ void ff2theora_output(ff2theora this) {
                                  avoid excessive dropping and duplicating */
                                 if (delta < -0.7) {
 #ifdef DEBUG
-                                    fprintf(stderr,
-                                          "Frame dropped to maintain sync\n");
+                                    fprintf(stderr, "Frame dropped to maintain sync\n");
 #endif
                                     break;
                                 }
@@ -877,9 +871,8 @@ void ff2theora_output(ff2theora this) {
                                     //dups = lrintf(delta);
                                     dups = (int)delta;
 #ifdef DEBUG
-                                    fprintf(stderr,
-                                      "%d duplicate %s added to maintain sync\n",
-                                      dups, (dups == 1) ? "frame" : "frames");
+                                    fprintf(stderr, "%d duplicate %s added to maintain sync\n",
+                                            dups, (dups == 1) ? "frame" : "frames");
 #endif
                                 }
                             }
@@ -900,52 +893,51 @@ void ff2theora_output(ff2theora this) {
                             //For audio only files command line option"-e" will not work
                             //as we don't increment frame_count in audio section.
 
-                            if(venc->pix_fmt != this->pix_fmt) {
-                               sws_scale(this->sws_colorspace_ctx,
-                                 frame->data, frame->linesize, 0, display_height,
-                                 output_tmp->data, output_tmp->linesize);
-
+                            if (venc->pix_fmt != this->pix_fmt) {
+                                sws_scale(this->sws_colorspace_ctx,
+                                frame->data, frame->linesize, 0, display_height,
+                                output_tmp->data, output_tmp->linesize);
                             }
                             else{
-                                av_picture_copy((AVPicture *)output_tmp, (AVPicture *)frame, this->pix_fmt, 
+                                av_picture_copy((AVPicture *)output_tmp, (AVPicture *)frame, this->pix_fmt,
                                                 display_width, display_height);
                                 output_tmp_p=NULL;
                             }
-                            if(frame->interlaced_frame || this->deinterlace){
-                                if(avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,display_width,display_height)<0){
+                            if (frame->interlaced_frame || this->deinterlace) {
+                                if (avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,display_width,display_height)<0) {
                                         fprintf(stderr, "Deinterlace failed.\n");
                                         exit(1);
                                 }
                             }
                             else{
-                                av_picture_copy((AVPicture *)output, (AVPicture *)output_tmp, this->pix_fmt, 
+                                av_picture_copy((AVPicture *)output, (AVPicture *)output_tmp, this->pix_fmt,
                                                 display_width, display_height);
                             }
                             // now output
 
-                            if(ppMode)
+                            if (ppMode)
                                 pp_postprocess(output->data, output->linesize,
                                                output->data, output->linesize,
                                                display_width, display_height,
                                                output->qscale_table, output->qstride,
                                                ppMode, ppContext, this->pix_fmt);
 #ifdef HAVE_FRAMEHOOK
-                            if(this->vhook)
-                              frame_hook_process((AVPicture *)output, this->pix_fmt, display_width,display_height, 0);
+                            if (this->vhook)
+                                frame_hook_process((AVPicture *)output, this->pix_fmt, display_width,display_height, 0);
 #endif
 
                             if (this->frame_topBand || this->frame_leftBand) {
-                              if (av_picture_crop((AVPicture *)output_cropped,
+                                if (av_picture_crop((AVPicture *)output_cropped,
                                                   (AVPicture *)output, this->pix_fmt,
                                                   this->frame_topBand, this->frame_leftBand) < 0) {
-                                av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
-                              }
-                              output_cropped_p = NULL;
+                                    av_log(NULL, AV_LOG_ERROR, "error cropping picture\n");
+                                }
+                                output_cropped_p = NULL;
                             } else {
-                              output_cropped = output;
+                                output_cropped = output;
                             }
-                            if(this->sws_scale_ctx){
-                              sws_scale(this->sws_scale_ctx,
+                            if (this->sws_scale_ctx) {
+                                sws_scale(this->sws_scale_ctx,
                                 output_cropped->data, output_cropped->linesize, 0,
                                 display_height - (this->frame_topBand + this->frame_bottomBand),
                                 output_resized->data, output_resized->linesize);
@@ -954,16 +946,16 @@ void ff2theora_output(ff2theora this) {
                                 output_resized = output_cropped;
                             }
                             if ((this->frame_width!=this->picture_width) || (this->frame_height!=this->picture_height)) {
-                              if (av_picture_pad((AVPicture *)output_padded,
+                                if (av_picture_pad((AVPicture *)output_padded,
                                                  (AVPicture *)output_resized,
                                                  this->frame_height, this->frame_width, this->pix_fmt,
                                                  0, this->frame_height - this->picture_height,
                                                  0, this->frame_width - this->picture_width,
                                                  padcolor ) < 0 ) {
-                                av_log(NULL, AV_LOG_ERROR, "error padding frame\n");
-                              }
+                                    av_log(NULL, AV_LOG_ERROR, "error padding frame\n");
+                                }
                             } else {
-                              output_padded = output_resized;
+                                output_padded = output_resized;
                             }
                         }
                         ptr += len1;
@@ -971,46 +963,44 @@ void ff2theora_output(ff2theora this) {
                     }
                     //now output_resized
 
-                    if(!first) {
-                      if(got_picture || e_o_s) {
-                        prepare_yuv_buffer(this, &yuv, output_buffered);
-                        do {
-                          oggmux_add_video(&info, &yuv, e_o_s);
-                          this->frame_count++;
-                        } while(dups--);
-                      }
+                    if (!first) {
+                        if (got_picture || e_o_s) {
+                            prepare_yuv_buffer(this, &yuv, output_buffered);
+                            do {
+                                oggmux_add_video(&info, &yuv, e_o_s);
+                                this->frame_count++;
+                            } while(dups--);
+                        }
                     }
-                    if(got_picture) {
-                      first=0;
-                      av_picture_copy ((AVPicture *)output_buffered, (AVPicture *)output_padded, this->pix_fmt, this->frame_width, this->frame_height);
+                    if (got_picture) {
+                        first=0;
+                        av_picture_copy((AVPicture *)output_buffered, (AVPicture *)output_padded, this->pix_fmt, this->frame_width, this->frame_height);
                     }
-                    if(!got_picture){
+                    if (!got_picture) {
                         break;
                     }
                 }
-
             }
-            if((e_o_s && !info.video_only)
-                     || (ret >= 0 && pkt.stream_index == this->audio_index)){
+            if ((e_o_s && !info.video_only)
+                     || (ret >= 0 && pkt.stream_index == this->audio_index)) {
                 this->pts_offset = (double) pkt.pts / AV_TIME_BASE -
                     (double) this->sample_count / this->sample_rate;
-                while(e_o_s || len > 0 ){
+                while(e_o_s || len > 0 ) {
                     int samples=0;
                     int samples_out=0;
                     int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
-                    if(len > 0){
+                    if (len > 0) {
                         len1 = avcodec_decode_audio2(astream->codec, audio_buf, &data_size, ptr, len);
-                        if (len1 < 0){
+                        if (len1 < 0) {
                             /* if error, we skip the frame */
                             break;
                         }
                         len -= len1;
                         ptr += len1;
-                        if(data_size >0){
-                            samples =data_size / (aenc->channels * 2);
-
+                        if (data_size >0) {
+                            samples = data_size / (aenc->channels * 2);
                             samples_out = samples;
-                            if(this->audio_resample_ctx){
+                            if (this->audio_resample_ctx) {
                                 samples_out = audio_resample(this->audio_resample_ctx, resampled, audio_buf, samples);
                                 audio_p = resampled;
                             }
@@ -1021,11 +1011,10 @@ void ff2theora_output(ff2theora this) {
                     oggmux_add_audio(&info, audio_p,
                         samples_out *(this->channels),samples_out,e_o_s);
                     this->sample_count += samples_out;
-                    if(e_o_s && len <= 0){
+                    if (e_o_s && len <= 0) {
                         break;
                     }
                 }
-
             }
 
             /* if we have subtitles starting before then, add it */
@@ -1052,8 +1041,7 @@ void ff2theora_output(ff2theora this) {
             /* flush out the file */
             oggmux_flush (&info, e_o_s);
             av_free_packet (&pkt);
-        }
-        while (ret >= 0);
+        } while (ret >= 0);
 
         for (i=0; i<this->n_kate_streams; ++i) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
@@ -1069,11 +1057,11 @@ void ff2theora_output(ff2theora this) {
         }
         if (this->audio_index >= 0) {
             if (this->audio_resample_ctx)
-              audio_resample_close(this->audio_resample_ctx);
+                audio_resample_close(this->audio_resample_ctx);
             avcodec_close(aenc);
         }
-        oggmux_close (&info);
-        if(ppContext)
+        oggmux_close(&info);
+        if (ppContext)
             pp_free_context(ppContext);
         if (!info.audio_only) {
             av_free(frame_p);
@@ -1088,16 +1076,16 @@ void ff2theora_output(ff2theora this) {
         av_free(resampled);
     }
     else{
-        fprintf (stderr, "No video or audio stream found.\n");
+        fprintf(stderr, "No video or audio stream found.\n");
     }
 }
 
-void ff2theora_close (ff2theora this){
+void ff2theora_close(ff2theora this) {
     sws_freeContext(this->sws_colorspace_ctx);
     sws_freeContext(this->sws_scale_ctx);
     /* clear out state */
     free_subtitles(this);
-    av_free (this);
+    av_free(this);
 }
 
 double aspect_check(const char *arg)
@@ -1108,7 +1096,7 @@ double aspect_check(const char *arg)
 
     p = strchr(arg, ':');
     if (!p) {
-      p = strchr(arg, '/');
+        p = strchr(arg, '/');
     }
     if (p) {
         x = strtol(arg, (char **)&arg, 10);
@@ -1162,9 +1150,9 @@ AVRational get_framerate(const char* arg)
         framerate.num = strtol(arg, (char **)&arg, 10);
         if (arg == p)
             framerate.den = strtol(arg+1, (char **)&arg, 10);
-        if(framerate.num <= 0)
+        if (framerate.num <= 0)
             framerate.num = -1;
-        if(framerate.den <= 0)
+        if (framerate.den <= 0)
             framerate.den = 1;
     } else {
         framerate.num = strtol(arg, (char **)&arg,10);
@@ -1185,7 +1173,7 @@ int crop_check(ff2theora this, char *name, const char *arg)
         exit(1);
     }
     /*
-    if ((crop_value) >= this->height){
+    if ((crop_value) >= this->height) {
         fprintf(stderr, "Vertical crop dimensions are outside the range of the original image.\nRemember to crop first and scale second.\n");
         exit(1);
     }
@@ -1196,7 +1184,7 @@ int crop_check(ff2theora this, char *name, const char *arg)
 
 
 void print_presets_info() {
-    fprintf (stdout,
+    fprintf(stdout,
         //  "v2v presets - more info at http://wiki.v2v.cc/presets"
         "v2v presets:\n"
         "  preview        Video: 320x240 if fps ~ 30, 384x288 otherwise\n"
@@ -1221,8 +1209,8 @@ void print_presets_info() {
         );
 }
 
-void print_usage (){
-    fprintf (stdout,
+void print_usage() {
+    fprintf(stdout,
         PACKAGE " " PACKAGE_VERSION "\n"
         "\n"
         "  Usage: " PACKAGE " [options] input\n"
@@ -1342,10 +1330,10 @@ void print_usage (){
         "     | oggfwd iccast2server 8000 password /theora.ogv\n"
         "\n"
         );
-    exit (0);
+    exit(0);
 }
 
-int main (int argc, char **argv){
+int main(int argc, char **argv) {
     int  n;
     int  outputfile_set=0;
     char outputfile_name[255];
@@ -1361,88 +1349,88 @@ int main (int argc, char **argv){
     int c,long_option_index;
     const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
     struct option options [] = {
-      {"pid",required_argument,NULL, 'P'},
-      {"output",required_argument,NULL,'o'},
-      {"skeleton",no_argument,NULL,'k'},
-      {"no-skeleton",no_argument,&flag,NOSKELETON},
-      {"format",required_argument,NULL,'f'},
-      {"width",required_argument,NULL,'x'},
-      {"height",required_argument,NULL,'y'},
-      {"max_size",required_argument,&flag,MAXSIZE_FLAG},
-      {"videoquality",required_argument,NULL,'v'},
-      {"videobitrate",required_argument,NULL,'V'},
-      {"audioquality",required_argument,NULL,'a'},
-      {"audiobitrate",required_argument,NULL,'A'},
-      {"sharpness",required_argument,NULL,'S'},
-      {"keyint",required_argument,NULL,'K'},
-      {"deinterlace",0,&flag,DEINTERLACE_FLAG},
-      {"pp",required_argument,&flag,PP_FLAG},
-      {"samplerate",required_argument,NULL,'H'},
-      {"channels",required_argument,NULL,'c'},
-      {"gamma",required_argument,NULL,'G'},
-      {"brightness",required_argument,NULL,'B'},
-      {"contrast",required_argument,NULL,'C'},
-      {"saturation",required_argument,NULL,'Z'},
-      {"nosound",0,&flag,NOAUDIO_FLAG},
-      {"noaudio",0,&flag,NOAUDIO_FLAG},
-      {"novideo",0,&flag,NOVIDEO_FLAG},
-      {"no-upscaling",0,&flag,NOUPSCALING_FLAG},
+        {"pid",required_argument,NULL, 'P'},
+        {"output",required_argument,NULL,'o'},
+        {"skeleton",no_argument,NULL,'k'},
+        {"no-skeleton",no_argument,&flag,NOSKELETON},
+        {"format",required_argument,NULL,'f'},
+        {"width",required_argument,NULL,'x'},
+        {"height",required_argument,NULL,'y'},
+        {"max_size",required_argument,&flag,MAXSIZE_FLAG},
+        {"videoquality",required_argument,NULL,'v'},
+        {"videobitrate",required_argument,NULL,'V'},
+        {"audioquality",required_argument,NULL,'a'},
+        {"audiobitrate",required_argument,NULL,'A'},
+        {"sharpness",required_argument,NULL,'S'},
+        {"keyint",required_argument,NULL,'K'},
+        {"deinterlace",0,&flag,DEINTERLACE_FLAG},
+        {"pp",required_argument,&flag,PP_FLAG},
+        {"samplerate",required_argument,NULL,'H'},
+        {"channels",required_argument,NULL,'c'},
+        {"gamma",required_argument,NULL,'G'},
+        {"brightness",required_argument,NULL,'B'},
+        {"contrast",required_argument,NULL,'C'},
+        {"saturation",required_argument,NULL,'Z'},
+        {"nosound",0,&flag,NOAUDIO_FLAG},
+        {"noaudio",0,&flag,NOAUDIO_FLAG},
+        {"novideo",0,&flag,NOVIDEO_FLAG},
+        {"no-upscaling",0,&flag,NOUPSCALING_FLAG},
 #ifdef HAVE_FRAMEHOOK
-      {"vhook",required_argument,&flag,VHOOK_FLAG},
+        {"vhook",required_argument,&flag,VHOOK_FLAG},
 #endif
-      {"framerate",required_argument,NULL,'F'},
-      {"aspect",required_argument,&flag,ASPECT_FLAG},
-      {"preset",required_argument,NULL,'p'},
-      {"nice",required_argument,NULL,'N'},
-      {"croptop",required_argument,&flag,CROPTOP_FLAG},
-      {"cropbottom",required_argument,&flag,CROPBOTTOM_FLAG},
-      {"cropright",required_argument,&flag,CROPRIGHT_FLAG},
-      {"cropleft",required_argument,&flag,CROPLEFT_FLAG},
-      {"inputfps",required_argument,&flag,INPUTFPS_FLAG},
-      {"audiostream",required_argument,&flag,AUDIOSTREAM_FLAG},
-      {"subtitles",required_argument,&flag,SUBTITLES_FLAG},
-      {"subtitles-encoding",required_argument,&flag,SUBTITLES_ENCODING_FLAG},
-      {"subtitles-ignore-non-utf8",0,&flag,SUBTITLES_IGNORE_NON_UTF8_FLAG},
-      {"subtitles-language",required_argument,&flag,SUBTITLES_LANGUAGE_FLAG},
-      {"subtitles-category",required_argument,&flag,SUBTITLES_CATEGORY_FLAG},
-      {"starttime",required_argument,NULL,'s'},
-      {"endtime",required_argument,NULL,'e'},
-      {"sync",0,&flag,SYNC_FLAG},
-      {"optimize",0,&flag,OPTIMIZE_FLAG},
-      {"speedlevel",required_argument,&flag,SPEEDLEVEL_FLAG},
-      {"frontend",0,&flag,FRONTEND_FLAG},
-      {"frontendfile",required_argument,&flag,FRONTENDFILE_FLAG},
+        {"framerate",required_argument,NULL,'F'},
+        {"aspect",required_argument,&flag,ASPECT_FLAG},
+        {"preset",required_argument,NULL,'p'},
+        {"nice",required_argument,NULL,'N'},
+        {"croptop",required_argument,&flag,CROPTOP_FLAG},
+        {"cropbottom",required_argument,&flag,CROPBOTTOM_FLAG},
+        {"cropright",required_argument,&flag,CROPRIGHT_FLAG},
+        {"cropleft",required_argument,&flag,CROPLEFT_FLAG},
+        {"inputfps",required_argument,&flag,INPUTFPS_FLAG},
+        {"audiostream",required_argument,&flag,AUDIOSTREAM_FLAG},
+        {"subtitles",required_argument,&flag,SUBTITLES_FLAG},
+        {"subtitles-encoding",required_argument,&flag,SUBTITLES_ENCODING_FLAG},
+        {"subtitles-ignore-non-utf8",0,&flag,SUBTITLES_IGNORE_NON_UTF8_FLAG},
+        {"subtitles-language",required_argument,&flag,SUBTITLES_LANGUAGE_FLAG},
+        {"subtitles-category",required_argument,&flag,SUBTITLES_CATEGORY_FLAG},
+        {"starttime",required_argument,NULL,'s'},
+        {"endtime",required_argument,NULL,'e'},
+        {"sync",0,&flag,SYNC_FLAG},
+        {"optimize",0,&flag,OPTIMIZE_FLAG},
+        {"speedlevel",required_argument,&flag,SPEEDLEVEL_FLAG},
+        {"frontend",0,&flag,FRONTEND_FLAG},
+        {"frontendfile",required_argument,&flag,FRONTENDFILE_FLAG},
 
-      {"artist",required_argument,&metadata_flag,10},
-      {"title",required_argument,&metadata_flag,11},
-      {"date",required_argument,&metadata_flag,12},
-      {"location",required_argument,&metadata_flag,13},
-      {"organization",required_argument,&metadata_flag,14},
-      {"copyright",required_argument,&metadata_flag,15},
-      {"license",required_argument,&metadata_flag,16},
-      {"contact",required_argument,&metadata_flag,17},
-      {"source-hash",required_argument,&metadata_flag,18},
+        {"artist",required_argument,&metadata_flag,10},
+        {"title",required_argument,&metadata_flag,11},
+        {"date",required_argument,&metadata_flag,12},
+        {"location",required_argument,&metadata_flag,13},
+        {"organization",required_argument,&metadata_flag,14},
+        {"copyright",required_argument,&metadata_flag,15},
+        {"license",required_argument,&metadata_flag,16},
+        {"contact",required_argument,&metadata_flag,17},
+        {"source-hash",required_argument,&metadata_flag,18},
 
-      {"help",0,NULL,'h'},
-      {NULL,0,NULL,0}
+        {"help",0,NULL,'h'},
+        {NULL,0,NULL,0}
     };
 
     char pidfile_name[255] = { '\0' };
     FILE *fpid = NULL;
 
-    ff2theora convert = ff2theora_init ();
+    ff2theora convert = ff2theora_init();
     avcodec_register_all();
     avdevice_register_all();
     av_register_all();
 
-    if (argc == 1){
-        print_usage ();
+    if (argc == 1) {
+        print_usage();
     }
     // set some variables;
     init_info(&info);
-    theora_comment_init (&info.tc);
+    theora_comment_init(&info.tc);
 
-    while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF){
+    while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF) {
         switch(c)
         {
             case 0:
@@ -1454,7 +1442,7 @@ int main (int argc, char **argv){
                             flag = -1;
                             break;
                         case PP_FLAG:
-                            if(!strcmp(optarg, "help")) {
+                            if (!strcmp(optarg, "help")) {
                                 fprintf(stdout, "%s", pp_help);
                                 exit(1);
                             }
@@ -1581,7 +1569,7 @@ int main (int argc, char **argv){
                 }
 
                 /* metadata */
-                if (metadata_flag){
+                if (metadata_flag) {
                     switch(metadata_flag) {
                         case 10:
                             theora_comment_add_tag(&info.tc, "ARTIST", optarg);
@@ -1642,7 +1630,7 @@ int main (int argc, char **argv){
                 break;
             case 'v':
                 convert->video_quality = rint(atof(optarg)*6.3);
-                if(convert->video_quality <0 || convert->video_quality >63){
+                if (convert->video_quality <0 || convert->video_quality >63) {
                         fprintf(stderr, "Only values from 0 to 10 are valid for video quality.\n");
                         exit(1);
                 }
@@ -1658,7 +1646,7 @@ int main (int argc, char **argv){
                 break;
             case 'a':
                 convert->audio_quality=atof(optarg);
-                if(convert->audio_quality<-2 || convert->audio_quality>10){
+                if (convert->audio_quality<-2 || convert->audio_quality>10) {
                     fprintf(stderr, "Only values from -2 to 10 are valid for audio quality.\n");
                     exit(1);
                 }
@@ -1666,7 +1654,7 @@ int main (int argc, char **argv){
                 break;
             case 'A':
                 convert->audio_bitrate=atof(optarg)*1000;
-                if(convert->audio_bitrate<0){
+                if (convert->audio_bitrate<0) {
                     fprintf(stderr, "Only values >0 are valid for audio bitrate.\n");
                     exit(1);
                 }
@@ -1687,14 +1675,14 @@ int main (int argc, char **argv){
             case 'S':
                 convert->sharpness = atoi(optarg);
                 if (convert->sharpness < 0 || convert->sharpness > 2) {
-                    fprintf (stderr, "Only values from 0 to 2 are valid for sharpness.\n");
+                    fprintf(stderr, "Only values from 0 to 2 are valid for sharpness.\n");
                     exit(1);
                 }
                 break;
             case 'K':
                 convert->keyint = atoi(optarg);
                 if (convert->keyint < 1 || convert->keyint > 65536) {
-                    fprintf (stderr, "Only values from 1 to 65536 are valid for keyframe interval.\n");
+                    fprintf(stderr, "Only values from 1 to 65536 are valid for keyframe interval.\n");
                     exit(1);
                 }
                 break;
@@ -1706,18 +1694,18 @@ int main (int argc, char **argv){
                 break;
             case 'c':
                 convert->channels=atoi(optarg);
-                if(convert->channels <= 0) {
-                  fprintf (stderr, "You can not have less than one audio channel.\n");
-                  exit(1);
+                if (convert->channels <= 0) {
+                    fprintf(stderr, "You can not have less than one audio channel.\n");
+                    exit(1);
                 }
                 break;
             case 'p':
                 //v2v presets
-                if(!strcmp(optarg, "info")){
+                if (!strcmp(optarg, "info")) {
                     print_presets_info();
                     exit(1);
                 }
-                else if(!strcmp(optarg, "pro")){
+                else if (!strcmp(optarg, "pro")) {
                     //need a way to set resize here. and not later
                     convert->preset=V2V_PRESET_PRO;
                     convert->video_quality = rint(7*6.3);
@@ -1725,7 +1713,7 @@ int main (int argc, char **argv){
                     convert->sharpness = 0;
                     info.speed_level = 0;
                 }
-                else if(!strcmp(optarg,"preview")){
+                else if (!strcmp(optarg,"preview")) {
                     //need a way to set resize here. and not later
                     convert->preset=V2V_PRESET_PREVIEW;
                     convert->video_quality = rint(5*6.3);
@@ -1733,7 +1721,7 @@ int main (int argc, char **argv){
                     convert->sharpness = 2;
                     info.speed_level = 0;
                 }
-                else if(!strcmp(optarg,"videobin")){
+                else if (!strcmp(optarg,"videobin")) {
                     convert->preset=V2V_PRESET_VIDEOBIN;
                     convert->video_bitrate=rint(600*1000);
                     convert->video_quality = 0;
@@ -1741,14 +1729,14 @@ int main (int argc, char **argv){
                     convert->sharpness = 2;
                     info.speed_level = 0;
                 }
-                else if(!strcmp(optarg,"padma")){
+                else if (!strcmp(optarg,"padma")) {
                     convert->preset=V2V_PRESET_PADMA;
                     convert->video_quality = rint(5*6.3);
                     convert->audio_quality = 3.00;
                     convert->sharpness = 0;
                     info.speed_level = 0;
                 }
-                else if(!strcmp(optarg,"padma-stream")){
+                else if (!strcmp(optarg,"padma-stream")) {
                     convert->preset=V2V_PRESET_PADMASTREAM;
                     convert->video_bitrate=rint(180*1000);
                     convert->video_quality = 0;
@@ -1775,28 +1763,28 @@ int main (int argc, char **argv){
                 }
                 break;
             case 'h':
-                print_usage ();
+                print_usage();
                 exit(1);
         }
     }
 
-    while(optind<argc){
+    while(optind<argc) {
         /* assume that anything following the options must be a filename */
         snprintf(inputfile_name,sizeof(inputfile_name),"%s",argv[optind]);
-        if(!strcmp(inputfile_name,"-")){
+        if (!strcmp(inputfile_name,"-")) {
             snprintf(inputfile_name,sizeof(inputfile_name),"pipe:");
         }
-        if(outputfile_set!=1){
+        if (outputfile_set!=1) {
             /* reserve 4 bytes in the buffer for the `.ogv' extension */
             snprintf(outputfile_name, sizeof(outputfile_name) - 4, "%s", argv[optind]);
-            if((str_ptr = strrchr(outputfile_name, '.'))) {
-              sprintf(str_ptr, ".ogv");
-              if(!strcmp(inputfile_name, outputfile_name)){
-                snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", inputfile_name);
-              }
+            if ((str_ptr = strrchr(outputfile_name, '.'))) {
+                sprintf(str_ptr, ".ogv");
+                if (!strcmp(inputfile_name, outputfile_name)) {
+                    snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", inputfile_name);
+                }
             }
             else {
-                 snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", outputfile_name);
+                snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", outputfile_name);
             }
             outputfile_set=1;
         }
@@ -1807,21 +1795,19 @@ int main (int argc, char **argv){
     using_stdin |= !strcmp(inputfile_name, "pipe:" ) ||
                    !strcmp( inputfile_name, "/dev/stdin" );
 
-    if(outputfile_set != 1){
+    if (outputfile_set != 1) {
         fprintf(stderr, "You have to specify an output file with -o output.ogv.\n");
         exit(1);
     }
 
-    if(convert->end_time>0 && convert->end_time <= convert->start_time){
+    if (convert->end_time>0 && convert->end_time <= convert->start_time) {
         fprintf(stderr, "End time has to be bigger than start time.\n");
         exit(1);
     }
 
-    if (*pidfile_name)
-    {
+    if (*pidfile_name) {
         fpid = fopen(pidfile_name, "w");
-        if (fpid != NULL)
-        {
+        if (fpid != NULL) {
             fprintf(fpid, "%i", getpid());
             fclose(fpid);
         }
@@ -1830,13 +1816,13 @@ int main (int argc, char **argv){
     for (n=0; n<convert->n_kate_streams; ++n) {
         ff2theora_kate_stream *ks=convert->kate_streams+n;
         if (load_subtitles(ks,convert->ignore_non_utf8)>0) {
-          printf("Muxing Kate stream %d from %s as %s %s\n",
-              n,ks->filename,
-              ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
-              ks->subtitles_category[0]?ks->subtitles_category:"SUB");
+            printf("Muxing Kate stream %d from %s as %s %s\n",
+                n,ks->filename,
+                ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
+                ks->subtitles_category[0]?ks->subtitles_category:"SUB");
         }
         else {
-          if (n!=convert->n_kate_streams) {
+            if (n!=convert->n_kate_streams) {
             memmove(convert->kate_streams+n,convert->kate_streams+n+1,(convert->n_kate_streams-n-1)*sizeof(ff2theora_kate_stream));
             --convert->n_kate_streams;
             --n;
@@ -1847,34 +1833,34 @@ int main (int argc, char **argv){
     oggmux_setup_kate_streams(&info, convert->n_kate_streams);
 
     //detect image sequences and set framerate if provided
-    if(av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
-       (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
+    if (av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
+        (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
         formatParams = &params;
         memset(formatParams, 0, sizeof(*formatParams));
-        if(input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
+        if (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
             formatParams->channel = 0;
             formatParams->width = PAL_HALF_WIDTH;
             formatParams->height = PAL_HALF_HEIGHT;
             formatParams->time_base.den = 25;
             formatParams->time_base.num = 2;
-            if(convert->picture_width)
+            if (convert->picture_width)
                 formatParams->width = convert->picture_width;
-            if(convert->picture_height)
+            if (convert->picture_height)
                 formatParams->height = convert->picture_height;
         }
-        if(convert->force_input_fps.num > 0) {
+        if (convert->force_input_fps.num > 0) {
             formatParams->time_base.den = convert->force_input_fps.num;
             formatParams->time_base.num = convert->force_input_fps.den;
-        } else if(convert->framerate_new.num > 0) {
+        } else if (convert->framerate_new.num > 0) {
             formatParams->time_base.den = convert->framerate_new.num;
             formatParams->time_base.num = convert->framerate_new.den;
         }
         formatParams->video_codec_id = av_guess_image2_codec(inputfile_name);
     }
-    if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0){
-        if (av_find_stream_info (convert->context) >= 0){
+    if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0) {
+        if (av_find_stream_info(convert->context) >= 0) {
 #ifdef WIN32
-                if(!strcmp(outputfile_name,"-") || !strcmp(outputfile_name,"/dev/stdout")){
+                if (!strcmp(outputfile_name,"-") || !strcmp(outputfile_name,"/dev/stdout")) {
                     _setmode(_fileno(stdout), _O_BINARY);
                     info.outfile = stdout;
                 }
@@ -1882,66 +1868,66 @@ int main (int argc, char **argv){
                     info.outfile = fopen(outputfile_name,"wb");
                 }
 #else
-                if(!strcmp(outputfile_name,"-")){
+                if (!strcmp(outputfile_name,"-")) {
                     snprintf(outputfile_name,sizeof(outputfile_name),"/dev/stdout");
                 }
                 info.outfile = fopen(outputfile_name,"wb");
 #endif
-                if(info.frontend) {
-                  fprintf(info.frontend, "\nf2t ;duration: %d;\n", (int)(convert->context->duration / AV_TIME_BASE));
-                  fflush(info.frontend);
+                if (info.frontend) {
+                    fprintf(info.frontend, "\nf2t ;duration: %d;\n", (int)(convert->context->duration / AV_TIME_BASE));
+                    fflush(info.frontend);
 
                 }
                 else {
-                  dump_format (convert->context, 0,inputfile_name, 0);
+                    dump_format(convert->context, 0,inputfile_name, 0);
                 }
-                if(convert->disable_audio){
+                if (convert->disable_audio) {
                     fprintf(stderr, "  [audio disabled].\n");
                 }
-                if(convert->disable_video){
+                if (convert->disable_video) {
                     fprintf(stderr, "  [video disabled].\n");
                 }
-                if(convert->sync){
+                if (convert->sync) {
                     fprintf(stderr, "  Use A/V Sync from input container.\n");
                 }
 
                 convert->pts_offset =
                     (double) convert->context->start_time / AV_TIME_BASE;
-                if(!info.outfile) {
-                    if(info.frontend)
+                if (!info.outfile) {
+                    if (info.frontend)
                         fprintf(info.frontend, "\nf2t ;result: Unable to open output file.;\n");
                     else
-                      fprintf (stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
+                        fprintf(stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
                     return(1);
                 }
                 if (convert->context->duration != AV_NOPTS_VALUE) {
-                  info.duration = convert->context->duration / AV_TIME_BASE;
+                    info.duration = convert->context->duration / AV_TIME_BASE;
                 }
-                ff2theora_output (convert);
+                ff2theora_output(convert);
                 convert->audio_index =convert->video_index = -1;
             }
             else{
-              if(info.frontend)
-                  fprintf(info.frontend, "\nf2t ;result: input format not suported.;\n");
-              else
-                  fprintf (stderr,"\nUnable to decode input.\n");
-              return(1);
+                if (info.frontend)
+                    fprintf(info.frontend, "\nf2t ;result: input format not suported.;\n");
+                else
+                    fprintf(stderr,"\nUnable to decode input.\n");
+                return(1);
             }
-            av_close_input_file (convert->context);
+            av_close_input_file(convert->context);
         }
         else{
-            fprintf (stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
+            fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
             return(1);
         }
-    ff2theora_close (convert);
+    ff2theora_close(convert);
     fprintf(stderr, "\n");
 
     if (*pidfile_name)
         unlink(pidfile_name);
 
-    if(info.frontend)
+    if (info.frontend)
         fprintf(info.frontend, "\nf2t ;result: ok;\n");
-    if(info.frontend && info.frontend != stderr)
+    if (info.frontend && info.frontend != stderr)
         fclose(info.frontend);
     return(0);
 }

@@ -4,9 +4,9 @@
 #include "subtitles.h"
 
 typedef enum {
-  ENC_UNSET,
-  ENC_UTF8,
-  ENC_ISO_8859_1,
+    ENC_UNSET,
+    ENC_UTF8,
+    ENC_ISO_8859_1,
 } F2T_ENCODING;
 
 
@@ -53,7 +53,7 @@ typedef struct ff2theora{
     ReSampleContext *audio_resample_ctx;
     ogg_int32_t aspect_numerator;
     ogg_int32_t aspect_denominator;
-    double    frame_aspect;
+    double frame_aspect;
     int max_size;
 
     int pix_fmt;

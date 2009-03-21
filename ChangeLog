@@ -1,5 +1,6 @@
 svn
-    - fix input from codecs with visible vs. encoded width
+    - fix input from codecs where width/height is not encoded width/height
+    - fix a/v sync issues with some mov/mp4 files with strange framerates
 
 0.24 2009-03-12
     - fix to make --max_size --no_upscaling work
