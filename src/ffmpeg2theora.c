@@ -620,10 +620,7 @@ void ff2theora_output(ff2theora this) {
         aenc = this->context->streams[this->audio_index]->codec;
         acodec = avcodec_find_decoder (aenc->codec_id);
         if (this->channels < 1) {
-            if (aenc->channels > 2)
-                this->channels = 2;
-            else
-                this->channels = aenc->channels;
+            this->channels = aenc->channels;
         }
         if(this->sample_rate==-1) {
             this->sample_rate = aenc->sample_rate;
