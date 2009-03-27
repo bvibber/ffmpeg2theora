@@ -23,7 +23,7 @@ opts = Options()
 opts.AddOptions(
   BoolOption('static', 'Set to 1 for static linking', 0),
   BoolOption('debug', 'Set to 1 to enable debugging', 0),
-  ('prefix', 'install architecture-independent files in', '/usr/local'),
+  ('prefix', 'install files in', '/usr/local'),
   ('bindir', 'user executables', 'PREFIX/bin'),
   ('mandir', 'man documentation', 'PREFIX/man'),
   ('destdir', 'extra install time prefix', ''),
