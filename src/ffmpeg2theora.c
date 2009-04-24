@@ -291,14 +291,6 @@ static void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *frame) 
     yuv->u = frame->data[1];
     yuv->v = frame->data[2];
 
-    // Scale YUV components to the full range 0-255,
-    // instead of 16-235 for Y and 16-240 for UV.
-    for (i = 0; i < 256; i++) {
-        yuv->y[i] = (yuv->y[i] - 16) * 255 / 219;
-        yuv->u[i] = (yuv->u[i] - 128) * 255 / 224 + 128;
-        yuv->v[i] = (yuv->v[i] - 128) * 255 / 224 + 128;
-    }
-
     if (this->y_lut_used) {
         lut_apply(this->y_lut, yuv->y, yuv->y, yuv->y_width, yuv->y_height, yuv->y_stride);
     }
