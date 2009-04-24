@@ -19,6 +19,8 @@ extern void add_kate_stream(ff2theora this);
 extern int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8);
 extern void free_subtitles(ff2theora this);
 
+extern void add_subtitles_stream(ff2theora this,int stream_index,const char *language,const char *category);
+extern int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int idx, float t, float duration, const char *utf8, size_t utf8len);
 extern void set_subtitles_file(ff2theora this,const char *filename);
 extern void set_subtitles_language(ff2theora this,const char *language);
 extern void set_subtitles_category(ff2theora this,const char *category);

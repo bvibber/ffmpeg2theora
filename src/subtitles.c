@@ -47,10 +47,31 @@ void add_kate_stream(ff2theora this){
     ks->filename = NULL;
     ks->num_subtitles = 0;
     ks->subtitles = 0;
+    ks->stream_index = -1;
     ks->subtitles_count = 0; /* denotes not set yet */
     ks->subtitles_encoding = ENC_UNSET;
     strcpy(ks->subtitles_language, "");
     strcpy(ks->subtitles_category, "");
+}
+
+/*
+ * adds a stream for an embedded subtitles stream
+ */
+void add_subtitles_stream(ff2theora this,int stream_index,const char *language,const char *category){
+  ff2theora_kate_stream *ks;
+  add_kate_stream(this);
+
+  ks = &this->kate_streams[this->n_kate_streams-1];
+  ks->stream_index = stream_index;
+
+  if (!category) category="SUB";
+  strncpy(ks->subtitles_category, category, 16);
+  ks->subtitles_category[15] = 0;
+
+  if (language) {
+    strncpy(ks->subtitles_language, language, 16);
+    ks->subtitles_language[15] = 0;
+  }
 }
 
 /*
@@ -59,7 +80,7 @@ void add_kate_stream(ff2theora this){
 void set_subtitles_file(ff2theora this,const char *filename){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
-    if (!this->kate_streams[n].filename) break;
+    if (this->kate_streams[n].stream_index==-1 && !this->kate_streams[n].filename) break;
   }
   if (n==this->n_kate_streams) add_kate_stream(this);
   this->kate_streams[n].filename = filename;
@@ -71,7 +92,7 @@ void set_subtitles_file(ff2theora this,const char *filename){
 void set_subtitles_language(ff2theora this,const char *language){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
-    if (!this->kate_streams[n].subtitles_language[0]) break;
+    if (this->kate_streams[n].stream_index==-1 && !this->kate_streams[n].subtitles_language[0]) break;
   }
   if (n==this->n_kate_streams) add_kate_stream(this);
   strncpy(this->kate_streams[n].subtitles_language, language, 16);
@@ -84,7 +105,7 @@ void set_subtitles_language(ff2theora this,const char *language){
 void set_subtitles_category(ff2theora this,const char *category){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
-    if (!this->kate_streams[n].subtitles_category[0]) break;
+    if (this->kate_streams[n].stream_index==-1 && !this->kate_streams[n].subtitles_category[0]) break;
   }
   if (n==this->n_kate_streams) add_kate_stream(this);
   strncpy(this->kate_streams[n].subtitles_category, category, 16);
@@ -97,7 +118,7 @@ void set_subtitles_category(ff2theora this,const char *category){
 void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
-    if (this->kate_streams[n].subtitles_encoding==ENC_UNSET) break;
+    if (this->kate_streams[n].stream_index==-1 && !this->kate_streams[n].subtitles_encoding==ENC_UNSET) break;
   }
   if (n==this->n_kate_streams) add_kate_stream(this);
   this->kate_streams[n].subtitles_encoding = encoding;
@@ -380,6 +401,47 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
 #else
     return 0;
 #endif
+}
+
+int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int idx, float t, float duration, const char *utf8, size_t utf8len)
+{
+#ifdef HAVE_KATE
+  int n, ret;
+  for (n=0; n<nstreams; ++n) {
+    ff2theora_kate_stream *ks=streams+n;
+    if (idx == ks->stream_index) {
+      ks->subtitles = (ff2theora_subtitle*)realloc(ks->subtitles, (ks->num_subtitles+1)*sizeof(ff2theora_subtitle));
+      if (!ks->subtitles) {
+        fprintf(stderr, "Out of memory\n");
+        return -1;
+      }
+      ret=kate_text_validate(kate_utf8,utf8,utf8len);
+      if (ret<0) {
+        fprintf(stderr,"WARNING - stream %d: subtitle %s is not valid UTF-8\n",idx,utf8);
+      }
+      else {
+        /* make a copy */
+        size_t len = utf8len;
+        char *utf8copy = (char*)malloc(utf8len);
+        if (!utf8copy) {
+	  fprintf(stderr, "Out of memory\n");
+	  return -1;
+        }
+        memcpy(utf8copy, utf8, utf8len);
+        /* kill off trailing \n characters */
+        while (len>0) {
+	  if (utf8copy[len-1]=='\n') utf8copy[--len]=0; else break;
+        }
+        ks->subtitles[ks->num_subtitles].text = utf8copy;
+        ks->subtitles[ks->num_subtitles].len = utf8len;
+        ks->subtitles[ks->num_subtitles].t0 = t;
+        ks->subtitles[ks->num_subtitles].t1 = t+duration;
+        ks->num_subtitles++;
+      }
+    }
+  }
+#endif
+  return 0;
 }
 
 void free_subtitles(ff2theora this)

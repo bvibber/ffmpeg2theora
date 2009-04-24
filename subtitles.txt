@@ -28,6 +28,9 @@ simple, supplying a single input file:
 Any number of subtitles streams can be multiplexed, presumably with
 different languages and/or categories. See below for examples of this.
 
+Additionally, text subtitles from the input stream may also be used.
+Use --nosubtitles if those are not to be converted.
+
 
 
  * Subtitles related options
@@ -67,6 +70,10 @@ different languages and/or categories. See below for examples of this.
   when using an utf-8 file with stray non utf-8 characters. This is not
   a substitute for converting a non utf-8 file to utf-8, however, as the
   non utf-8 sequence will be missing from the output stream.
+
+--nosubtitles
+  Subtitle streams from the input file will not be converted. Subtitles
+  from any supplied --subtitles option will still be used.
 
 
 

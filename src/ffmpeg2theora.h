@@ -18,9 +18,15 @@ typedef struct ff2theora_subtitle{
 } ff2theora_subtitle;
 
 typedef struct ff2theora_kate_stream{
+    /* this block valid for subtitles loaded from a file */
     const char *filename;
     size_t num_subtitles;
     ff2theora_subtitle *subtitles;
+
+    /* this block valid for subtitles coming from the source video */
+    int stream_index;
+
+    /* this block valid for all subtitle sources */
     size_t subtitles_count; /* total subtitles output so far */
     F2T_ENCODING subtitles_encoding;
     char subtitles_language[16];
@@ -44,6 +50,8 @@ typedef struct ff2theora{
     float audio_quality;
     int audio_bitrate;
     int preset;
+
+    int disable_subtitles;
 
     int picture_width;
     int picture_height;

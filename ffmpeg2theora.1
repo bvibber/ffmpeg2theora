@@ -1,5 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.TH FFMPEG2THEORA 1 "August 31, 2008"
+.TH FFMPEG2THEORA 1 "April 9, 2009"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -179,6 +179,11 @@ will be ignored. This may be useful if there are stray sequences in
 an otherwise UTF-8 file. Note that, since those invalid sequences
 will be removed from the output, this option is not a substitute to
 converting a non UTF-8 file to UTF-8.
+.TP
+.B \-\-nosubtitles
+Disables subtitles from input.
+Note that subtitles explicitely loaded from external files will still
+be used.
 .SS Metadata options:
 .TP
 .B \-\-artist

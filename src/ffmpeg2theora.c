@@ -44,6 +44,7 @@
 #endif
 
 #include "theorautils.h"
+#include "iso639.h"
 #include "subtitles.h"
 #include "ffmpeg2theora.h"
 
@@ -54,6 +55,7 @@ enum {
     SYNC_FLAG,
     NOAUDIO_FLAG,
     NOVIDEO_FLAG,
+    NOSUBTITLES_FLAG,
     NOUPSCALING_FLAG,
     CROPTOP_FLAG,
     CROPBOTTOM_FLAG,
@@ -146,6 +148,7 @@ static ff2theora ff2theora_init() {
     if (this != NULL) {
         this->disable_audio=0;
         this->disable_video=0;
+        this->disable_subtitles=0;
         this->no_upscaling=0;
         this->video_index = -1;
         this->audio_index = -1;
@@ -300,6 +303,73 @@ static void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *frame) 
     }
 }
 
+static int is_supported_subtitle_stream(ff2theora this, int idx)
+{
+  AVCodecContext *enc = this->context->streams[idx]->codec;
+  if (enc->codec_type != CODEC_TYPE_SUBTITLE) return 0;
+  switch (enc->codec_id) {
+    case CODEC_ID_TEXT:
+    case CODEC_ID_SSA:
+      return 1;
+    default:
+      return 0;
+  }
+  return 0;
+}
+
+static const char *get_raw_text_from_ssa(const char *ssa)
+{
+  int n;
+  const char *ptr=ssa;
+  for (n=0;n<9;++n) {
+    ptr=strchr(ptr,',');
+    if (!ptr) return NULL;
+    ++ptr;
+  }
+  return ptr;
+}
+
+static const float get_ssa_time(const char *p)
+{
+    int hour, min, sec, hsec;
+    int r;
+
+    if(sscanf(p, "%d:%d:%d%*c%d", &hour, &min, &sec, &hsec) != 4)
+        return 0;
+
+    min+= 60*hour;
+    sec+= 60*min;
+    return (float)(sec*100+hsec)/100;
+}
+
+static const float get_duration_from_ssa(const char *ssa)
+{
+  int n;
+  float d = 2.0f;
+  double start, end;
+  const char *ptr=ssa;
+
+  ptr=strchr(ptr,',');
+  if (!ptr) return d;
+  ptr++;
+  start = get_ssa_time(ptr);
+  ptr=strchr(ptr,',');
+  if (!ptr) return d;
+  ptr++;
+  end = get_ssa_time(ptr);
+
+  return end-start;
+}
+
+static const char *find_language_for_subtitle_stream(const AVStream *s)
+{
+  const char *lang=find_iso639_1(s->language);
+  if (!lang) {
+    fprintf(stderr,"WARNING - unrecognized ISO 639-2 language code: %s\n",s->language);
+  }
+  return lang;
+}
+
 void ff2theora_output(ff2theora this) {
     unsigned int i;
     AVCodecContext *aenc = NULL;
@@ -314,6 +384,8 @@ void ff2theora_output(ff2theora this) {
     double fps = 0.0;
     AVRational vstream_fps;
     int display_width, display_height;
+    char *subtitles_enabled = (char*)alloca(this->context->nb_streams);
+    char *subtitles_opened = (char*)alloca(this->context->nb_streams);
 
     if (this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
@@ -651,6 +723,54 @@ void ff2theora_output(ff2theora this) {
         }
     }
 
+    for (i = 0; i < this->context->nb_streams; i++) {
+      subtitles_enabled[i] = 0;
+      subtitles_opened[i] = 0;
+      if (!this->disable_subtitles) {
+        AVStream *stream = this->context->streams[i];
+        AVCodecContext *enc = stream->codec;
+        if (enc->codec_type == CODEC_TYPE_SUBTITLE) {
+          AVCodec *codec = avcodec_find_decoder (enc->codec_id);
+          if (codec && avcodec_open (enc, codec) >= 0) {
+            subtitles_opened[i] = 1;
+          }
+          if (enc->codec_id == CODEC_ID_TEXT || enc->codec_id == CODEC_ID_SSA || subtitles_opened[i]) {
+            subtitles_enabled[i] = 1;
+            add_subtitles_stream(this, i, find_language_for_subtitle_stream(stream), NULL);
+          }
+          else {
+            fprintf(stderr,"Subtitle stream %d codec not supported, ignored\n", i);
+          }
+        }
+      }
+    }
+
+    for (i=0; i<this->n_kate_streams; ++i) {
+        ff2theora_kate_stream *ks=this->kate_streams+i;
+        if (ks->stream_index >= 0) {
+            printf("Muxing Kate stream %d from input stream %d\n",
+                i,ks->stream_index);
+            if (!this->disable_subtitles) {
+              info.with_kate=1;
+            }
+        }
+        else if (load_subtitles(ks,this->ignore_non_utf8)>0) {
+            printf("Muxing Kate stream %d from %s as %s %s\n",
+                i,ks->filename,
+                ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
+                ks->subtitles_category[0]?ks->subtitles_category:"SUB");
+        }
+        else {
+            if (i!=this->n_kate_streams) {
+            memmove(this->kate_streams+i,this->kate_streams+i+1,(this->n_kate_streams-i-1)*sizeof(ff2theora_kate_stream));
+            --this->n_kate_streams;
+            --i;
+          }
+        }
+    }
+
+    oggmux_setup_kate_streams(&info, this->n_kate_streams);
+
     if (this->video_index >= 0 || this->audio_index >= 0) {
         AVFrame *frame=NULL;
         AVFrame *frame_p=NULL;
@@ -769,7 +889,7 @@ void ff2theora_output(ff2theora this) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
             kate_info *ki = &info.kate_streams[i].ki;
             kate_info_init(ki);
-            if (ks->num_subtitles > 0) {
+            if (ks->stream_index >= 0 || ks->num_subtitles > 0) {
                 if (!ks->subtitles_language[0]) {
                     fprintf(stderr, "WARNING - Subtitles language not set for input file %d\n",i);
                 }
@@ -1019,6 +1139,44 @@ void ff2theora_output(ff2theora this) {
                 }
             }
 
+            if (!this->disable_subtitles && subtitles_enabled[pkt.stream_index] && is_supported_subtitle_stream(this, pkt.stream_index)) {
+              AVStream *stream=this->context->streams[pkt.stream_index];
+              AVCodecContext *enc = stream->codec;
+              if (enc) {
+                if (enc->codec_id == CODEC_ID_TEXT || enc->codec_id == CODEC_ID_SSA) {
+                  const char *utf8 = pkt.data;
+                  size_t utf8len = pkt.size;
+                  float t = (float)pkt.pts * stream->time_base.num / stream->time_base.den - this->start_time;
+                  // my test case has 0 duration, how clever of that. I assume it's that old 'ends whenever the next
+                  // one starts' hack, but it means I don't know in advance what duration it has. Great!
+                  float duration;
+                  if (pkt.duration <= 0) {
+                    duration = 2.0f;
+                  }
+                  else {
+                    duration  = (float)pkt.duration * stream->time_base.num / stream->time_base.den;
+                  }
+                  // SSA has control stuff in there, extract raw text
+                  if (enc->codec_id == CODEC_ID_SSA) {
+                    duration = get_duration_from_ssa(utf8);
+                    utf8 = get_raw_text_from_ssa(utf8);
+                    if (utf8) {
+                      utf8len = strlen(utf8);
+                    }
+                  }
+                  if (t < 0 && t + duration > 0) {
+                    duration += t;
+                    t = 0;
+                  }
+                  if (utf8 && t >= 0)
+                    add_subtitle_for_stream(this->kate_streams, this->n_kate_streams, pkt.stream_index, t, duration, utf8, utf8len);
+                }
+                else {
+                  /* TODO: other types */
+                }
+              }
+            }
+
             /* if we have subtitles starting before then, add it */
             if (info.with_kate) {
                 double avtime = info.audio_only ? info.audiotime :
@@ -1052,6 +1210,15 @@ void ff2theora_output(ff2theora this) {
                 oggmux_add_kate_end_packet(&info, i, t);
                 oggmux_flush (&info, e_o_s);
             }
+        }
+
+        if (!this->disable_subtitles) {
+          for (i = 0; i < this->context->nb_streams; i++) {
+            if (subtitles_opened[i]) {
+              AVCodecContext *enc = this->context->streams[i]->codec;
+              if (enc) avcodec_close(enc);
+            }
+          }
         }
 
         if (this->video_index >= 0) {
@@ -1290,6 +1457,7 @@ void print_usage() {
         "      --subtitles-language language    set subtitles language (de, en_GB, etc)\n"
         "      --subtitles-category category    set subtitles category (default \"subtitles\")\n"
         "      --subtitles-ignore-non-utf8      ignores any non utf-8 sequence in utf-8 text\n"
+        "      --nosubtitles                    disables subtitles from input\n"
         "\n"
 #endif
         "Metadata options:\n"
@@ -1376,6 +1544,7 @@ int main(int argc, char **argv) {
         {"nosound",0,&flag,NOAUDIO_FLAG},
         {"noaudio",0,&flag,NOAUDIO_FLAG},
         {"novideo",0,&flag,NOVIDEO_FLAG},
+        {"nosubtitles",0,&flag,NOSUBTITLES_FLAG},
         {"no-upscaling",0,&flag,NOUPSCALING_FLAG},
 #ifdef HAVE_FRAMEHOOK
         {"vhook",required_argument,&flag,VHOOK_FLAG},
@@ -1467,6 +1636,10 @@ int main(int argc, char **argv) {
                             break;
                         case NOVIDEO_FLAG:
                             convert->disable_video = 1;
+                            flag = -1;
+                            break;
+                        case NOSUBTITLES_FLAG:
+                            convert->disable_subtitles = 1;
                             flag = -1;
                             break;
                         case NOUPSCALING_FLAG:
@@ -1815,25 +1988,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    for (n=0; n<convert->n_kate_streams; ++n) {
-        ff2theora_kate_stream *ks=convert->kate_streams+n;
-        if (load_subtitles(ks,convert->ignore_non_utf8)>0) {
-            printf("Muxing Kate stream %d from %s as %s %s\n",
-                n,ks->filename,
-                ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
-                ks->subtitles_category[0]?ks->subtitles_category:"SUB");
-        }
-        else {
-            if (n!=convert->n_kate_streams) {
-            memmove(convert->kate_streams+n,convert->kate_streams+n+1,(convert->n_kate_streams-n-1)*sizeof(ff2theora_kate_stream));
-            --convert->n_kate_streams;
-            --n;
-          }
-        }
-    }
-
-    oggmux_setup_kate_streams(&info, convert->n_kate_streams);
-
     //detect image sequences and set framerate if provided
     if (av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
         (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
@@ -1888,6 +2042,9 @@ int main(int argc, char **argv) {
                 }
                 if (convert->disable_video) {
                     fprintf(stderr, "  [video disabled].\n");
+                }
+                if (convert->disable_subtitles) {
+                    fprintf(stderr, "  [subtitles disabled].\n");
                 }
                 if (convert->sync) {
                     fprintf(stderr, "  Use A/V Sync from input container.\n");
