@@ -565,7 +565,7 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
         info->k_pkg++;
     }
     else {
-        fprintf(stderr, "Failed to encode kate data packet (%f --> %f, [%s]): %d",
+        fprintf(stderr, "Failed to encode kate data packet (%f --> %f, [%s]): %d\n",
             t0, t1, text, ret);
     }
 #endif
@@ -589,7 +589,7 @@ void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t) {
         info->k_pkg++;
     }
     else {
-        fprintf(stderr, "Failed to encode kate end packet: %d", ret);
+        fprintf(stderr, "Failed to encode kate end packet at %f: %d\n", t, ret);
     }
 #endif
 }
@@ -664,7 +664,7 @@ static void write_audio_page(oggmux_info *info)
     info->a_page++;
     info->v_page=0;
     fprintf(stderr,"\naudio page %d (%d pkgs) | pkg remaining %d\n",info->a_page,ogg_page_packets((ogg_page *)&info->audiopage),info->a_pkg);
-    #endif
+#endif
 
     info->akbps = rint (info->audio_bytesout * 8. / info->audiotime * .001);
     if (info->akbps<0)
@@ -835,7 +835,7 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
 
 #ifdef HAVE_KATE
 #define CHECK_KATE_OUTPUT(which) \
-        if (best>=0 && info->kate_streams[best].katetime/*-1.0*/<=info->which##time) { \
+        if (best >= 0 && info->kate_streams[best].katetime <= info->which##time) { \
             write_kate_page(info, best); \
             continue; \
         }
