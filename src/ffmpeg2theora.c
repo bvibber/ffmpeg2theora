@@ -386,6 +386,7 @@ void ff2theora_output(ff2theora this) {
     int display_width, display_height;
     char *subtitles_enabled = (char*)alloca(this->context->nb_streams);
     char *subtitles_opened = (char*)alloca(this->context->nb_streams);
+    int synced = this->start_time == 0.0;
 
     if (this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
@@ -945,21 +946,46 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr, "End time has to be bigger than start time.\n");
             exit(1);
         }
+
         /* main decoding loop */
         do{
+            ret = av_read_frame(this->context,&pkt);
+            if (ret<0) {
+                e_o_s=1;
+            }
+            else {
+                /* check for start time */
+                if (!synced) {
+                    AVStream *stream=this->context->streams[pkt.stream_index];
+                    float t = (float)pkt.pts * stream->time_base.num / stream->time_base.den - this->start_time;
+                    synced = (t >= 0);
+                }
+                if (!synced) {
+                    /*
+                      pipe data to decoder, needed to have
+                      first frame decodec in case its not a keyframe
+                    */
+                    if (pkt.stream_index == this->video_index) {
+                      avcodec_decode_video(vstream->codec, frame, &got_picture, pkt.data, pkt.size);
+                    }
+                    av_free_packet (&pkt);
+                    continue;
+                }
+            }
+
+            /* check for end time */
             if (info.audio_only && no_samples > 0) {
                 if (this->sample_count > no_samples) {
                     break;
                 }
             }
             if (no_frames > 0) {
+                if (this->frame_count == no_frames) {
+                    e_o_s = 1;
+                }
                 if (this->frame_count > no_frames) {
                     break;
                 }
-            }
-            ret = av_read_frame(this->context,&pkt);
-            if (ret<0) {
-                e_o_s=1;
             }
 
             ptr = pkt.data;
