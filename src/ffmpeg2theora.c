@@ -317,16 +317,65 @@ static int is_supported_subtitle_stream(ff2theora this, int idx)
   return 0;
 }
 
-static const char *get_raw_text_from_ssa(const char *ssa)
+static char *get_raw_text_from_ssa(const char *ssa)
 {
-  int n;
-  const char *ptr=ssa;
+  int n,intag,inescape;
+  char *allocated;
+  const char *dialogue, *ptr, *tag_start;
+
+  if (!ssa) return NULL;
+  dialogue=strstr(ssa, "Dialogue:");
+  if (!dialogue) return NULL;
+
+  ptr = dialogue;
   for (n=0;n<9;++n) {
     ptr=strchr(ptr,',');
     if (!ptr) return NULL;
     ++ptr;
   }
-  return ptr;
+  dialogue = ptr;
+  allocated = strdup(dialogue);
+
+  /* find all "{...}" tags - the following must work for UTF-8 */
+  intag=inescape=0;
+  n=0;
+  for (ptr=dialogue; *ptr; ++ptr) {
+    if (*ptr=='{') {
+      if (intag==0) tag_start = ptr;
+      ++intag;
+    }
+    else if (*ptr=='}') {
+      --intag;
+      if (intag == 0) {
+        /* tag parsing - none for now */
+      }
+    }
+    else if (!intag) {
+      if (inescape) {
+        if (*ptr == 'N' || *ptr == 'n')
+          allocated[n++] = '\n';
+        else if (*ptr == 'h')
+          allocated[n++] = ' ';
+        inescape=0;
+      }
+      else {
+        if (*ptr=='\\') {
+          inescape=1;
+        }
+        else {
+          allocated[n++]=*ptr;
+        }
+      }
+    }
+  }
+  allocated[n]=0;
+
+  /* remove any trailing newlines (also \r characters) */
+  n = strlen(allocated);
+  while (n>0 && (allocated[n-1]=='\n' || allocated[n-1]=='\r'))
+    allocated[--n]=0;
+
+  return allocated;
 }
 
 static const float get_ssa_time(const char *p)
@@ -1170,6 +1219,7 @@ void ff2theora_output(ff2theora this) {
               AVCodecContext *enc = stream->codec;
               if (enc) {
                 if (enc->codec_id == CODEC_ID_TEXT || enc->codec_id == CODEC_ID_SSA) {
+                  char *allocated_utf8 = NULL;
                   const char *utf8 = pkt.data;
                   size_t utf8len = pkt.size;
                   float t = (float)pkt.pts * stream->time_base.num / stream->time_base.den - this->start_time;
@@ -1184,11 +1234,21 @@ void ff2theora_output(ff2theora this) {
                   }
                   // SSA has control stuff in there, extract raw text
                   if (enc->codec_id == CODEC_ID_SSA) {
-                    duration = get_duration_from_ssa(utf8);
-                    utf8 = get_raw_text_from_ssa(utf8);
-                    if (utf8) {
-                      utf8len = strlen(utf8);
+                    char *dupe = malloc(utf8len+1); // not zero terminated, so make it so
+                    memcpy(dupe, utf8, utf8len);
+                    dupe[utf8len] = 0;
+                    duration = get_duration_from_ssa(dupe);
+                    allocated_utf8 = get_raw_text_from_ssa(dupe);
+                    if (allocated_utf8) {
+                      if (allocated_utf8 == dupe) {
+                        allocated_utf8 = NULL;
+                      }
+                      else {
+                        utf8 = allocated_utf8;
+                        utf8len = strlen(utf8);
+                      }
                     }
+                    free(dupe);
                   }
                   if (t < 0 && t + duration > 0) {
                     duration += t;
@@ -1196,6 +1256,7 @@ void ff2theora_output(ff2theora this) {
                   }
                   if (utf8 && t >= 0)
                     add_subtitle_for_stream(this->kate_streams, this->n_kate_streams, pkt.stream_index, t, duration, utf8, utf8len);
+                  if (allocated_utf8) free(allocated_utf8);
                 }
                 else {
                   /* TODO: other types */
