@@ -1205,6 +1205,14 @@ void ff2theora_output(ff2theora this) {
                                 audio_p = audio_buf;
                         }
                     }
+                    if (this->sample_count + samples_out > no_samples) {
+                        e_o_s = 1;
+                        samples_out = no_samples - this->sample_count;
+                        if (samples_out <= 0) {
+                            break;
+                        }
+                    }
+
                     oggmux_add_audio(&info, audio_p,
                         samples_out *(this->channels),samples_out,e_o_s);
                     this->sample_count += samples_out;
