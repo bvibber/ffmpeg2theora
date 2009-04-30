@@ -497,7 +497,7 @@ void oggmux_init (oggmux_info *info) {
 void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s) {
     ogg_packet op;
     theora_encode_YUVin (&info->td, yuv);
-    while (theora_encode_packetout (&info->td, e_o_s, &op)) {
+    while (theora_encode_packetout (&info->td, e_o_s, &op) > 0) {
         ogg_stream_packetin (&info->to, &op);
         info->v_pkg++;
     }
@@ -515,8 +515,10 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
 
     int i,j, count = 0;
     float **vorbis_buffer;
-    if (e_o_s) {
-        vorbis_analysis_wrote (&info->vd, 0);
+    if (bytes <= 0 && samples <= 0) {
+        /* end of audio stream */
+        if (e_o_s)
+            vorbis_analysis_wrote (&info->vd, 0);
     }
     else{
         vorbis_buffer = vorbis_analysis_buffer (&info->vd, samples);
@@ -527,6 +529,9 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
             }
         }
         vorbis_analysis_wrote (&info->vd, samples);
+        /* end of audio stream */
+        if (e_o_s)
+            vorbis_analysis_wrote (&info->vd, 0);
     }
     while (vorbis_analysis_blockout (&info->vd, &info->vb) == 1) {
         /* analysis, assume we want to use bitrate management */

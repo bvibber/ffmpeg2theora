@@ -1023,12 +1023,13 @@ void ff2theora_output(ff2theora this) {
             }
 
             /* check for end time */
-            if (no_samples > 0) {
+            if (info.audio_only && no_samples > 0) {
                 if (this->sample_count >= no_samples) {
                     break;
                 }
             }
             if (no_frames > 0) {
+                //why does this cause a crash for some input formats?
                 if (this->frame_count == no_frames) {
                     e_o_s = 1;
                 }
@@ -1206,7 +1207,7 @@ void ff2theora_output(ff2theora this) {
                         }
                     }
 
-                    if (this->end_time > 0 && this->sample_count + samples_out > no_samples) {
+                    if (info.audio_only && no_samples > 0 && this->sample_count + samples_out > no_samples) {
                         e_o_s = 1;
                         samples_out = no_samples - this->sample_count;
                         if (samples_out <= 0) {
