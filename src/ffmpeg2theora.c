@@ -1023,8 +1023,8 @@ void ff2theora_output(ff2theora this) {
             }
 
             /* check for end time */
-            if (info.audio_only && no_samples > 0) {
-                if (this->sample_count > no_samples) {
+            if (no_samples > 0) {
+                if (this->sample_count >= no_samples) {
                     break;
                 }
             }
@@ -1205,7 +1205,8 @@ void ff2theora_output(ff2theora this) {
                                 audio_p = audio_buf;
                         }
                     }
-                    if (this->sample_count + samples_out > no_samples) {
+
+                    if (this->end_time > 0 && this->sample_count + samples_out > no_samples) {
                         e_o_s = 1;
                         samples_out = no_samples - this->sample_count;
                         if (samples_out <= 0) {

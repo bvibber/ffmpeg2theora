@@ -515,10 +515,8 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
 
     int i,j, count = 0;
     float **vorbis_buffer;
-    if (bytes <= 0 && samples <= 0) {
-        /* end of audio stream */
-        if (e_o_s)
-            vorbis_analysis_wrote (&info->vd, 0);
+    if (e_o_s) {
+        vorbis_analysis_wrote (&info->vd, 0);
     }
     else{
         vorbis_buffer = vorbis_analysis_buffer (&info->vd, samples);
