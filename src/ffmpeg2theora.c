@@ -47,6 +47,7 @@
 #include "iso639.h"
 #include "subtitles.h"
 #include "ffmpeg2theora.h"
+#include "avinfo.h"
 
 enum {
     NULL_FLAG,
@@ -75,7 +76,8 @@ enum {
     FRONTENDFILE_FLAG,
     SPEEDLEVEL_FLAG,
     PP_FLAG,
-    NOSKELETON
+    NOSKELETON,
+    INFO_FLAG
 } F2T_FLAGS;
 
 enum {
@@ -746,8 +748,6 @@ void ff2theora_output(ff2theora this) {
         if (this->sample_rate==-1) {
             this->sample_rate = aenc->sample_rate;
         }
-        if (this->channels != aenc->channels && aenc->codec_id == CODEC_ID_AC3)
-            aenc->channels = this->channels;
 
         if (this->no_upscaling) {
             if (this->sample_rate > aenc->sample_rate)
@@ -758,7 +758,14 @@ void ff2theora_output(ff2theora this) {
 
         if (acodec != NULL && avcodec_open (aenc, acodec) >= 0) {
             if (this->sample_rate != aenc->sample_rate || this->channels != aenc->channels) {
-                this->audio_resample_ctx = audio_resample_init (this->channels,aenc->channels,this->sample_rate,aenc->sample_rate);
+                // values take from libavcodec/resample.c
+                this->audio_resample_ctx = av_audio_resample_init(this->channels,    aenc->channels,
+                                                                  this->sample_rate, aenc->sample_rate,
+                                                                  SAMPLE_FMT_S16,    aenc->sample_fmt,
+                                                                  16, 10, 0, 0.8);
+                if (!this->audio_resample_ctx) {
+                    this->channels = aenc->channels;
+                }
                 if (this->sample_rate!=aenc->sample_rate)
                     fprintf(stderr, "  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
                 if (this->channels!=aenc->channels)
@@ -1031,19 +1038,6 @@ void ff2theora_output(ff2theora this) {
             }
 
             /* check for end time */
-            /*
-            
-            if (info.audio_only && no_samples > 0) {
-                if (this->sample_count >= no_samples) {
-                    break;
-                }
-            }
-            if (info.video_only && no_frames > 0) {
-                if (this->frame_count > no_frames) {
-                    break;
-                }
-            }
-            */
             if (no_frames > 0 && this->frame_count == no_frames) {
                 video_eos = 1;
             }
@@ -1562,7 +1556,6 @@ void print_usage() {
         "      --sync             use A/V sync from input container. Since this does\n"
         "                          not work with all input format you have to manually\n"
         "                          enable it if you have issues with A/V sync\n"
-        "\n"
 #ifdef HAVE_KATE
         "Subtitles options:\n"
         "      --subtitles file                 use subtitles from the given file (SubRip (.srt) format)\n"
@@ -1590,6 +1583,8 @@ void print_usage() {
 #endif
         "  -P, --pid fname        write the process' id to a file\n"
         "  -h, --help             this message\n"
+        "      --info             output json info about input file, use -o to save json to file\n"
+        "\n"
         "\n"
         "Examples:\n"
         "  ffmpeg2theora videoclip.avi (will write output to videoclip.ogv)\n"
@@ -1623,6 +1618,7 @@ int main(int argc, char **argv) {
     char outputfile_name[255];
     char inputfile_name[255];
     char *str_ptr;
+    int output_json = 0;
 
     static int flag = -1;
     static int metadata_flag = 0;
@@ -1685,7 +1681,7 @@ int main(int argc, char **argv) {
         {"speedlevel",required_argument,&flag,SPEEDLEVEL_FLAG},
         {"frontend",0,&flag,FRONTEND_FLAG},
         {"frontendfile",required_argument,&flag,FRONTENDFILE_FLAG},
-
+        {"info",no_argument,&flag,INFO_FLAG},
         {"artist",required_argument,&metadata_flag,10},
         {"title",required_argument,&metadata_flag,11},
         {"date",required_argument,&metadata_flag,12},
@@ -1811,6 +1807,9 @@ int main(int argc, char **argv) {
                             break;
                         case NOSKELETON:
                             info.with_skeleton=0;
+                            break;
+                        case INFO_FLAG:
+                            output_json = 1;
                             break;
 #ifdef HAVE_KATE
                         case SUBTITLES_FLAG:
@@ -2057,6 +2056,10 @@ int main(int argc, char **argv) {
         }
     }
 
+    if (output_json && !outputfile_set) {
+        snprintf(outputfile_name, sizeof(outputfile_name), "-");
+        outputfile_set = 1;
+    }
     while(optind<argc) {
         /* assume that anything following the options must be a filename */
         snprintf(inputfile_name,sizeof(inputfile_name),"%s",argv[optind]);
@@ -2143,6 +2146,13 @@ int main(int argc, char **argv) {
                 }
                 info.outfile = fopen(outputfile_name,"wb");
 #endif
+                if (output_json) {
+                    json_format_info(info.outfile, convert->context, inputfile_name);
+                    if (info.outfile != stdout)
+                        fclose(info.outfile);
+                    exit(0);
+                }
+
                 if (info.frontend) {
                     fprintf(info.frontend, "\nf2t ;duration: %d;\n", (int)(convert->context->duration / AV_TIME_BASE));
                     fflush(info.frontend);
