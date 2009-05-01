@@ -842,7 +842,7 @@ void ff2theora_output(ff2theora this) {
         int len1;
         int got_picture;
         int first = 1;
-        int e_o_s = 0;
+        int audio_eos = 0, video_eos = 0, audio_done = 0, video_done = 0;
         int ret;
         uint8_t *ptr;
         int16_t *audio_buf=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
@@ -863,6 +863,11 @@ void ff2theora_output(ff2theora this) {
             info.video_only=0;
         else
             info.video_only=1;
+
+        if(info.audio_only)
+            video_done = 1;
+        if(info.video_only)
+            audio_done = 1;
 
         if (!info.audio_only) {
             frame_p = frame = frame_alloc(vstream->codec->pix_fmt,
@@ -998,9 +1003,12 @@ void ff2theora_output(ff2theora this) {
 
         /* main decoding loop */
         do{
-            ret = av_read_frame(this->context,&pkt);
+            ret = av_read_frame(this->context, &pkt);
             if (ret<0) {
-                e_o_s=1;
+                if (!info.video_only)
+                    audio_eos = 1;
+                if (!info.audio_only)
+                    video_eos = 1;
             }
             else {
                 /* check for start time */
@@ -1023,28 +1031,30 @@ void ff2theora_output(ff2theora this) {
             }
 
             /* check for end time */
+            /*
+            
             if (info.audio_only && no_samples > 0) {
                 if (this->sample_count >= no_samples) {
                     break;
                 }
             }
-            if (no_frames > 0) {
-                //why does this cause a crash for some input formats?
-                if (this->frame_count == no_frames) {
-                    e_o_s = 1;
-                }
+            if (info.video_only && no_frames > 0) {
                 if (this->frame_count > no_frames) {
                     break;
                 }
             }
+            */
+            if (no_frames > 0 && this->frame_count == no_frames) {
+                video_eos = 1;
+            }
 
             ptr = pkt.data;
             len = pkt.size;
-            if ((e_o_s && !info.audio_only) || (ret >= 0 && pkt.stream_index == this->video_index)) {
-                if (len == 0 && !first && !e_o_s) {
+            if ((video_eos && !video_done) || (ret >= 0 && pkt.stream_index == this->video_index)) {
+                if (len == 0 && !first && !video_eos) {
                     fprintf (stderr, "no frame available\n");
                 }
-                while(e_o_s || len > 0) {
+                while(video_eos || len > 0) {
                     int dups = 0;
                     yuv_buffer yuv;
                     len1 = avcodec_decode_video(vstream->codec, frame, &got_picture, ptr, len);
@@ -1162,10 +1172,13 @@ void ff2theora_output(ff2theora this) {
                     //now output_resized
 
                     if (!first) {
-                        if (got_picture || e_o_s) {
+                        if (got_picture || video_eos) {
                             prepare_yuv_buffer(this, &yuv, output_buffered);
                             do {
-                                oggmux_add_video(&info, &yuv, e_o_s);
+                                oggmux_add_video(&info, &yuv, video_eos);
+                                if(video_eos) {
+                                    video_done = 1;
+                                }
                                 this->frame_count++;
                             } while(dups--);
                         }
@@ -1179,11 +1192,10 @@ void ff2theora_output(ff2theora this) {
                     }
                 }
             }
-            if ((e_o_s && !info.video_only)
-                     || (ret >= 0 && pkt.stream_index == this->audio_index)) {
+            if ((audio_eos && !audio_done) || (ret >= 0 && pkt.stream_index == this->audio_index)) {
                 this->pts_offset = (double) pkt.pts / AV_TIME_BASE -
                     (double) this->sample_count / this->sample_rate;
-                while(e_o_s || len > 0 ) {
+                while(audio_eos || len > 0 ) {
                     int samples=0;
                     int samples_out=0;
                     int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
@@ -1207,8 +1219,8 @@ void ff2theora_output(ff2theora this) {
                         }
                     }
 
-                    if (info.audio_only && no_samples > 0 && this->sample_count + samples_out > no_samples) {
-                        e_o_s = 1;
+                    if (no_samples > 0 && this->sample_count + samples_out > no_samples) {
+                        audio_eos = 1;
                         samples_out = no_samples - this->sample_count;
                         if (samples_out <= 0) {
                             break;
@@ -1216,9 +1228,13 @@ void ff2theora_output(ff2theora this) {
                     }
 
                     oggmux_add_audio(&info, audio_p,
-                        samples_out *(this->channels),samples_out,e_o_s);
+                        samples_out *(this->channels), samples_out, audio_eos);
                     this->sample_count += samples_out;
-                    if (e_o_s && len <= 0) {
+                    if(audio_eos) {
+                        audio_done = 1;
+                    }
+
+                    if (audio_eos && len <= 0) {
                         break;
                     }
                 }
@@ -1296,16 +1312,17 @@ void ff2theora_output(ff2theora this) {
             }
 
             /* flush out the file */
-            oggmux_flush (&info, e_o_s);
+            
+            oggmux_flush (&info, video_eos + audio_eos);
             av_free_packet (&pkt);
-        } while (ret >= 0);
+        } while (ret >= 0 && !(audio_done && video_done));
 
         for (i=0; i<this->n_kate_streams; ++i) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
             if (ks->num_subtitles > 0) {
                 double t = (info.videotime<info.audiotime?info.audiotime:info.videotime)+this->start_time;
                 oggmux_add_kate_end_packet(&info, i, t);
-                oggmux_flush (&info, e_o_s);
+                oggmux_flush (&info, video_eos + audio_eos);
             }
         }
 
