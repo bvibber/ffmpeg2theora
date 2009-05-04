@@ -1615,8 +1615,8 @@ void print_usage() {
 int main(int argc, char **argv) {
     int  n;
     int  outputfile_set=0;
-    char outputfile_name[255];
-    char inputfile_name[255];
+    char outputfile_name[1024];
+    char inputfile_name[1024];
     char *str_ptr;
     int output_json = 0;
 
