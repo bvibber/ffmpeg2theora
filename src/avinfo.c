@@ -34,7 +34,7 @@
 
 long get_filesize(char const *filename) {
     struct stat file;
-    if(!stat(filename,&file)) {
+    if(!stat(filename, &file)) {
         return file.st_size;
     }
     return 0;
@@ -66,9 +66,17 @@ enum {
 } JSON_TYPES;
 
 void json_add_key_value(FILE *output, char *key, void *value, int type, int last) {
+    char *p, *pp;
     switch(type) {
         case JSON_STRING:
-            fprintf(output, "  \"%s\": \"%s\"", key, (char *)value);
+            p = (char *)value;
+            fprintf(output, "  \"%s\": \"", key);
+            while(pp = index(p, 34)) {
+                *pp = '\0';
+                fprintf(output, "%s\\\"", p);
+                p = pp + 1;
+            }
+            fprintf(output, "%s\"", p);
             break;
         case JSON_INT:
             fprintf(output, "  \"%s\": %d", key, *(int *)value);
