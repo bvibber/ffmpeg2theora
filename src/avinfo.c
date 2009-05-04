@@ -65,17 +65,22 @@ enum {
     JSON_FLOAT,
 } JSON_TYPES;
 
-void json_add_key_value(FILE *output, char *key, void *value, int type) {
+void json_add_key_value(FILE *output, char *key, void *value, int type, int last) {
     switch(type) {
         case JSON_STRING:
-            fprintf(output, "  \"%s\": \"%s\",\n", key, (char *)value);
+            fprintf(output, "  \"%s\": \"%s\"", key, (char *)value);
             break;
         case JSON_INT:
-            fprintf(output, "  \"%s\": %d,\n", key, *(int *)value);
+            fprintf(output, "  \"%s\": %d", key, *(int *)value);
             break;
         case JSON_FLOAT:
-            fprintf(output, "  \"%s\": %f,\n", key, *(float *)value);
+            fprintf(output, "  \"%s\": %f", key, *(float *)value);
             break;
+    }
+    if (last) {
+        fprintf(output, "\n");
+    } else {
+        fprintf(output, ",\n");
     }
 }
 
@@ -115,13 +120,13 @@ void json_codec_info(FILE *output, AVCodecContext *enc) {
     switch(enc->codec_type) {
     case CODEC_TYPE_VIDEO:
         codec_name = fix_codec_name(codec_name);
-        json_add_key_value(output, "video_codec", (void *)codec_name, JSON_STRING);
+        json_add_key_value(output, "video_codec", (void *)codec_name, JSON_STRING, 0);
         if (enc->pix_fmt != PIX_FMT_NONE) {
-            json_add_key_value(output, "pixel_format", (void *)avcodec_get_pix_fmt_name(enc->pix_fmt), JSON_STRING);
+            json_add_key_value(output, "pixel_format", (void *)avcodec_get_pix_fmt_name(enc->pix_fmt), JSON_STRING, 0);
         }
         if (enc->width) {
-            json_add_key_value(output, "width", &enc->width, JSON_INT);
-            json_add_key_value(output, "height", &enc->height, JSON_INT);
+            json_add_key_value(output, "width", &enc->width, JSON_INT, 0);
+            json_add_key_value(output, "height", &enc->height, JSON_INT, 0);
             if (enc->sample_aspect_ratio.num) {
                 av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
                           enc->width*enc->sample_aspect_ratio.num,
@@ -129,25 +134,25 @@ void json_codec_info(FILE *output, AVCodecContext *enc) {
                           1024*1024);
                 snprintf(buf1, sizeof(buf1), "%d:%d",
                          enc->sample_aspect_ratio.num, enc->sample_aspect_ratio.den);
-                json_add_key_value(output, "pixel_aspect_ratio", buf1, JSON_STRING);
+                json_add_key_value(output, "pixel_aspect_ratio", buf1, JSON_STRING, 0);
                 snprintf(buf1, sizeof(buf1), "%d:%d",
                          display_aspect_ratio.num, display_aspect_ratio.den);
-                json_add_key_value(output, "display_aspect_ratio", buf1, JSON_STRING);
+                json_add_key_value(output, "display_aspect_ratio", buf1, JSON_STRING, 0);
             }
         }
         bitrate = enc->bit_rate;
         if (bitrate != 0) {
             float t = (float)bitrate / 1000;
-            json_add_key_value(output, "video_bitrate", &t, JSON_FLOAT);
+            json_add_key_value(output, "video_bitrate", &t, JSON_FLOAT, 0);
         }
         break;
     case CODEC_TYPE_AUDIO:
         codec_name = fix_codec_name(codec_name);
-        json_add_key_value(output, "audio_codec", (void *)codec_name, JSON_STRING);
+        json_add_key_value(output, "audio_codec", (void *)codec_name, JSON_STRING, 0);
         if (enc->sample_rate) {
-            json_add_key_value(output, "samplerate", &enc->sample_rate, JSON_INT);
+            json_add_key_value(output, "samplerate", &enc->sample_rate, JSON_INT, 0);
         }
-        json_add_key_value(output, "channels", &enc->channels, JSON_INT);
+        json_add_key_value(output, "channels", &enc->channels, JSON_INT, 0);
 
         /* for PCM codecs, compute bitrate directly */
         switch(enc->codec_id) {
@@ -190,7 +195,7 @@ void json_codec_info(FILE *output, AVCodecContext *enc) {
         }
         if (bitrate != 0) {
             float t = (float)bitrate / 1000;
-            json_add_key_value(output, "audio_bitrate", &t, JSON_FLOAT);
+            json_add_key_value(output, "audio_bitrate", &t, JSON_FLOAT, 0);
         }
         break;
     /*
@@ -234,20 +239,20 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i) {
                   1024*1024);
         snprintf(buf1, sizeof(buf1), "%d:%d",
                  st->sample_aspect_ratio.num, st->sample_aspect_ratio.den);
-        json_add_key_value(output, "pixel_aspect_ratio", buf1, JSON_STRING);
+        json_add_key_value(output, "pixel_aspect_ratio", buf1, JSON_STRING, 0);
         snprintf(buf1, sizeof(buf1), "%d:%d",
                  display_aspect_ratio.num, display_aspect_ratio.den);
-        json_add_key_value(output, "display_aspect_ratio", buf1, JSON_STRING);
+        json_add_key_value(output, "display_aspect_ratio", buf1, JSON_STRING, 0);
     }
     if(st->codec->codec_type == CODEC_TYPE_VIDEO){
         if (st->time_base.den && st->time_base.num && av_q2d(st->time_base) > 0.001) {
             snprintf(buf1, sizeof(buf1), "%d:%d",
                      st->time_base.den, st->time_base.num);
-            json_add_key_value(output, "framerate", buf1, JSON_STRING);
+            json_add_key_value(output, "framerate", buf1, JSON_STRING, 0);
         } else {
             snprintf(buf1, sizeof(buf1), "%d:%d",
                      st->r_frame_rate.num, st->r_frame_rate.den);
-            json_add_key_value(output, "framerate", buf1, JSON_STRING);
+            json_add_key_value(output, "framerate", buf1, JSON_STRING, 0);
         }
     }
 }
@@ -258,21 +263,17 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
     long filesize;
 
     fprintf(output, "{\n");
-    json_add_key_value(output, "path", (void *)url, JSON_STRING);
-    filesize = get_filesize(url);
-    json_add_key_value(output, "size", &filesize, JSON_INT);
-
     if (ic->duration != AV_NOPTS_VALUE) {
         float secs;
         secs = (float)ic->duration / AV_TIME_BASE;
-        json_add_key_value(output, "duration", &secs, JSON_FLOAT);
+        json_add_key_value(output, "duration", &secs, JSON_FLOAT, 0);
     } else {
         float t = -1;
-        json_add_key_value(output, "duration", &t, JSON_FLOAT);
+        json_add_key_value(output, "duration", &t, JSON_FLOAT, 0);
     }
     if (ic->bit_rate) {
         float t = (float)ic->bit_rate / 1000;
-        json_add_key_value(output, "bitrate", &t, JSON_FLOAT);
+        json_add_key_value(output, "bitrate", &t, JSON_FLOAT, 0);
     }
 
     if(ic->nb_programs) {
@@ -286,6 +287,9 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
             json_stream_format(output, ic, i);
         }
     }
+    json_add_key_value(output, "path", (void *)url, JSON_STRING, 0);
+    filesize = get_filesize(url);
+    json_add_key_value(output, "size", &filesize, JSON_INT, 1);
     fprintf(output, "}\n");
 }
 
