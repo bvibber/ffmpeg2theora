@@ -1000,7 +1000,7 @@ void ff2theora_output(ff2theora this) {
         }
 
         /*check for end time and calculate number of frames to encode*/
-        no_frames = this->fps*(this->end_time - this->start_time);
+        no_frames = this->fps*(this->end_time - this->start_time) - 1;
         no_samples = this->sample_rate * (this->end_time - this->start_time);
         if ((info.audio_only && this->end_time > 0 && no_samples <= 0)
             || (!info.audio_only && this->end_time > 0 && no_frames <= 0)) {
@@ -1189,7 +1189,7 @@ void ff2theora_output(ff2theora this) {
             if ((audio_eos && !audio_done) || (ret >= 0 && pkt.stream_index == this->audio_index)) {
                 this->pts_offset = (double) pkt.pts / AV_TIME_BASE -
                     (double) this->sample_count / this->sample_rate;
-                while(audio_eos || len > 0 ) {
+                while((audio_eos && !audio_done) || len > 0 ) {
                     int samples=0;
                     int samples_out=0;
                     int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
