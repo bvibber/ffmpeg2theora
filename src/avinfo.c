@@ -3,7 +3,7 @@
  * ffmpeg2theora.c -- Convert ffmpeg supported a/v files to Ogg Theora / Ogg Vorbis
  * Copyright (C) 2003-2008 <j@v2v.cc>
  *
- * gcc -o avinfo avinfo.c `pkg-config --cflags --libs libavcodec libavformat`
+ * gcc -o avinfo avinfo.c -DAVINFO `pkg-config --cflags --libs libavcodec libavformat`
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
         case JSON_STRING:
             p = (char *)value;
             fprintf(output, "  \"%s\": \"", key);
-            while(pp = index(p, 34)) {
+            while(pp = strchr(p, 34)) {
                 *pp = '\0';
                 fprintf(output, "%s\\\"", p);
                 p = pp + 1;
@@ -301,8 +301,7 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
     fprintf(output, "}\n");
 }
 
-// uncomment this block to use avinfo on its own
-/*
+#ifdef AVINFO
 int main(int argc, char **argv) {
     char inputfile_name[255];
     AVInputFormat *input_fmt = NULL;
@@ -331,4 +330,4 @@ int main(int argc, char **argv) {
         fclose(output);
     }
 }
-*/
+#endif
