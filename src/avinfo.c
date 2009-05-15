@@ -62,6 +62,7 @@ char const *fix_codec_name(char const *codec_name) {
 enum {
     JSON_STRING,
     JSON_INT,
+    JSON_LONG,
     JSON_FLOAT,
 } JSON_TYPES;
 
@@ -80,6 +81,9 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
             break;
         case JSON_INT:
             fprintf(output, "  \"%s\": %d", key, *(int *)value);
+            break;
+        case JSON_LONG:
+            fprintf(output, "  \"%s\": %ld", key, *(long *)value);
             break;
         case JSON_FLOAT:
             fprintf(output, "  \"%s\": %f", key, *(float *)value);
@@ -297,7 +301,7 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
     }
     json_add_key_value(output, "path", (void *)url, JSON_STRING, 0);
     filesize = get_filesize(url);
-    json_add_key_value(output, "size", &filesize, JSON_INT, 1);
+    json_add_key_value(output, "size", &filesize, JSON_LONG, 1);
     fprintf(output, "}\n");
 }
 
