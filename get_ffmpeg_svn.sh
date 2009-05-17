@@ -2,7 +2,7 @@
 
 #optional, if you have those libs installed:
 #apt-get install libamrnb-dev libamrwb-dev
-#extra=" --enable-amr_nb --enable-amr_nb-fixed --enable-amr_wb --enable-amr_if2"
+#extra=" --enable-libamr_nb --enable-libamr_wb --enable-nonfree"
 
 #apt-get install liba52-dev libfaad-dev libgsm1-dev
 #extra=" --enable-libfaad --enable-libgsm"
