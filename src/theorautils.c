@@ -282,6 +282,9 @@ void oggmux_init (oggmux_info *info) {
 
         vorbis_comment_init (&info->vc);
         vorbis_comment_add_tag (&info->vc, "ENCODER",PACKAGE_STRING);
+        if (strcmp(info->oshash,"0") > 0) {
+            vorbis_comment_add_tag (&info->vc, "SOURCE_OSHASH", info->oshash);
+        }
         /* set up the analysis state and auxiliary encoding storage */
         vorbis_analysis_init (&info->vd, &info->vi);
         vorbis_block_init (&info->vd, &info->vb);
@@ -329,6 +332,7 @@ void oggmux_init (oggmux_info *info) {
 
     /* first packet will get its own page automatically */
     if (!info->audio_only) {
+
         theora_encode_header (&info->td, &op);
         ogg_stream_packetin (&info->to, &op);
         if (ogg_stream_pageout (&info->to, &og) != 1) {
@@ -341,6 +345,9 @@ void oggmux_init (oggmux_info *info) {
         /* create the remaining theora headers */
         /* theora_comment_init (&info->tc); is called in main() prior to parsing options */
         theora_comment_add_tag (&info->tc, "ENCODER",PACKAGE_STRING);
+        if (strcmp(info->oshash,"0") > 0) {
+            theora_comment_add_tag (&info->tc, "SOURCE_OSHASH", info->oshash);
+        }
         theora_encode_comment (&info->tc, &op);
         ogg_stream_packetin (&info->to, &op);
         _ogg_free (op.packet);

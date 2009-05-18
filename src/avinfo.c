@@ -269,6 +269,40 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i) {
     }
 }
 
+/* 
+ * os hash
+ * based on public domain example from
+ * http://trac.opensubtitles.org/projects/opensubtitles/wiki/HashSourceCodes   
+ * -works only on little-endian procesor DEC, Intel and compatible
+ * -sizeof(unsigned long long) must be 8
+ */
+unsigned long long gen_oshash(char const *filename) {
+    FILE *file;
+    int i;
+    unsigned long long t1=0;
+    unsigned long long buffer1[8192*2];
+
+
+    file = fopen(filename, "rb");
+    if (file) {
+        fread(buffer1, 8192, 8, file);
+        fseek(file, -65536, SEEK_END);
+        fread(&buffer1[8192], 8192, 8, file); 
+        for (i=0; i < 8192*2; i++)
+            t1+=buffer1[i];
+        t1+= ftell(file); //add filesize
+        fclose(file);
+    }
+    return t1;
+}
+
+void json_oshash(FILE *output, char const *filename) {
+    char hash[16];
+    sprintf(hash,"%qx", gen_oshash(filename));
+    json_add_key_value(output, "oshash", (void *)hash, JSON_STRING, 0);
+}
+
+
 /* "user interface" functions */
 void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
     int i;
@@ -299,9 +333,11 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
             json_stream_format(output, ic, i);
         }
     }
+    json_oshash(output, url);
     json_add_key_value(output, "path", (void *)url, JSON_STRING, 0);
     filesize = get_filesize(url);
     json_add_key_value(output, "size", &filesize, JSON_LONG, 1);
+
     fprintf(output, "}\n");
 }
 

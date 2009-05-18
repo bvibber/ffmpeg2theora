@@ -2132,6 +2132,7 @@ int main(int argc, char **argv) {
     }
     if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0) {
         if (av_find_stream_info(convert->context) >= 0) {
+                sprintf(info.oshash,"%qx", gen_oshash(inputfile_name));
 #ifdef WIN32
                 if (!strcmp(outputfile_name,"-") || !strcmp(outputfile_name,"/dev/stdout")) {
                     _setmode(_fileno(stdout), _O_BINARY);
