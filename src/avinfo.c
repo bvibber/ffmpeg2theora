@@ -298,7 +298,11 @@ unsigned long long gen_oshash(char const *filename) {
 
 void json_oshash(FILE *output, char const *filename) {
     char hash[16];
+#ifdef WIN32
+    sprintf(hash,"%16I64x", gen_oshash(filename));
+#else
     sprintf(hash,"%qx", gen_oshash(filename));
+#endif
     json_add_key_value(output, "oshash", (void *)hash, JSON_STRING, 0);
 }
 
