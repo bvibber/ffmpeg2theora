@@ -29,6 +29,7 @@ opts.AddOptions(
   ('destdir', 'extra install time prefix', ''),
   ('APPEND_CCFLAGS', 'Additional C/C++ compiler flags'),
   ('APPEND_LINKFLAGS', 'Additional linker flags'),
+  BoolOption('libkate', 'enable libkate support', 1),
   BoolOption('crossmingw', 'Set to 1 for crosscompile with mingw', 0)
 )
 env = Environment(options = opts)
@@ -134,19 +135,20 @@ if conf.CheckCHeader('libavformat/framehook.h'):
     ])
 
 KATE_LIBS="oggkate"
-if os.path.exists("./libkate/misc/pkgconfig"):
-  os.environ['PKG_CONFIG_PATH'] = "./libkate/misc/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
-if os.path.exists("./libkate/pkg/pkgconfig"):
-  os.environ['PKG_CONFIG_PATH'] = "./libkate/pkg/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
-if conf.CheckPKG(KATE_LIBS):
-  ParsePKGConfig(env, KATE_LIBS)
-  env.Append(CCFLAGS=['-DHAVE_KATE', '-DHAVE_OGGKATE'])
-else:
-  print """
-      Could not find libkate. Subtitles support will be disabled.
-      You can also run ./get_libkate.sh (for more information see INSTALL)
-      or update PKG_CONFIG_PATH to point to libkate's source folder
-  """
+if env['libkate']:
+  if os.path.exists("./libkate/misc/pkgconfig"):
+    os.environ['PKG_CONFIG_PATH'] = "./libkate/misc/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
+  if os.path.exists("./libkate/pkg/pkgconfig"):
+    os.environ['PKG_CONFIG_PATH'] = "./libkate/pkg/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
+  if conf.CheckPKG(KATE_LIBS):
+    ParsePKGConfig(env, KATE_LIBS)
+    env.Append(CCFLAGS=['-DHAVE_KATE', '-DHAVE_OGGKATE'])
+  else:
+    print """
+        Could not find libkate. Subtitles support will be disabled.
+        You can also run ./get_libkate.sh (for more information see INSTALL)
+        or update PKG_CONFIG_PATH to point to libkate's source folder
+    """
 env = conf.Finish()
 
 # ffmpeg2theora 
