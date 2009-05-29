@@ -618,6 +618,16 @@ static double get_remaining(oggmux_info *info, double timebase) {
     return remaining;
 }
 
+static double estimated_size(oggmux_info *info, double timebase) {
+  double projected_size = 0;
+  double to_encode, time_so_far;
+
+  if (info->duration != -1 && timebase > 0) {
+    projected_size = ((info->audio_bytesout + info->video_bytesout)  /  timebase) * info->duration / 1024 / 1024;
+  }
+  return projected_size;
+}
+
 static void print_stats(oggmux_info *info, double timebase) {
     int hundredths = timebase * 100 - (long) timebase * 100;
     int seconds = (long) timebase % 60;
@@ -641,17 +651,18 @@ static void print_stats(oggmux_info *info, double timebase) {
             remaining_seconds = (long) remaining % 60;
             remaining_minutes = ((long) remaining / 60) % 60;
             remaining_hours = (long) remaining / 3600;
-            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d      ",
+            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d                            ",
                 hours, minutes, seconds, hundredths,
                 info->akbps, info->vkbps,
                 remaining_hours, remaining_minutes, remaining_seconds
             );
         }
         else {
-            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time remaining: %02d:%02d:%02d      ",
+            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time remaining: %02d:%02d:%02d, est. size: %.01lf MB    ",
                 hours, minutes, seconds, hundredths,
                 info->akbps, info->vkbps,
-                remaining_hours, remaining_minutes, remaining_seconds
+                remaining_hours, remaining_minutes, remaining_seconds,
+                estimated_size(info, timebase)
             );
         }
     }
