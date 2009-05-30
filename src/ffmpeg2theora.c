@@ -783,6 +783,7 @@ void ff2theora_output(ff2theora this) {
     for (i = 0; i < this->context->nb_streams; i++) {
       subtitles_enabled[i] = 0;
       subtitles_opened[i] = 0;
+#ifdef HAVE_KATE
       if (!this->disable_subtitles) {
         AVStream *stream = this->context->streams[i];
         AVCodecContext *enc = stream->codec;
@@ -800,8 +801,10 @@ void ff2theora_output(ff2theora this) {
           }
         }
       }
+#endif
     }
 
+#ifdef HAVE_KATE
     for (i=0; i<this->n_kate_streams; ++i) {
         ff2theora_kate_stream *ks=this->kate_streams+i;
         if (ks->stream_index >= 0) {
@@ -829,6 +832,7 @@ void ff2theora_output(ff2theora this) {
           }
         }
     }
+#endif
 
     oggmux_setup_kate_streams(&info, this->n_kate_streams);
 

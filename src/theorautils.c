@@ -452,6 +452,7 @@ void oggmux_init (oggmux_info *info) {
         fwrite (og.header, 1, og.header_len,info->outfile);
         fwrite (og.body, 1, og.body_len, info->outfile);
     }
+#ifdef HAVE_KATE
     if (info->with_kate) {
         int n;
         for (n=0; n<info->n_kate_streams; ++n) {
@@ -470,6 +471,7 @@ void oggmux_init (oggmux_info *info) {
             }
         }
     }
+#endif
 
     if (info->with_skeleton) {
         int result;
