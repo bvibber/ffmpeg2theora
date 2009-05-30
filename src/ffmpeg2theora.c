@@ -805,17 +805,21 @@ void ff2theora_output(ff2theora this) {
     for (i=0; i<this->n_kate_streams; ++i) {
         ff2theora_kate_stream *ks=this->kate_streams+i;
         if (ks->stream_index >= 0) {
+#ifdef DEBUG
             printf("Muxing Kate stream %d from input stream %d\n",
                 i,ks->stream_index);
+#endif
             if (!this->disable_subtitles) {
               info.with_kate=1;
             }
         }
         else if (load_subtitles(ks,this->ignore_non_utf8)>0) {
+#ifdef DEBUG
             printf("Muxing Kate stream %d from %s as %s %s\n",
                 i,ks->filename,
                 ks->subtitles_language[0]?ks->subtitles_language:"<unknown language>",
                 ks->subtitles_category[0]?ks->subtitles_category:"SUB");
+#endif
         }
         else {
             if (i!=this->n_kate_streams) {
