@@ -660,7 +660,7 @@ static void print_stats(oggmux_info *info, double timebase) {
             );
         }
         else {
-            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time remaining: %02d:%02d:%02d, est. size: %.01lf MB    ",
+            fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, ET: %02d:%02d:%02d, est. size: %.01lf MB ",
                 hours, minutes, seconds, hundredths,
                 info->akbps, info->vkbps,
                 remaining_hours, remaining_minutes, remaining_seconds,
