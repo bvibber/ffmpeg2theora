@@ -1263,20 +1263,26 @@ void ff2theora_output(ff2theora this) {
                   // SSA has control stuff in there, extract raw text
                   if (enc->codec_id == CODEC_ID_SSA) {
                     char *dupe = malloc(utf8len+1); // not zero terminated, so make it so
-                    memcpy(dupe, utf8, utf8len);
-                    dupe[utf8len] = 0;
-                    duration = get_duration_from_ssa(dupe);
-                    allocated_utf8 = get_raw_text_from_ssa(dupe);
-                    if (allocated_utf8) {
-                      if (allocated_utf8 == dupe) {
-                        allocated_utf8 = NULL;
+                    if (dupe) {
+                      memcpy(dupe, utf8, utf8len);
+                      dupe[utf8len] = 0;
+                      duration = get_duration_from_ssa(dupe);
+                      allocated_utf8 = get_raw_text_from_ssa(dupe);
+                      if (allocated_utf8) {
+                        if (allocated_utf8 == dupe) {
+                          allocated_utf8 = NULL;
+                        }
+                        else {
+                          utf8 = allocated_utf8;
+                          utf8len = strlen(utf8);
+                        }
                       }
-                      else {
-                        utf8 = allocated_utf8;
-                        utf8len = strlen(utf8);
-                      }
+                      free(dupe);
                     }
-                    free(dupe);
+                    else {
+                      utf8 = NULL;
+                      utf8len = 0;
+                    }
                   }
                   if (t < 0 && t + duration > 0) {
                     duration += t;
