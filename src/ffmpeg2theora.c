@@ -322,62 +322,79 @@ static int is_supported_subtitle_stream(ff2theora this, int idx)
 static char *get_raw_text_from_ssa(const char *ssa)
 {
   int n,intag,inescape;
+  char *multiblock = NULL, *realloced_mb;
   char *allocated;
   const char *dialogue, *ptr, *tag_start;
 
   if (!ssa) return NULL;
-  dialogue=strstr(ssa, "Dialogue:");
-  if (!dialogue) return NULL;
 
-  ptr = dialogue;
-  for (n=0;n<9;++n) {
-    ptr=strchr(ptr,',');
-    if (!ptr) return NULL;
-    ++ptr;
-  }
-  dialogue = ptr;
-  allocated = strdup(dialogue);
+  /* turns out some SSA packets have several blocks, each on a single line, so loop */
+  while (ssa) {
+    dialogue=strstr(ssa, "Dialogue:");
+    if (!dialogue) break;
 
-  /* find all "{...}" tags - the following must work for UTF-8 */
-  intag=inescape=0;
-  n=0;
-  for (ptr=dialogue; *ptr; ++ptr) {
-    if (*ptr=='{') {
-      if (intag==0) tag_start = ptr;
-      ++intag;
+    ptr = dialogue;
+    for (n=0;n<9;++n) {
+      ptr=strchr(ptr,',');
+      if (!ptr) return NULL;
+      ++ptr;
     }
-    else if (*ptr=='}') {
-      --intag;
-      if (intag == 0) {
-        /* tag parsing - none for now */
+    dialogue = ptr;
+    allocated = strdup(dialogue);
+
+    /* find all "{...}" tags - the following must work for UTF-8 */
+    intag=inescape=0;
+    n=0;
+    for (ptr=dialogue; *ptr && *ptr!='\n'; ++ptr) {
+      if (*ptr=='{') {
+        if (intag==0) tag_start = ptr;
+        ++intag;
       }
-    }
-    else if (!intag) {
-      if (inescape) {
-        if (*ptr == 'N' || *ptr == 'n')
-          allocated[n++] = '\n';
-        else if (*ptr == 'h')
-          allocated[n++] = ' ';
-        inescape=0;
+      else if (*ptr=='}') {
+        --intag;
+        if (intag == 0) {
+          /* tag parsing - none for now */
+        }
       }
-      else {
-        if (*ptr=='\\') {
-          inescape=1;
+      else if (!intag) {
+        if (inescape) {
+          if (*ptr == 'N' || *ptr == 'n')
+            allocated[n++] = '\n';
+          else if (*ptr == 'h')
+            allocated[n++] = ' ';
+          inescape=0;
         }
         else {
-          allocated[n++]=*ptr;
+          if (*ptr=='\\') {
+            inescape=1;
+          }
+          else {
+            allocated[n++]=*ptr;
+          }
         }
       }
     }
+    allocated[n]=0;
+
+    /* skip over what we read */
+    ssa = ptr;
+
+    /* remove any trailing newlines (also \r characters) */
+    n = strlen(allocated);
+    while (n>0 && (allocated[n-1]=='\n' || allocated[n-1]=='\r'))
+      allocated[--n]=0;
+
+    /* add this new block */
+    realloced_mb = (char*)realloc(multiblock, (multiblock?strlen(multiblock):0) + strlen(allocated) + 2); /* \n + 0 */
+    if (realloced_mb) {
+      if (multiblock) strcat(realloced_mb, "\n"); else strcpy(realloced_mb, "");
+      strcat(realloced_mb, allocated);
+      multiblock = realloced_mb;
+      free(allocated);
+    }
   }
-  allocated[n]=0;
 
-  /* remove any trailing newlines (also \r characters) */
-  n = strlen(allocated);
-  while (n>0 && (allocated[n-1]=='\n' || allocated[n-1]=='\r'))
-    allocated[--n]=0;
-
-  return allocated;
+  return multiblock;
 }
 
 static const float get_ssa_time(const char *p)
