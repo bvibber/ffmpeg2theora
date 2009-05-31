@@ -792,7 +792,7 @@ void ff2theora_output(ff2theora this) {
           if (codec && avcodec_open (enc, codec) >= 0) {
             subtitles_opened[i] = 1;
           }
-          if (enc->codec_id == CODEC_ID_TEXT || enc->codec_id == CODEC_ID_SSA /*|| subtitles_opened[i]*/) {
+          if (is_supported_subtitle_stream(this, i)) {
             subtitles_enabled[i] = 1;
             add_subtitles_stream(this, i, find_language_for_subtitle_stream(stream), NULL);
           }
