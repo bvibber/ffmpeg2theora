@@ -297,7 +297,7 @@ unsigned long long gen_oshash(char const *filename) {
 }
 
 void json_oshash(FILE *output, char const *filename) {
-    char hash[16];
+    char hash[32];
 #ifdef WIN32
     sprintf(hash,"%16I64x", gen_oshash(filename));
 #else
