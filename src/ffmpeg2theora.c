@@ -312,6 +312,7 @@ static int is_supported_subtitle_stream(ff2theora this, int idx)
   switch (enc->codec_id) {
     case CODEC_ID_TEXT:
     case CODEC_ID_SSA:
+    case CODEC_ID_MOV_TEXT:
       return 1;
     default:
       return 0;
@@ -1263,7 +1264,7 @@ void ff2theora_output(ff2theora this) {
               AVStream *stream=this->context->streams[pkt.stream_index];
               AVCodecContext *enc = stream->codec;
               if (enc) {
-                if (enc->codec_id == CODEC_ID_TEXT || enc->codec_id == CODEC_ID_SSA) {
+                if (enc->codec_id == CODEC_ID_TEXT || enc->codec_id == CODEC_ID_SSA || enc->codec_id==CODEC_ID_MOV_TEXT) {
                   char *allocated_utf8 = NULL;
                   const char *utf8 = pkt.data;
                   size_t utf8len = pkt.size;
@@ -1295,6 +1296,22 @@ void ff2theora_output(ff2theora this) {
                         }
                       }
                       free(dupe);
+                    }
+                    else {
+                      utf8 = NULL;
+                      utf8len = 0;
+                    }
+                  }
+                  else if (enc->codec_id == CODEC_ID_MOV_TEXT) {
+                    if (utf8len >= 2) {
+                      const unsigned char *data = (const unsigned char*)pkt.data;
+                      unsigned int text_len = (data[0] << 8) | data[1];
+                      utf8 += 2;
+                      utf8len -= 2;
+                      if (text_len < utf8len) {
+                        utf8len = text_len;
+                      }
+                      if (utf8len == 0) utf8 = NULL;
                     }
                     else {
                       utf8 = NULL;
