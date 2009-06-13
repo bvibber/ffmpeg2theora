@@ -2186,7 +2186,7 @@ int main(int argc, char **argv) {
                 }
 
                 if (info.frontend) {
-                    fprintf(info.frontend, "\nf2t ;duration: %d;\n", (int)(convert->context->duration / AV_TIME_BASE));
+                    fprintf(info.frontend, "\nf2t ;duration: %f;\n", (float)convert->context->duration / AV_TIME_BASE);
                     fflush(info.frontend);
 
                 }
