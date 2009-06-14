@@ -281,6 +281,7 @@ unsigned long long gen_oshash(char const *filename) {
     int i;
     unsigned long long t1=0;
     unsigned long long buffer1[8192*2];
+    int used = 8192*2;
     struct stat st;
 
     file = fopen(filename, "rb");
@@ -289,15 +290,14 @@ unsigned long long gen_oshash(char const *filename) {
         stat(filename, &st);
         t1 = st.st_size;
         if(t1 < 65536) {
-            fread(buffer1, t1/8, 8, file);
-            for (i=t1/8; i < 8192*2; i++)
-                buffer1[i] = 0;
+            used = t1/8;
+            fread(buffer1, used, 8, file);
         } else {
             fread(buffer1, 8192, 8, file);
             fseek(file, -65536, SEEK_END);
             fread(&buffer1[8192], 8192, 8, file); 
         }
-        for (i=0; i < 8192*2; i++)
+        for (i=0; i < used; i++)
             t1+=buffer1[i];
         fclose(file);
     }
