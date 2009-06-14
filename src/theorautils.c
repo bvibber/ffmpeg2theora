@@ -640,7 +640,8 @@ static void print_stats(oggmux_info *info, double timebase) {
     int remaining_minutes = ((long) remaining / 60) % 60;
     int remaining_hours = (long) remaining / 3600;
     if (info->frontend) {
-        fprintf (info->frontend,"\nf2t ;position: %.02lf;audio_kbps: %d;video_kbps: %d;remaining: %.02lf\n",
+        fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
+            (double)info->duration,
             timebase,
             info->akbps, info->vkbps,
             remaining

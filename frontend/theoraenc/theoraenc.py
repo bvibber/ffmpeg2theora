@@ -8,6 +8,9 @@ import sys
 import signal
 import subprocess
 
+import simplejson
+
+
 resourcePath = abspath(dirname(__file__))
 
 def timestr(seconds):
@@ -65,18 +68,17 @@ class TheoraEnc:
   def encode(self):
     cmd = self.commandline()
     print cmd
-    p = subprocess.Popen(cmd, shell=False, stderr=subprocess.PIPE, close_fds=True)
+    p = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, close_fds=True)
     self.p = p
-    f = p.stderr
+    f = p.stdout
     line = f.readline()
     info = dict()
     status = ''
     while line:
-      if line.startswith('f2t'):
-        for o in line.split(';')[1:]:
-          oo = o.split(': ')
-          if len(oo) >= 2:
-            info[oo[0]] = ": ".join(oo[1:]).strip()
+      try:
+        data = simplejson.loads(line)
+        for key in data:
+          info[key] = data[key]
         if 'position' in info:
           if 'duration' in info and float(info['duration']):
             encoded =  "encoding % 3d %% done " % ((float(info['position']) / float(info['duration'])) * 100)
@@ -89,6 +91,8 @@ class TheoraEnc:
         else:
           status = "encoding.."
         self.updateGUI(status)
+      except:
+        pass
       line = f.readline()
     f.close()
     if info.get('result', 'no') == 'ok':

@@ -1813,7 +1813,7 @@ int main(int argc, char **argv) {
                             flag = -1;
                             break;
                         case FRONTEND_FLAG:
-                            info.frontend = stderr;
+                            info.frontend = stdout;
                             flag = -1;
                             break;
                         case FRONTENDFILE_FLAG:
@@ -2202,12 +2202,7 @@ int main(int argc, char **argv) {
                     exit(0);
                 }
 
-                if (info.frontend) {
-                    fprintf(info.frontend, "\nf2t ;duration: %f;\n", (float)convert->context->duration / AV_TIME_BASE);
-                    fflush(info.frontend);
-
-                }
-                else {
+                if (!info.frontend) {
                     dump_format(convert->context, 0,inputfile_name, 0);
                 }
                 if (convert->disable_audio) {
@@ -2227,20 +2222,20 @@ int main(int argc, char **argv) {
                     (double) convert->context->start_time / AV_TIME_BASE;
                 if (!info.outfile) {
                     if (info.frontend)
-                        fprintf(info.frontend, "\nf2t ;result: Unable to open output file.;\n");
+                        fprintf(info.frontend, "\"{result\": \"Unable to open output file.\"}\n");
                     else
                         fprintf(stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
                     return(1);
                 }
                 if (convert->context->duration != AV_NOPTS_VALUE) {
-                    info.duration = convert->context->duration / AV_TIME_BASE;
+                    info.duration = (double)convert->context->duration / AV_TIME_BASE;
                 }
                 ff2theora_output(convert);
                 convert->audio_index =convert->video_index = -1;
             }
             else{
                 if (info.frontend)
-                    fprintf(info.frontend, "\nf2t ;result: input format not suported.;\n");
+                    fprintf(info.frontend, "{\"result\": \"input format not suported.\"}\n");
                 else
                     fprintf(stderr,"\nUnable to decode input.\n");
                 return(1);
@@ -2248,17 +2243,21 @@ int main(int argc, char **argv) {
             av_close_input_file(convert->context);
         }
         else{
-            fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
+            if (info.frontend)
+                fprintf(info.frontend, "{\"result\": \"file does not exist or has unknown data format.\"}\n");
+            else
+                fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
             return(1);
         }
     ff2theora_close(convert);
-    fprintf(stderr, "\n");
+    if (!info.frontend)
+        fprintf(stderr, "\n");
 
     if (*pidfile_name)
         unlink(pidfile_name);
 
     if (info.frontend)
-        fprintf(info.frontend, "\nf2t ;result: ok;\n");
+        fprintf(info.frontend, "{\"result\": \"ok\"}\n");
     if (info.frontend && info.frontend != stderr)
         fclose(info.frontend);
     return(0);
