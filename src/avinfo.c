@@ -273,24 +273,32 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i) {
  * os hash
  * based on public domain example from
  * http://trac.opensubtitles.org/projects/opensubtitles/wiki/HashSourceCodes   
- * -works only on little-endian procesor DEC, Intel and compatible
- * -sizeof(unsigned long long) must be 8
+ * 
+ * plus modification for files < 64k, buffer is filled with file data and padded with 0
  */
 unsigned long long gen_oshash(char const *filename) {
     FILE *file;
     int i;
     unsigned long long t1=0;
     unsigned long long buffer1[8192*2];
-
+    struct stat st;
 
     file = fopen(filename, "rb");
     if (file) {
-        fread(buffer1, 8192, 8, file);
-        fseek(file, -65536, SEEK_END);
-        fread(&buffer1[8192], 8192, 8, file); 
+        //add filesize
+        stat(filename, &st);
+        t1 = st.st_size;
+        if(t1 < 65536) {
+            fread(buffer1, t1/8, 8, file);
+            for (i=t1/8; i < 8192*2; i++)
+                buffer1[i] = 0;
+        } else {
+            fread(buffer1, 8192, 8, file);
+            fseek(file, -65536, SEEK_END);
+            fread(&buffer1[8192], 8192, 8, file); 
+        }
         for (i=0; i < 8192*2; i++)
             t1+=buffer1[i];
-        t1+= ftell(file); //add filesize
         fclose(file);
     }
     return t1;
@@ -299,9 +307,9 @@ unsigned long long gen_oshash(char const *filename) {
 void json_oshash(FILE *output, char const *filename) {
     char hash[32];
 #ifdef WIN32
-    sprintf(hash,"%16I64x", gen_oshash(filename));
+    sprintf(hash,"%016I64x", gen_oshash(filename));
 #else
-    sprintf(hash,"%qx", gen_oshash(filename));
+    sprintf(hash,"%016qx", gen_oshash(filename));
 #endif
     json_add_key_value(output, "oshash", (void *)hash, JSON_STRING, 0);
 }
