@@ -2196,10 +2196,15 @@ int main(int argc, char **argv) {
                 info.outfile = fopen(outputfile_name,"wb");
 #endif
                 if (output_json) {
-                    json_format_info(info.outfile, convert->context, inputfile_name);
-                    if (info.outfile != stdout)
-                        fclose(info.outfile);
-                    exit(0);
+                    if (using_stdin) {
+                        fprintf(stderr, "can not analize input, not seekable\n");
+                        exit(0);
+                    } else {
+                        json_format_info(info.outfile, convert->context, inputfile_name);
+                        if (info.outfile != stdout)
+                            fclose(info.outfile);
+                        exit(0);
+                    }
                 }
 
                 if (!info.frontend) {

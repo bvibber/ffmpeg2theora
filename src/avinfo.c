@@ -21,6 +21,19 @@
  *
  */
 
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+#if !defined(_LARGEFILE_SOURCE)
+#define _LARGEFILE_SOURCE
+#endif
+#if !defined(_LARGEFILE64_SOURCE)
+#define _LARGEFILE64_SOURCE
+#endif
+#if !defined(_FILE_OFFSET_BITS)
+#define _FILE_OFFSET_BITS 64
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -32,12 +45,38 @@
 
 #include "libavformat/avformat.h"
 
-long get_filesize(char const *filename) {
-    struct stat file;
-    if(!stat(filename, &file)) {
-        return file.st_size;
+#if !defined(off64_t)
+#define off64_t off_t
+#endif
+
+#ifdef WIN32
+#define fseeko fseeko64
+#define ftello ftello64
+#endif
+
+#ifdef _BIG_ENDIAN
+#define htonll(x) \
+((((x) & 0xff00000000000000LL) >> 56) | \
+(((x) & 0x00ff000000000000LL) >> 40) | \
+(((x) & 0x0000ff0000000000LL) >> 24) | \
+(((x) & 0x000000ff00000000LL) >> 8) | \
+(((x) & 0x00000000ff000000LL) << 8) | \
+(((x) & 0x0000000000ff0000LL) << 24) | \
+(((x) & 0x000000000000ff00LL) << 40) | \
+(((x) & 0x00000000000000ffLL) << 56))
+#else
+#define htonll(x) x
+#endif
+
+unsigned long long get_filesize(char const *filename) {
+    unsigned long long size = 0;
+    FILE *file = fopen(filename, "rb");
+    if (file) {
+        fseeko(file, 0, SEEK_END);
+        size = ftello(file);
     }
-    return 0;
+    fclose(file);
+    return size;
 }
 
 char const *fix_codec_name(char const *codec_name) {
@@ -62,7 +101,7 @@ char const *fix_codec_name(char const *codec_name) {
 enum {
     JSON_STRING,
     JSON_INT,
-    JSON_LONG,
+    JSON_LONGLONG,
     JSON_FLOAT,
 } JSON_TYPES;
 
@@ -82,8 +121,8 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
         case JSON_INT:
             fprintf(output, "  \"%s\": %d", key, *(int *)value);
             break;
-        case JSON_LONG:
-            fprintf(output, "  \"%s\": %ld", key, *(long *)value);
+        case JSON_LONGLONG:
+            fprintf(output, "  \"%s\": %lld", key, *(unsigned long long *)value);
             break;
         case JSON_FLOAT:
             fprintf(output, "  \"%s\": %f", key, *(float *)value);
@@ -276,29 +315,30 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i) {
  * 
  * plus modification for files < 64k, buffer is filled with file data and padded with 0
  */
+
 unsigned long long gen_oshash(char const *filename) {
     FILE *file;
     int i;
     unsigned long long t1=0;
     unsigned long long buffer1[8192*2];
     int used = 8192*2;
-    struct stat st;
-
     file = fopen(filename, "rb");
     if (file) {
         //add filesize
-        stat(filename, &st);
-        t1 = st.st_size;
+        fseeko(file, 0, SEEK_END);
+        t1 = ftello(file);
+        fseeko(file, 0, SEEK_SET);
+
         if(t1 < 65536) {
             used = t1/8;
             fread(buffer1, used, 8, file);
         } else {
             fread(buffer1, 8192, 8, file);
-            fseek(file, -65536, SEEK_END);
+            fseeko(file, -65536, SEEK_END);
             fread(&buffer1[8192], 8192, 8, file); 
         }
         for (i=0; i < used; i++)
-            t1+=buffer1[i];
+            t1+=htonll(buffer1[i]);
         fclose(file);
     }
     return t1;
@@ -318,7 +358,7 @@ void json_oshash(FILE *output, char const *filename) {
 /* "user interface" functions */
 void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
     int i;
-    long filesize;
+    unsigned long long filesize;
 
     fprintf(output, "{\n");
     if (ic->duration != AV_NOPTS_VALUE) {
@@ -347,8 +387,9 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
     }
     json_oshash(output, url);
     json_add_key_value(output, "path", (void *)url, JSON_STRING, 0);
+
     filesize = get_filesize(url);
-    json_add_key_value(output, "size", &filesize, JSON_LONG, 1);
+    json_add_key_value(output, "size", &filesize, JSON_LONGLONG, 1);
 
     fprintf(output, "}\n");
 }
