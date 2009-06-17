@@ -696,18 +696,19 @@ void ff2theora_output(ff2theora this) {
             frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
                                 (this->aspect_denominator*this->picture_height);
         }
-        if (this->aspect_denominator && frame_aspect) {
+        if (!info.frontend && this->aspect_denominator && frame_aspect) {
             fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
             fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
         }
 
-        if (this->deinterlace==1)
+        if (!info.frontend && this->deinterlace==1)
             fprintf(stderr, "  Deinterlace: on\n");
 
         if (strcmp(this->pp_mode, "")) {
             ppContext = pp_get_context(display_width, display_height, PP_FORMAT_420);
             ppMode = pp_get_mode_by_name_and_quality(this->pp_mode, PP_QUALITY_MAX);
-            fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
+            if(!info.frontend)
+                fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
         }
 
         if (!this->picture_width)
@@ -737,22 +738,24 @@ void ff2theora_output(ff2theora this) {
                         this->picture_width, this->picture_height, this->pix_fmt,
                         sws_flags, NULL, NULL, NULL
             );
-            fprintf(stderr, "  Resize: %dx%d",display_width,display_height);
-            if (this->frame_topBand || this->frame_bottomBand ||
-                this->frame_leftBand || this->frame_rightBand) {
-                fprintf(stderr, " => %dx%d",
-                    display_width-this->frame_leftBand-this->frame_rightBand,
-                    display_height-this->frame_topBand-this->frame_bottomBand);
+            if (!info.frontend) {
+                fprintf(stderr, "  Resize: %dx%d",display_width,display_height);
+                if (this->frame_topBand || this->frame_bottomBand ||
+                    this->frame_leftBand || this->frame_rightBand) {
+                    fprintf(stderr, " => %dx%d",
+                        display_width-this->frame_leftBand-this->frame_rightBand,
+                        display_height-this->frame_topBand-this->frame_bottomBand);
+                }
+                if (this->picture_width != (display_width-this->frame_leftBand - this->frame_rightBand)
+                    || this->picture_height != (display_height-this->frame_topBand-this->frame_bottomBand))
+                    fprintf(stderr, " => %dx%d",this->picture_width, this->picture_height);
+                fprintf(stderr, "\n");
             }
-            if (this->picture_width != (display_width-this->frame_leftBand - this->frame_rightBand)
-                || this->picture_height != (display_height-this->frame_topBand-this->frame_bottomBand))
-                fprintf(stderr, " => %dx%d",this->picture_width, this->picture_height);
-            fprintf(stderr, "\n");
         }
 
         lut_init(this);
     }
-    if (this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
+    if (!info.frontend && this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
         fprintf(stderr, "  Resample Framerate: %0.2f => %0.2f\n",
                         this->fps, (double)this->framerate_new.num / this->framerate_new.den);
     }
@@ -784,9 +787,9 @@ void ff2theora_output(ff2theora this) {
                 if (!this->audio_resample_ctx) {
                     this->channels = aenc->channels;
                 }
-                if (this->sample_rate!=aenc->sample_rate)
+                if (!info.frontend && this->sample_rate!=aenc->sample_rate)
                     fprintf(stderr, "  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
-                if (this->channels!=aenc->channels)
+                if (!info.frontend && this->channels!=aenc->channels)
                     fprintf(stderr, "  Channels: %d => %d\n",aenc->channels,this->channels);
             }
             else{
@@ -814,7 +817,7 @@ void ff2theora_output(ff2theora this) {
             subtitles_enabled[i] = 1;
             add_subtitles_stream(this, i, find_language_for_subtitle_stream(stream), NULL);
           }
-          else {
+          else if(!info.frontend) {
             fprintf(stderr,"Subtitle stream %d codec not supported, ignored\n", i);
           }
         }
@@ -978,7 +981,7 @@ void ff2theora_output(ff2theora this) {
             kate_info *ki = &info.kate_streams[i].ki;
             kate_info_init(ki);
             if (ks->stream_index >= 0 || ks->num_subtitles > 0) {
-                if (!ks->subtitles_language[0]) {
+                if (!info.frontend && !ks->subtitles_language[0]) {
                     fprintf(stderr, "WARNING - Subtitles language not set for input file %d\n",i);
                 }
                 kate_info_set_language(ki, ks->subtitles_language);
