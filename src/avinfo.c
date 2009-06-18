@@ -100,7 +100,7 @@ char const *fix_codec_name(char const *codec_name) {
 
 char *replace_str(char *str, char *orig, char *rep) {
   char buffer[4096];
-  char *p, *p2, *rest;
+  char *p, *rest, *ret;
 
   if(!(p = strstr(str, orig)))
     return str;
@@ -109,7 +109,11 @@ char *replace_str(char *str, char *orig, char *rep) {
   buffer[p-str] = '\0';
   rest = replace_str(p+strlen(orig), orig, rep);
   sprintf(buffer+(p-str), "%s%s", rep, rest);
-  return buffer;
+
+  ret = malloc(strlen(buffer)+1); // not zero terminated, so make it so
+  strncpy(ret, buffer, strlen(buffer));
+  ret[strlen(buffer)] = '\0';
+  return ret;
 }
 
 enum {
@@ -120,7 +124,7 @@ enum {
 } JSON_TYPES;
 
 void json_add_key_value(FILE *output, char *key, void *value, int type, int last) {
-    char *p, *pp;
+    char *p;
     switch(type) {
         case JSON_STRING:
             p = (char *)value;
