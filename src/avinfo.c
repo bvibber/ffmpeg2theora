@@ -98,6 +98,20 @@ char const *fix_codec_name(char const *codec_name) {
    return codec_name;
 }
 
+char *replace_str(char *str, char *orig, char *rep) {
+  char buffer[4096];
+  char *p, *p2, *rest;
+
+  if(!(p = strstr(str, orig)))
+    return str;
+
+  strncpy(buffer, str, p-str);
+  buffer[p-str] = '\0';
+  rest = replace_str(p+strlen(orig), orig, rep);
+  sprintf(buffer+(p-str), "%s%s", rep, rest);
+  return buffer;
+}
+
 enum {
     JSON_STRING,
     JSON_INT,
@@ -110,13 +124,9 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
     switch(type) {
         case JSON_STRING:
             p = (char *)value;
-            fprintf(output, "  \"%s\": \"", key);
-            while(pp = strchr(p, 34)) {
-                *pp = '\0';
-                fprintf(output, "%s\\\"", p);
-                p = pp + 1;
-            }
-            fprintf(output, "%s\"", p);
+            p = replace_str(p, "\\", "\\\\");
+            p = replace_str(p, "\"", "\\\"");
+            fprintf(output, "  \"%s\": \"%s\"", key, p);
             break;
         case JSON_INT:
             fprintf(output, "  \"%s\": %d", key, *(int *)value);
