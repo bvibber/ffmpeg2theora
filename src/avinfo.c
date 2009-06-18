@@ -98,22 +98,23 @@ char const *fix_codec_name(char const *codec_name) {
    return codec_name;
 }
 
-char *replace_str(char *str, char *orig, char *rep) {
-  char buffer[4096];
-  char *p, *rest, *ret;
+char *replace_str_all(char *str, char *orig, char *rep) {
+  const char buffer[4096];
+  char *p, *p_str = str, *p_buffer = (char *)buffer;
+  int len = strlen(str);
 
-  if(!(p = strstr(str, orig)))
-    return str;
-
-  strncpy(buffer, str, p-str);
-  buffer[p-str] = '\0';
-  rest = replace_str(p+strlen(orig), orig, rep);
-  sprintf(buffer+(p-str), "%s%s", rep, rest);
-
-  ret = malloc(strlen(buffer)+1); // not zero terminated, so make it so
-  strncpy(ret, buffer, strlen(buffer));
-  ret[strlen(buffer)] = '\0';
-  return ret;
+  strncpy(p_buffer, str, len);
+  while (p = strstr(p_str, orig)) {
+    strncpy(p_buffer, p_str, p-p_str);
+    p_buffer += (p-p_str);
+    len = len - strlen(orig) + strlen(rep);    
+    sprintf(p_buffer, "%s%s", rep, p+strlen(orig));
+    p_str = p + strlen(orig);
+    p_buffer += strlen(rep);
+  }
+  p = (char *)buffer;
+  p[len] = '\0';
+  return p;
 }
 
 enum {
@@ -128,8 +129,8 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
     switch(type) {
         case JSON_STRING:
             p = (char *)value;
-            p = replace_str(p, "\\", "\\\\");
-            p = replace_str(p, "\"", "\\\"");
+            p = replace_str_all(p, "\\", "\\\\");
+            p = replace_str_all(p, "\"", "\\\"");
             fprintf(output, "  \"%s\": \"%s\"", key, p);
             break;
         case JSON_INT:
