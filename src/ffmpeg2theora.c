@@ -756,7 +756,7 @@ void ff2theora_output(ff2theora this) {
         lut_init(this);
     }
     if (!info.frontend && this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
-        fprintf(stderr, "  Resample Framerate: %0.2f => %0.2f\n",
+        fprintf(stderr, "  Resample Framerate: %0.3f => %0.3f\n",
                         this->fps, (double)this->framerate_new.num / this->framerate_new.den);
     }
     if (this->audio_index >= 0) {
