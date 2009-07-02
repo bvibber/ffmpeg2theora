@@ -60,7 +60,7 @@ typedef struct
     /* the file the mixed ogg stream is written to */
     FILE *outfile;
 
-    char oshash[16];
+    char oshash[32];
     int audio_only;
     int video_only;
     int with_skeleton;
