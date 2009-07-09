@@ -230,7 +230,7 @@ Encode a series of images:
 
 Live streaming from V4L Device:
   ffmpeg2theora /dev/video0 \-f video4linux \-\-inputfps 15 \-x 160 \-y 128 \\
-                 \-o \- | oggfwd iccast2server 8000 password /theora.ogv
+                 \-o \- | oggfwd icast2server 8000 password /theora.ogv
 
 Live encoding from a DV camcorder (needs a fast machine):
   dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogv -\n"
@@ -238,7 +238,7 @@ Live encoding from a DV camcorder (needs a fast machine):
 Live encoding and streaming to icecast server:
   dvgrab \-\-format raw \- \\
     | ffmpeg2theora \-f dv \-x 160 \-y 128 \-o /dev/stdout \- \\
-    | oggfwd iccast2server 8000 password /theora.ogv
+    | oggfwd icast2server 8000 password /theora.ogv
 
 
 .SH AUTHOR

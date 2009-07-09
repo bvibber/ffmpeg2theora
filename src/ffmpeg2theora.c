@@ -1649,7 +1649,7 @@ void print_usage() {
         "\n"
         "  Live streaming from V4L Device:\n"
         "    ffmpeg2theora /dev/video0 -f video4linux --inputfps 15 -x 160 -y 128 -o - \\\n"
-        "     | oggfwd iccast2server 8000 password /theora.ogv\n"
+        "     | oggfwd icast2server 8000 password /theora.ogv\n"
         "\n"
         "  Live encoding from a DV camcorder (needs a fast machine):\n"
         "    dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogv -\n"
@@ -1657,7 +1657,7 @@ void print_usage() {
         "  Live encoding and streaming to icecast server:\n"
         "    dvgrab --format raw - \\\n"
         "     | ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - \\\n"
-        "     | oggfwd iccast2server 8000 password /theora.ogv\n"
+        "     | oggfwd icast2server 8000 password /theora.ogv\n"
         "\n"
         );
     exit(0);
