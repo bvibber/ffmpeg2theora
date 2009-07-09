@@ -778,7 +778,9 @@ void ff2theora_output(ff2theora this) {
         }
 
         if (acodec != NULL && avcodec_open (aenc, acodec) >= 0) {
-            if (this->sample_rate != aenc->sample_rate || this->channels != aenc->channels) {
+            if (this->sample_rate != aenc->sample_rate
+                || this->channels != aenc->channels
+                || aenc->sample_fmt != SAMPLE_FMT_S16) {
                 // values take from libavcodec/resample.c
                 this->audio_resample_ctx = av_audio_resample_init(this->channels,    aenc->channels,
                                                                   this->sample_rate, aenc->sample_rate,
