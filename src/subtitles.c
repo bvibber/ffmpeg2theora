@@ -118,7 +118,7 @@ void set_subtitles_category(ff2theora this,const char *category){
 void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
-    if (this->kate_streams[n].stream_index==-1 && !this->kate_streams[n].subtitles_encoding==ENC_UNSET) break;
+    if (this->kate_streams[n].stream_index==-1 && this->kate_streams[n].subtitles_encoding==ENC_UNSET) break;
   }
   if (n==this->n_kate_streams) add_kate_stream(this);
   this->kate_streams[n].subtitles_encoding = encoding;
