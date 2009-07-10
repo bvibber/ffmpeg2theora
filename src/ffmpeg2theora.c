@@ -1224,6 +1224,8 @@ void ff2theora_output(ff2theora this) {
                     int samples=0;
                     int samples_out=0;
                     int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
+                    int bytes_per_sample = av_get_bits_per_sample_format(aenc->sample_fmt)/8;
+
                     if (len > 0) {
                         len1 = avcodec_decode_audio2(astream->codec, audio_buf, &data_size, ptr, len);
                         if (len1 < 0) {
@@ -1233,7 +1235,7 @@ void ff2theora_output(ff2theora this) {
                         len -= len1;
                         ptr += len1;
                         if (data_size >0) {
-                            samples = data_size / (aenc->channels * 2);
+                            samples = data_size / (aenc->channels * bytes_per_sample);
                             samples_out = samples;
                             if (this->audio_resample_ctx) {
                                 samples_out = audio_resample(this->audio_resample_ctx, resampled, audio_buf, samples);
