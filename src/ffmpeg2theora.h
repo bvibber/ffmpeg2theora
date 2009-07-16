@@ -53,6 +53,7 @@ typedef struct ff2theora{
 
     int disable_subtitles;
 
+    int videostream;
     int picture_width;
     int picture_height;
     double fps;

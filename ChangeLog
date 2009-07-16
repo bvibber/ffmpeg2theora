@@ -3,7 +3,8 @@ svn
     - fix a/v sync issues with some mov/mp4 files with strange framerates
     - add new option --info outputs json info about source
     - frontend mode outputs one json dict per line now
-    - update to ffmpeg trunk
+    - select video stream if input has more than one video(--videostream N)
+    - update to ffmpeg trunk and new ffmepg api
 
 0.24 2009-03-12
     - fix to make --max_size --no_upscaling work

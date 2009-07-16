@@ -66,6 +66,7 @@ enum {
     MAXSIZE_FLAG,
     INPUTFPS_FLAG,
     AUDIOSTREAM_FLAG,
+    VIDEOSTREAM_FLAG,
     SUBTITLES_FLAG,
     SUBTITLES_ENCODING_FLAG,
     SUBTITLES_LANGUAGE_FLAG,
@@ -165,6 +166,7 @@ static ff2theora ff2theora_init() {
         this->audiostream = -1;
 
         // video
+        this->videostream = -1;
         this->picture_width=0;      // set to 0 to not resize the output
         this->picture_height=0;      // set to 0 to not resize the output
         this->video_quality=rint(5*6.3); // video quality 5
@@ -467,6 +469,16 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr, "  The selected stream is not audio, falling back to automatic selection\n");
         }
     }
+    if (this->videostream >= 0 && this->context->nb_streams > this->videostream) {
+        AVCodecContext *enc = this->context->streams[this->videostream]->codec;
+        if (enc->codec_type == CODEC_TYPE_VIDEO) {
+            this->video_index = this->videostream;
+            fprintf(stderr, "  Using stream #0.%d as video input\n",this->video_index);
+        }
+        else {
+            fprintf(stderr, "  The selected stream is not video, falling back to automatic selection\n");
+        }
+    }
 
     for (i = 0; i < this->context->nb_streams; i++) {
         AVCodecContext *enc = this->context->streams[i]->codec;
@@ -486,7 +498,8 @@ void ff2theora_output(ff2theora this) {
 
     if (this->video_index >= 0) {
         vstream = this->context->streams[this->video_index];
-        venc = this->context->streams[this->video_index]->codec;
+        venc = vstream->codec;
+
         vcodec = avcodec_find_decoder (venc->codec_id);
         display_width = venc->width;
         display_height = venc->height;
@@ -544,8 +557,8 @@ void ff2theora_output(ff2theora this) {
         else if (this->preset == V2V_PRESET_PADMA) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
+                height=((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
             }
             if (this->frame_aspect == 0)
                 this->frame_aspect = (float)width/height;
@@ -575,8 +588,8 @@ void ff2theora_output(ff2theora this) {
         else if (this->preset == V2V_PRESET_PADMASTREAM) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
+                height=((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
             }
             if (this->frame_aspect == 0)
                 this->frame_aspect = (float)width/height;
@@ -592,8 +605,8 @@ void ff2theora_output(ff2theora this) {
         else if (this->preset == V2V_PRESET_VIDEOBIN) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-                height=((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
+                height=((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
             }
             if ( ((float)width /height) <= 1.5) {
                 if (width > 448) {
@@ -621,8 +634,8 @@ void ff2theora_output(ff2theora this) {
         if (this->max_size > 0) {
             int width = display_width-this->frame_leftBand-this->frame_rightBand;
             int height = display_height-this->frame_topBand-this->frame_bottomBand;
-            if (venc->sample_aspect_ratio.den!=0 && venc->sample_aspect_ratio.num!=0) {
-                height = ((float)venc->sample_aspect_ratio.den/venc->sample_aspect_ratio.num) * height;
+            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
+                height = ((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
             }
             if (this->frame_aspect == 0)
                 this->frame_aspect = (float)width/height;
@@ -671,17 +684,17 @@ void ff2theora_output(ff2theora this) {
             av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
             frame_aspect=this->frame_aspect;
         }
-        if (venc->sample_aspect_ratio.num!=0 && this->frame_aspect==0) {
+        if (vstream->sample_aspect_ratio.num!=0 && this->frame_aspect==0) {
             // just use the ratio from the input
-            this->aspect_numerator=venc->sample_aspect_ratio.num;
-            this->aspect_denominator=venc->sample_aspect_ratio.den;
+            this->aspect_numerator=vstream->sample_aspect_ratio.num;
+            this->aspect_denominator=vstream->sample_aspect_ratio.den;
             // or we use ratio for the output
             if (this->picture_height) {
                 int width=display_width-this->frame_leftBand-this->frame_rightBand;
                 int height=display_height-this->frame_topBand-this->frame_bottomBand;
                 av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-                venc->sample_aspect_ratio.num*width*this->picture_height,
-                venc->sample_aspect_ratio.den*height*this->picture_width,10000);
+                vstream->sample_aspect_ratio.num*width*this->picture_height,
+                vstream->sample_aspect_ratio.den*height*this->picture_width,10000);
                 frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
                                 (this->aspect_denominator*this->picture_height);
             }
@@ -690,6 +703,7 @@ void ff2theora_output(ff2theora this) {
                                 (this->aspect_denominator*display_height);
             }
         }
+
         if ((float)this->aspect_numerator/this->aspect_denominator < 1.09) {
             this->aspect_numerator = 1;
             this->aspect_denominator = 1;
@@ -698,7 +712,7 @@ void ff2theora_output(ff2theora this) {
         }
         if (!info.frontend && this->aspect_denominator && frame_aspect) {
             fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
-            fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n",frame_aspect);
+            fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n", frame_aspect);
         }
 
         if (!info.frontend && this->deinterlace==1)
@@ -739,7 +753,11 @@ void ff2theora_output(ff2theora this) {
                         sws_flags, NULL, NULL, NULL
             );
             if (!info.frontend) {
-                fprintf(stderr, "  Resize: %dx%d",display_width,display_height);
+                if (this->frame_topBand || this->frame_bottomBand ||
+                    this->frame_leftBand || this->frame_rightBand ||
+                    this->picture_width != (display_width-this->frame_leftBand - this->frame_rightBand) ||
+                    this->picture_height != (display_height-this->frame_topBand-this->frame_bottomBand))
+                    fprintf(stderr, "  Resize: %dx%d", display_width, display_height);
                 if (this->frame_topBand || this->frame_bottomBand ||
                     this->frame_leftBand || this->frame_rightBand) {
                     fprintf(stderr, " => %dx%d",
@@ -876,13 +894,12 @@ void ff2theora_output(ff2theora this) {
         AVFrame *output_padded=NULL;
 
         AVPacket pkt;
-        int len;
+        AVPacket avpkt;
         int len1;
         int got_picture;
         int first = 1;
         int audio_eos = 0, video_eos = 0, audio_done = 0, video_done = 0;
         int ret;
-        uint8_t *ptr;
         int16_t *audio_buf=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int16_t *resampled=av_malloc(4*AVCODEC_MAX_AUDIO_FRAME_SIZE);
         int16_t *audio_p=NULL;
@@ -1039,9 +1056,14 @@ void ff2theora_output(ff2theora this) {
             exit(1);
         }
 
+        av_init_packet(&avpkt);
+
         /* main decoding loop */
         do{
             ret = av_read_frame(this->context, &pkt);
+            avpkt.size = pkt.size;
+            avpkt.data = pkt.data;
+            
             if (ret<0) {
                 if (!info.video_only)
                     audio_eos = 1;
@@ -1061,7 +1083,7 @@ void ff2theora_output(ff2theora this) {
                       first frame decodec in case its not a keyframe
                     */
                     if (pkt.stream_index == this->video_index) {
-                      avcodec_decode_video(vstream->codec, frame, &got_picture, pkt.data, pkt.size);
+                      avcodec_decode_video2(vstream->codec, frame, &got_picture, &pkt);
                     }
                     av_free_packet (&pkt);
                     continue;
@@ -1073,16 +1095,14 @@ void ff2theora_output(ff2theora this) {
                 video_eos = 1;
             }
 
-            ptr = pkt.data;
-            len = pkt.size;
             if ((video_eos && !video_done) || (ret >= 0 && pkt.stream_index == this->video_index)) {
-                if (len == 0 && !first && !video_eos) {
+                if (avpkt.size == 0 && !first && !video_eos) {
                     fprintf (stderr, "no frame available\n");
                 }
-                while(video_eos || len > 0) {
+                while(video_eos || avpkt.size > 0) {
                     int dups = 0;
                     yuv_buffer yuv;
-                    len1 = avcodec_decode_video(vstream->codec, frame, &got_picture, ptr, len);
+                    len1 = avcodec_decode_video2(vstream->codec, frame, &got_picture, &avpkt);
                     if (len1>=0) {
                         if (got_picture) {
                             // this is disabled by default since it does not work
@@ -1191,8 +1211,8 @@ void ff2theora_output(ff2theora this) {
                                 output_padded = output_resized;
                             }
                         }
-                        ptr += len1;
-                        len -= len1;
+                        avpkt.size -= len1;
+                        avpkt.data += len1;
                     }
                     //now output_resized
 
@@ -1220,20 +1240,20 @@ void ff2theora_output(ff2theora this) {
             if ((audio_eos && !audio_done) || (ret >= 0 && pkt.stream_index == this->audio_index)) {
                 this->pts_offset = (double) pkt.pts / AV_TIME_BASE -
                     (double) this->sample_count / this->sample_rate;
-                while((audio_eos && !audio_done) || len > 0 ) {
+                while((audio_eos && !audio_done) || avpkt.size > 0 ) {
                     int samples=0;
                     int samples_out=0;
                     int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
                     int bytes_per_sample = av_get_bits_per_sample_format(aenc->sample_fmt)/8;
 
-                    if (len > 0) {
-                        len1 = avcodec_decode_audio2(astream->codec, audio_buf, &data_size, ptr, len);
+                    if (avpkt.size > 0) {
+                        len1 = avcodec_decode_audio3(astream->codec, audio_buf, &data_size, &avpkt);
                         if (len1 < 0) {
                             /* if error, we skip the frame */
                             break;
                         }
-                        len -= len1;
-                        ptr += len1;
+                        avpkt.size -= len1;
+                        avpkt.data += len1;
                         if (data_size >0) {
                             samples = data_size / (aenc->channels * bytes_per_sample);
                             samples_out = samples;
@@ -1255,13 +1275,13 @@ void ff2theora_output(ff2theora this) {
                     }
 
                     oggmux_add_audio(&info, audio_p,
-                        samples_out *(this->channels), samples_out, audio_eos);
+                        samples_out * (this->channels), samples_out, audio_eos);
                     this->sample_count += samples_out;
                     if(audio_eos) {
                         audio_done = 1;
                     }
 
-                    if (audio_eos && len <= 0) {
+                    if (audio_eos && avpkt.size <= 0) {
                         break;
                     }
                 }
@@ -1606,8 +1626,10 @@ void print_usage() {
 #endif
         "  -f, --format           specify input format\n"
         "      --inputfps fps     override input fps\n"
-        "      --audiostream id   by default the last audio stream is selected,\n"
+        "      --audiostream id   by default the first audio stream is selected,\n"
         "                          use this to select another audio stream\n"
+        "      --videostream id   by default the first video stream is selected,\n"
+        "                          use this to select another video stream\n"
         "      --sync             use A/V sync from input container. Since this does\n"
         "                          not work with all input format you have to manually\n"
         "                          enable it if you have issues with A/V sync\n"
@@ -1724,6 +1746,7 @@ int main(int argc, char **argv) {
         {"cropleft",required_argument,&flag,CROPLEFT_FLAG},
         {"inputfps",required_argument,&flag,INPUTFPS_FLAG},
         {"audiostream",required_argument,&flag,AUDIOSTREAM_FLAG},
+        {"videostream",required_argument,&flag,VIDEOSTREAM_FLAG},
         {"subtitles",required_argument,&flag,SUBTITLES_FLAG},
         {"subtitles-encoding",required_argument,&flag,SUBTITLES_ENCODING_FLAG},
         {"subtitles-ignore-non-utf8",0,&flag,SUBTITLES_IGNORE_NON_UTF8_FLAG},
@@ -1858,6 +1881,10 @@ int main(int argc, char **argv) {
                             break;
                         case AUDIOSTREAM_FLAG:
                             convert->audiostream = atoi(optarg);
+                            flag = -1;
+                            break;
+                        case VIDEOSTREAM_FLAG:
+                            convert->videostream = atoi(optarg);
                             flag = -1;
                             break;
                         case NOSKELETON:
@@ -2247,7 +2274,7 @@ int main(int argc, char **argv) {
                     info.duration = (double)convert->context->duration / AV_TIME_BASE;
                 }
                 ff2theora_output(convert);
-                convert->audio_index =convert->video_index = -1;
+                convert->audio_index = convert->video_index = -1;
             }
             else{
                 if (info.frontend)
