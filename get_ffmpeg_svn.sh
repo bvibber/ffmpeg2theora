@@ -1,8 +1,7 @@
 #!/bin/sh
 
 #optional, if you have those libs installed:
-#apt-get install libamrnb-dev libamrwb-dev
-#extra=" --enable-libamr_nb --enable-libamr_wb --enable-nonfree"
+#extra=" --enable-libopencore-amrnb --enable-libopencore-amrwb"
 
 #apt-get install liba52-dev libfaad-dev libgsm1-dev
 #extra=" --enable-libfaad --enable-libgsm"

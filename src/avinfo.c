@@ -74,8 +74,8 @@ unsigned long long get_filesize(char const *filename) {
     if (file) {
         fseeko(file, 0, SEEK_END);
         size = ftello(file);
+        fclose(file);
     }
-    fclose(file);
     return size;
 }
 
@@ -391,7 +391,8 @@ void json_oshash(FILE *output, char const *filename, int indent) {
 #else
     sprintf(hash,"%016qx", gen_oshash(filename));
 #endif
-    json_add_key_value(output, "oshash", (void *)hash, JSON_STRING, 0, indent);
+    if (strcmp(hash,"0000000000000000") > 0)
+        json_add_key_value(output, "oshash", (void *)hash, JSON_STRING, 0, indent);
 }
 
 

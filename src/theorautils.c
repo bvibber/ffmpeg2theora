@@ -282,7 +282,7 @@ void oggmux_init (oggmux_info *info) {
 
         vorbis_comment_init (&info->vc);
         vorbis_comment_add_tag (&info->vc, "ENCODER",PACKAGE_STRING);
-        if (strcmp(info->oshash,"0") > 0) {
+        if (strcmp(info->oshash,"0000000000000000") > 0) {
             vorbis_comment_add_tag (&info->vc, "SOURCE_OSHASH", info->oshash);
         }
         /* set up the analysis state and auxiliary encoding storage */
@@ -648,13 +648,13 @@ static void print_stats(oggmux_info *info, double timebase) {
         );
         fflush (info->frontend);
     }
-    else {
+    else if (timebase > 0 ) {
         if (!remaining) {
             remaining = time(NULL) - info->start_time;
             remaining_seconds = (long) remaining % 60;
             remaining_minutes = ((long) remaining / 60) % 60;
             remaining_hours = (long) remaining / 3600;
-            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d                            ",
+            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d ",
                 hours, minutes, seconds, hundredths,
                 info->akbps, info->vkbps,
                 remaining_hours, remaining_minutes, remaining_seconds
