@@ -6,7 +6,7 @@
 #apt-get install liba52-dev libfaad-dev libgsm1-dev
 #extra=" --enable-libfaad --enable-libgsm"
 
-common="--enable-gpl --enable-swscale --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
+common="--enable-gpl --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
 
 #linux
 options="$common --enable-pthreads $extra"
