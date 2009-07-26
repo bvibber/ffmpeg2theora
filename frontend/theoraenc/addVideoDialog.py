@@ -8,6 +8,8 @@ from addSubtitlesDialog import addSubtitlesPropertiesDialog, SubtitlesList
 
 import wx
 
+import theoraenc
+
 class AddVideoDialog(wx.Dialog):
   def __init__(
           self, parent, ID, title, hasKate, size=wx.DefaultSize, pos=wx.DefaultPosition, 
@@ -273,7 +275,7 @@ class AddVideoDialog(wx.Dialog):
     self.btnOK = wx.Button(self, wx.ID_OK)
     self.btnOK.SetDefault()
     self.btnOK.Disable()
-    self.btnOK.SetLabel('Encode')
+    self.btnOK.SetLabel('Add to queue')
     hbox.Add(self.btnOK, 0, wx.EXPAND|wx.ALL, padding)
 
     hbox = wx.BoxSizer(wx.HORIZONTAL)
@@ -304,13 +306,24 @@ class AddVideoDialog(wx.Dialog):
     return filename
   
   def selectVideoFile(self, videoFile):
-        self.videoFile = videoFile
-        lValue = videoFile
-        lLength = 45
-        if len(lValue) > lLength:
-          lValue = "..." + lValue[-lLength:]
-        self.btnVideoFile.SetLabel(lValue)
-        self.btnOK.Enable()
+        self.info = theoraenc.fileInfo(videoFile)
+        if self.info:
+          #FIXME: enable/disable options based on input
+          """
+          if "video" in self.info: #source has video
+            #enable video options
+          if "audio" in self.info: #source has audio
+            #enable audio options
+          if "audio" in self.info: #source has audio
+
+          """
+          self.videoFile = videoFile
+          lValue = videoFile
+          lLength = 45
+          if len(lValue) > lLength:
+            lValue = "..." + lValue[-lLength:]
+          self.btnVideoFile.SetLabel(lValue)
+          self.btnOK.Enable()
 
   def CheckSubtitlesSelection(self, event):
     idx=self.subtitles.GetFirstSelected()
@@ -380,8 +393,22 @@ def addVideoDialog(parent, hasKate):
         encoding = dlg.subtitles.GetItem(idx, 2).GetText()
         file = dlg.subtitles.GetItem(idx, 3).GetText()
         result['subtitles'].append({'encoding':encoding, 'language':language, 'category':category, 'file':file})
-    print result
   else:
     result['ok'] = False
   dlg.Destroy()
   return result
+if __name__ == "__main__":
+  import sys
+  class Frame(wx.Frame):
+    inputFile = None
+    def __init__(self):
+      wx.Frame.__init__(self, None, wx.ID_ANY, "add video test", size=(559,260))
+      self.Show(True)
+
+  app = wx.PySimpleApp()
+  frame=Frame()
+  if len(sys.argv) > 1:
+    frame.inputFile = sys.argv[1]
+  result = addVideoDialog(frame, True)
+  print result
+

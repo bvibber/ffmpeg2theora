@@ -7,8 +7,10 @@ import time
 import sys
 import signal
 import subprocess
+import threading
 
 import simplejson
+import wx
 
 
 resourcePath = abspath(dirname(__file__))
@@ -44,6 +46,22 @@ def timestr(seconds):
   minutes = int((seconds-( hours*3600 ))/60)
   seconds = (seconds-((hours*3600)+(minutes*60)))
   return '%02d:%02d:%02d' % (hours, minutes, seconds)
+
+class ThreadWorker(threading.Thread):
+    def __init__(self, callable, *args, **kwargs):
+        super(ThreadWorker, self).__init__()
+        self.callable = callable
+        self.args = args
+        self.kwargs = kwargs
+        self.setDaemon(True)
+
+    def run(self):
+        try:
+            self.callable(*self.args, **self.kwargs)
+        except wx.PyDeadObjectError:
+            pass
+        except Exception, e:
+            print e
 
 class TheoraEnc:
   settings = []
@@ -88,50 +106,72 @@ class TheoraEnc:
  
   def encode(self):
     cmd = self.commandline()
-    print cmd
     p = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, close_fds=True)
     self.p = p
-    f = p.stdout
-    line = f.readline()
     info = dict()
     status = ''
     self.warning_timeout = 0
-    while line:
-      now = time.time()
-      try:
-        data = simplejson.loads(line)
-        for key in data:
-          info[key] = data[key]
-        if 'WARNING' in info:
-          status = info['WARNING']
-          self.warning_timeout = now + 3
-          del info['WARNING']
+
+    def worker(pipe):
+      while True:
+        line = pipe.readline()
+        if line == '':
+          break
         else:
-          status=None
-          if now >= self.warning_timeout:
-            if 'position' in info:
-              if 'duration' in info and float(info['duration']):
-                encoded =  "encoding % 3d %% done " % ((float(info['position']) / float(info['duration'])) * 100)
-              else:
-                encoded = "encoded %s/" % timestr(float(info['position']))
-              if float(info['remaining'])>0:
-                status = encoded + '/ '+ timestr(float(info['remaining']))
-              else:
-                status = encoded
+          now = time.time()
+          try:
+            data = simplejson.loads(line)
+            for key in data:
+              info[key] = data[key]
+            if 'WARNING' in info:
+              status = info['WARNING']
+              self.warning_timeout = now + 3
+              del info['WARNING']
             else:
-              status = "encoding.."
-        if status != None:
-          self.updateGUI(status)
-      except:
-        pass
-      line = f.readline()
-    f.close()
+              status=None
+              if now >= self.warning_timeout:
+                if 'position' in info:
+                  if 'duration' in info and float(info['duration']):
+                    encoded =  "encoding % 3d %% done " % ((float(info['position']) / float(info['duration'])) * 100)
+                  else:
+                    encoded = "encoded %s/" % timestr(float(info['position']))
+                  if float(info['remaining'])>0:
+                    status = encoded + '/ '+ timestr(float(info['remaining']))
+                  else:
+                    status = encoded
+                  status =  "encoding % 3d %% done " % ((float(info['position']) / float(info['duration'])) * 100)
+                else:
+                  status = "encoding.."
+            if status != None:
+              self.updateGUI(status)
+          except:
+            pass
+
+    stdout_worker = ThreadWorker(worker, p.stdout)
+    stdout_worker.start()
+
+    p.wait()
+
     if info.get('result', 'no') == 'ok':
       self.updateGUI('Encoding done.')
       return True
     else:
       self.updateGUI(info.get('result', 'Encoding failed.'))
       return False
+
+
+def fileInfo(filename):
+  cmd = []
+  cmd.append(ffmpeg2theora)
+  cmd.append('--info')
+  cmd.append(filename)
+  p = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, close_fds=True)
+  data, err = p.communicate()
+  try:
+    info = simplejson.loads(data)
+  except:
+    info = None
+  return info
 
 ffmpeg2theora = probe_ffmpeg2theora()
 hasKate = probe_kate(ffmpeg2theora)

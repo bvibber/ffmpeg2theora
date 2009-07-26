@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # vi:si:et:sw=2:sts=2:ts=2
+# -*- coding: utf-8 -*-
 # Written 2007 by j@v2v.cc
 #
 # see LICENSE.txt for license information
@@ -32,31 +32,39 @@ class SimpleTheoraEncoder(wx.Frame):
   _qd_key = {}
   encodingQueueInitialized = False
   inputFile = False
+  encoding = False
+  quit = False
+
 
   def initMainInterface(self):
     #TODO: addd menue
     
     self.encodingQueue = wx.ListCtrl(self, -1, style=wx.LC_REPORT)
-    self.encodingQueue.SetPosition(wx.Point(15,50))
-    self.encodingQueue.SetSize(wx.Size(435, 165))
+    self.encodingQueue.SetPosition(wx.Point(10,50))
+    self.encodingQueue.SetSize(wx.Size(440, 165))
     self.encodingQueue.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected)
     
-    buttonSize = wx.Size(88,-1)
-    self.addItem = wx.Button(self, wx.ID_ANY, "Add...", wx.Point(462, 71), buttonSize)
+    buttonSize = wx.Size(80,-1)
+    self.addItem = wx.Button(self, wx.ID_ANY, "Add...", wx.Point(460, 70), buttonSize)
     self.Bind(wx.EVT_BUTTON, self.OnClickAdd, self.addItem)
     
-    self.removeItem = wx.Button(self, wx.ID_ANY, "Remove", wx.Point(462, 106), buttonSize)
+    self.removeItem = wx.Button(self, wx.ID_ANY, "Remove", wx.Point(460, 100), buttonSize)
     self.Bind(wx.EVT_BUTTON, self.OnClickRemove, self.removeItem)
     self.removeItem.Disable()
     
-    self.buttonQuit = wx.Button(self, wx.ID_ANY, "Quit", wx.Point(462, 187), buttonSize)
-    self.Bind(wx.EVT_BUTTON, self.OnExit, self.buttonQuit)
-    
+    self.buttonEncode = wx.Button(self, wx.ID_ANY, "Encode", wx.Point(460, 190), buttonSize)
+    self.Bind(wx.EVT_BUTTON, self.OnEncode, self.buttonEncode)
+    self.buttonEncode.Disable()
+
+    self.Bind(wx.EVT_CLOSE, self.OnClose)
+
     #Title
-    self.title = wx.StaticText(self, -1, "Simple Theora Encoder", wx.Point(15, 10))
+    titleFont = wx.Font(14, wx.DEFAULT, wx.NORMAL, wx.NORMAL, False, u'Sans')
+    self.title = wx.StaticText(self, -1, "Simple Theora Encoder", wx.Point(10, 10))
+    self.title.SetFont(titleFont)
     
   def __init__(self, parent, id, title, inputFile=None):
-    wx.Frame.__init__(self, parent, id, title, size=(559,260))
+    wx.Frame.__init__(self, parent, id, title, size=(550,230))
     self.inputFile = inputFile
     self.initMainInterface()
     self.Show(True)
@@ -69,7 +77,7 @@ class SimpleTheoraEncoder(wx.Frame):
       q.ClearAll()
       q.InsertColumn(0, "Name")
       q.InsertColumn(1, "Stats")
-      q.SetColumnWidth(0, 195)
+      q.SetColumnWidth(0, 200)
       q.SetColumnWidth(1, 240)
       
       q.itemDataMap = self.queuedata
@@ -106,8 +114,8 @@ class SimpleTheoraEncoder(wx.Frame):
     itemID = item['itemID']
     if item['status'] != status:
       item['status'] = status
+      #self.title.SetLabel(os.path.basename(item['path']) +': '+ status)
       self.encodingQueue.SetStringItem(itemID, 1, status)
-    now = time.mktime(time.localtime())
 
   def getSettings(self, options):
     settings = []
@@ -131,12 +139,36 @@ class SimpleTheoraEncoder(wx.Frame):
         settings.append('%s' % s['encoding'])
     return settings
 
-  def addItemThread(self, item):
-    if not item['enc'].encode():
-      print  "encoding failed"
-      return
-    return True
-  
+  def encodeItem(self, item):
+    item['encoding'] = True
+    if self.currentItem == item['itemID']:
+      self.removeItem.SetLabel('Cancel')
+    self.setItemStatus(item['itemID'], 'encoding')
+    result = item['enc'].encode()
+    if not result:
+      self.setItemStatus(item['itemID'], 'encoding failed.')
+    else:
+      self.setItemStatus(item['itemID'], 'encoding done.')
+
+    item['encoded'] = True
+    item['encoding'] = False
+    return result
+
+  def encodeQueue(self, foo):
+    def nextItem():
+      items = self.queuedata.items()
+      for x in range(len(items)):
+        key, item = items[x]
+        if not item['encoded']:
+          return item
+      return None
+
+    next = nextItem()
+    while next and not self.quit:
+      self.encodeItem(next)
+      next = nextItem()
+    self.encoding = False
+
   def addItemToQueue(self, videoFile, options):
     name = os.path.basename(videoFile)
     display_path = videoFile
@@ -146,10 +178,12 @@ class SimpleTheoraEncoder(wx.Frame):
       path = videoFile, 
       options = options,
       display_path = display_path, 
-      status = 'encoding...           ',
+      status = 'waiting...           ',
       listID = 0,
       name = name,
     )
+    item['encoding'] = False
+    item['encoded'] = False
     item['enc'] = theoraenc.TheoraEnc(videoFile, None, lambda x: self.updateItemStatus(name, x))
     item['enc'].settings = self.getSettings(options)
 
@@ -170,10 +204,15 @@ class SimpleTheoraEncoder(wx.Frame):
       self.queuedata[key] = item
       self.initializeUploadQueue()
     self._qd_key[name] = key
-    thread.start_new_thread(self.addItemThread, (item, ))
 
   def OnItemSelected(self, event):
     self.currentItem = event.m_itemIndex
+    key = self.encodingQueue.GetItemData(self.currentItem)
+    item = self.queuedata[key]
+    if item['encoding']:
+        self.removeItem.SetLabel('Cancel')
+    else:
+        self.removeItem.SetLabel('Remove')
     self.removeItem.Enable()
   
   def OnClickAdd(self, event):
@@ -181,23 +220,41 @@ class SimpleTheoraEncoder(wx.Frame):
     time.sleep(0.5)
     if result['ok']:
       self.addItemToQueue(result['videoFile'], result)
+      if not self.encoding:
+        self.buttonEncode.Enable()
   
   def OnClickRemove(self, event):
     key = self.encodingQueue.GetItemData(self.currentItem)
-    print key
     if 'enc' in self.queuedata[key]:
       self.queuedata[key]['enc'].cancel()
     del self.queuedata[key]
     self.initializeUploadQueue(self.currentItem)
 
-  def OnExit(self, event):
-    for key in self.queuedata:
-      if 'enc' in self.queuedata[key]:
-        try:
-          self.queuedata[key]['enc'].cancel()
-        except:
-          pass
-    sys.exit()
+  def OnEncode(self, event):
+    if not self.encoding:
+      self.encoding = True
+      thread.start_new_thread(self.encodeQueue, ("foo", ))
+      self.buttonEncode.Disable()
+
+  def OnClose(self, event):
+    close = True
+    if self.encoding:
+      dlg = wx.MessageDialog(self, 
+          "Videos are still encoded.\nDo you really want to close Simple Theora Encoder?",
+          "Confirm Exit", wx.OK|wx.CANCEL|wx.ICON_QUESTION)
+      result = dlg.ShowModal()
+      dlg.Destroy()
+      if result != wx.ID_OK:
+        close = False
+    if close:
+      self.quit = True
+      for key in self.queuedata:
+        if 'enc' in self.queuedata[key]:
+          try:
+            self.queuedata[key]['enc'].cancel()
+          except:
+            pass
+      self.Destroy()
 
 def gui(inputFile = None):
   app = wx.PySimpleApp()

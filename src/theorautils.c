@@ -631,6 +631,7 @@ static double estimated_size(oggmux_info *info, double timebase) {
 }
 
 static void print_stats(oggmux_info *info, double timebase) {
+    static double last = -2;
     int hundredths = timebase * 100 - (long) timebase * 100;
     int seconds = (long) timebase % 60;
     int minutes = ((long) timebase / 60) % 60;
@@ -639,34 +640,37 @@ static void print_stats(oggmux_info *info, double timebase) {
     int remaining_seconds = (long) remaining % 60;
     int remaining_minutes = ((long) remaining / 60) % 60;
     int remaining_hours = (long) remaining / 3600;
-    if (info->frontend) {
-        fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
-            (double)info->duration,
-            timebase,
-            info->akbps, info->vkbps,
-            remaining
-        );
-        fflush (info->frontend);
-    }
-    else if (timebase > 0 ) {
-        if (!remaining) {
-            remaining = time(NULL) - info->start_time;
-            remaining_seconds = (long) remaining % 60;
-            remaining_minutes = ((long) remaining / 60) % 60;
-            remaining_hours = (long) remaining / 3600;
-            fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d ",
-                hours, minutes, seconds, hundredths,
+    if (timebase - last > 0.5) {
+        last = timebase;
+        if (info->frontend) {
+            fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
+                (double)info->duration,
+                timebase,
                 info->akbps, info->vkbps,
-                remaining_hours, remaining_minutes, remaining_seconds
+                remaining
             );
+            fflush (info->frontend);
         }
-        else {
-            fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, ET: %02d:%02d:%02d, est. size: %.01lf MB ",
-                hours, minutes, seconds, hundredths,
-                info->akbps, info->vkbps,
-                remaining_hours, remaining_minutes, remaining_seconds,
-                estimated_size(info, timebase)
-            );
+        else if (timebase > 0 ) {
+            if (!remaining) {
+                remaining = time(NULL) - info->start_time;
+                remaining_seconds = (long) remaining % 60;
+                remaining_minutes = ((long) remaining / 60) % 60;
+                remaining_hours = (long) remaining / 3600;
+                fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d ",
+                    hours, minutes, seconds, hundredths,
+                    info->akbps, info->vkbps,
+                    remaining_hours, remaining_minutes, remaining_seconds
+                );
+            }
+            else {
+                fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, ET: %02d:%02d:%02d, est. size: %.01lf MB ",
+                    hours, minutes, seconds, hundredths,
+                    info->akbps, info->vkbps,
+                    remaining_hours, remaining_minutes, remaining_seconds,
+                    estimated_size(info, timebase)
+                );
+            }
         }
     }
 }
