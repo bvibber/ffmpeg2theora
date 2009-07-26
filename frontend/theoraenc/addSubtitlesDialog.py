@@ -4,6 +4,7 @@
 import os
 from os.path import basename
 import time
+import subprocess
 
 import wx
 #import wx.lib.langlistctrl
@@ -23,13 +24,15 @@ from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 class SubtitlesProperties(wx.Dialog):
   def __init__(
           self, parent, ID, title,
-          language, category, encoding, file,
+          language, category, encoding, file, hasIconv,
           size=wx.DefaultSize, pos=wx.DefaultPosition, 
           style=wx.DEFAULT_DIALOG_STYLE,
           ):
     pre = wx.PreDialog()
     pre.Create(parent, ID, title, pos, size, style)
     self.PostCreate(pre)
+
+    self.hasIconv = hasIconv
 
     # defaults
     if language == '':
@@ -64,8 +67,10 @@ class SubtitlesProperties(wx.Dialog):
     self.addProperty(mainBox, 'Category', self.categoryWidget, self.OnCategoryHelp)
 
     # encoding
-    encodings = ['UTF-8', 'ISO-8859-1']
-    self.encodingWidget = wx.Choice(self, -1, (80,-1), choices=encodings, name=encoding)
+    if hasIconv:
+      self.encodingWidget = wx.ComboBox(self, -1, encoding, (80,-1), wx.DefaultSize, self.BuildEncodingsList(self.hasIconv), wx.CB_SIMPLE)
+    else:
+      self.encodingWidget = wx.Choice(self, -1, (80,-1), choices=self.BuildEncodingsList(self.hasIconv))
     self.addProperty(mainBox, 'Encoding', self.encodingWidget, self.OnEncodingHelp)
 
     #Buttons
@@ -134,11 +139,15 @@ class SubtitlesProperties(wx.Dialog):
       'If the language tag needed is not available in the list, a custom one may be entered.\n')
 
   def OnEncodingHelp(self, event):
+    iconv_blurb = ''
+    if self.hasIconv:
+      iconv_blurb = 'ffmpeg2theora was built with iconv support, so can also convert any encoding that is supported by iconv.\n'
     self.DisplayHelp(
       'Kate streams are encoded in UTF-8 (a Unicode character encoding that allows to represent '+
       'pretty much any existing script.\n'+
       'If the input file is not already encoded in UTF-8, it will need converting to UTF-8 first.\n'+
       'ffmpeg2theora can convert ISO-8859-1 (also known as latin1) encoding directly.\n'+
+      iconv_blurb+
       'Files in other encodings will have to be converted manually in order to be used. See the '+
       'subtitles.txt documentation for more information on how to manually convert files.\n')
 
@@ -175,16 +184,13 @@ class SubtitlesProperties(wx.Dialog):
     # add in whatever's known from 'locale -a' - this works fine if locale isn't found,
     # but i'm not sure what that'll do if we get another program named locale that spews
     # random stuff to stdout :)
-    f = os.popen('locale -a')
-    line = f.readline()
-    while line:
+    p = subprocess.Popen(['locale', '-a'], shell=False, stdout=subprocess.PIPE, close_fds=True)
+    data, err = p.communicate()
+
+    for line in data.strip().split('\n'):
       line = self.ExtractLanguage(line)
-      if line != '' and line != 'C' and line != 'POSIX':
+      if line != '' and line != 'C' and line != 'POSIX' and line not in languages:
         languages.append(line)
-      line = f.readline()
-    f.close()
-    #oneliner from german python forum => unique list
-    languages = [languages[i] for i in xrange(len(languages)) if languages[i] not in languages[:i]]
     languages.sort()
     return languages
 
@@ -197,8 +203,23 @@ class SubtitlesProperties(wx.Dialog):
     line = line.split('\r')[0] # Mac or Windows
     return line
 
-def addSubtitlesPropertiesDialog(parent, language, category, encoding, file):
-  dlg = SubtitlesProperties(parent, -1, "Add subtitles", language, category, encoding, file, size=(490, 560), style=wx.DEFAULT_DIALOG_STYLE)
+  def BuildEncodingsList(self, hasIconv):
+    # start with a known basic set, that ffmpeg2theora can handle without iconv
+    encodings = ['UTF-8', 'ISO-8859-1']
+
+    # this creates a *huge* spammy list with my version of iconv...
+    if hasIconv:
+      # add in whatever iconv knows about
+      p = subprocess.Popen(['iconv', '-l'], shell=False, stdout=subprocess.PIPE, close_fds=True)
+      data, stderr = p.communicate()
+      for line in data.strip().split('\n'):
+        line = line.split('/')[0] # stop at a /
+        if not line in encodings:
+          encodings.append(line)
+    return encodings
+
+def addSubtitlesPropertiesDialog(parent, language, category, encoding, file, hasIconv):
+  dlg = SubtitlesProperties(parent, -1, "Add subtitles", language, category, encoding, file, hasIconv, size=(490, 560), style=wx.DEFAULT_DIALOG_STYLE)
   dlg.CenterOnScreen()
   val = dlg.ShowModal()
   result = dict()
@@ -211,7 +232,10 @@ def addSubtitlesPropertiesDialog(parent, language, category, encoding, file):
 #      result['subtitlesLanguage'] = dlg.languageWidget.GetValue()
     result['subtitlesLanguage'] = dlg.languageWidget.GetValue()
     result['subtitlesCategory'] = dlg.categoryWidget.GetValue()
-    result['subtitlesEncoding'] = dlg.encodingWidget.GetStringSelection()
+    if hasIconv:
+      result['subtitlesEncoding'] = dlg.encodingWidget.GetValue()
+    else:
+      result['subtitlesEncoding'] = dlg.encodingWidget.GetStringSelection()
     print result
   else:
     result['ok'] = False

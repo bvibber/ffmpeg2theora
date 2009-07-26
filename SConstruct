@@ -149,6 +149,12 @@ if env['libkate']:
         You can also run ./get_libkate.sh (for more information see INSTALL)
         or update PKG_CONFIG_PATH to point to libkate's source folder
     """
+
+if conf.CheckCHeader('iconv.h'):
+    env.Append(CCFLAGS=[
+      '-DHAVE_ICONV'
+    ])
+
 env = conf.Finish()
 
 # ffmpeg2theora 

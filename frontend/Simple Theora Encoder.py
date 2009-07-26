@@ -216,7 +216,7 @@ class SimpleTheoraEncoder(wx.Frame):
     self.removeItem.Enable()
   
   def OnClickAdd(self, event):
-    result = addVideoDialog(self, theoraenc.hasKate)
+    result = addVideoDialog(self, theoraenc.hasKate, theoraenc.hasIconv)
     time.sleep(0.5)
     if result['ok']:
       self.addItemToQueue(result['videoFile'], result)

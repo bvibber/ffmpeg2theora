@@ -3,13 +3,6 @@
 
 #include "subtitles.h"
 
-typedef enum {
-    ENC_UNSET,
-    ENC_UTF8,
-    ENC_ISO_8859_1,
-} F2T_ENCODING;
-
-
 typedef struct ff2theora_subtitle{
     char *text;
     size_t len;
@@ -28,7 +21,7 @@ typedef struct ff2theora_kate_stream{
 
     /* this block valid for all subtitle sources */
     size_t subtitles_count; /* total subtitles output so far */
-    F2T_ENCODING subtitles_encoding;
+    char *subtitles_encoding;
     char subtitles_language[16];
     char subtitles_category[16];
 } ff2theora_kate_stream;

@@ -27,6 +27,9 @@
 #include <math.h>
 #include <errno.h>
 #include <stdarg.h>
+#ifdef HAVE_ICONV
+#include "iconv.h"
+#endif
 
 #include "libavformat/avformat.h"
 
@@ -59,6 +62,27 @@ static void warn(FILE *frontend, const char *file, unsigned int line, const char
 }
 
 /**
+  * checks whether we support the encoding
+  */
+int is_valid_encoding(const char *encoding)
+{
+#ifdef HAVE_ICONV
+  iconv_t cd = iconv_open("UTF-8", encoding);
+  if (cd != (iconv_t)-1) {
+    iconv_close(cd);
+    return 1;
+  }
+  return 0;
+#else
+  if (!strcasecmp(encoding, "UTF-8")) return 1;
+  if (!strcasecmp(encoding, "UTF8")) return 1;
+  if (!strcasecmp(encoding, "iso-8859-1")) return 1;
+  if (!strcasecmp(encoding, "latin1")) return 1;
+  return 0;
+#endif
+}
+
+/**
   * adds a new kate stream structure
   */
 void add_kate_stream(ff2theora this){
@@ -70,7 +94,7 @@ void add_kate_stream(ff2theora this){
     ks->subtitles = 0;
     ks->stream_index = -1;
     ks->subtitles_count = 0; /* denotes not set yet */
-    ks->subtitles_encoding = ENC_UNSET;
+    ks->subtitles_encoding = NULL;
     strcpy(ks->subtitles_language, "");
     strcpy(ks->subtitles_category, "");
 }
@@ -136,13 +160,13 @@ void set_subtitles_category(ff2theora this,const char *category){
 /**
   * sets the encoding of the next subtitles file
   */
-void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
+void set_subtitles_encoding(ff2theora this,const char *encoding){
   size_t n;
   for (n=0; n<this->n_kate_streams;++n) {
-    if (this->kate_streams[n].stream_index==-1 && this->kate_streams[n].subtitles_encoding==ENC_UNSET) break;
+    if (this->kate_streams[n].stream_index==-1 && !this->kate_streams[n].subtitles_encoding) break;
   }
   if (n==this->n_kate_streams) add_kate_stream(this);
-  this->kate_streams[n].subtitles_encoding = encoding;
+  this->kate_streams[n].subtitles_encoding = strdup(encoding);
 }
 
 
@@ -175,23 +199,27 @@ static double hmsms2s(int h,int m,int s,int ms)
 }
 
 /* very simple implementation when no iconv */
-static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore_non_utf8, FILE *frontend)
+static char *convert_subtitle_to_utf8(const char *encoding,char *text,int ignore_non_utf8, FILE *frontend)
 {
   size_t nbytes;
   char *ptr;
   char *newtext = NULL;
   int errors=0;
+#ifdef HAVE_ICONV
+  iconv_t cd;
+#endif
 
   if (!text) return NULL;
 
-  switch (encoding) {
-    case ENC_UNSET:
-      /* we don't know what encoding this is, assume UTF-8 and we'll yell if it ain't */
-      /* fall through */
-    case ENC_UTF8:
+  if (encoding == NULL) {
+     /* we don't know what encoding this is, assume UTF-8 and we'll yell if it ain't */
+     encoding = "UTF-8";
+  }
+
+  if (!strcasecmp(encoding, "UTF-8") || !strcasecmp(encoding, "UTF8")) {
       /* nothing to do, already in UTF-8 */
       if (ignore_non_utf8) {
-        /* actually, give the user the option of just ignoring non UTF8 characters */
+        /* actually, give the user the option of just ignoring non UTF-8 characters */
         char *wptr;
         size_t wlen0;
 
@@ -231,8 +259,40 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
       else {
         newtext = strdup(text);
       }
-      break;
-    case ENC_ISO_8859_1:
+
+      return newtext;
+  }
+
+  /* now, we can either use iconv, or convert ISO-8859-1 by hand (so to speak) */
+#ifdef HAVE_ICONV
+  /* create a conversion for each string, it avoids having to pass around this descriptor,
+     and the speed hit will be irrelevant anyway compared to video decoding/encoding.
+     that's fine, because we don't need to keep state across subtitles. */
+  cd = iconv_open("UTF-8", encoding);
+  if (cd != (iconv_t)-1) {
+    /* iconv doesn't seem to have a mode to do a dummy convert to just return the number
+       of bytes needed, so we just allocate 6 times the number of bytes in the string,
+       which should be the max we need for UTF-8 */
+    size_t insz=strlen(text)+1;
+    size_t outsz = insz*6;
+    char *inptr = text, *outptr;
+    newtext = (char*)malloc(outsz);
+    if (!newtext) {
+      warn(frontend, NULL, 0, "Memory allocation failed - cannot convert text\n");
+      iconv_close(cd);
+      return NULL;
+    }
+    outptr=newtext;
+    if (iconv(cd, &inptr, &insz, &outptr, &outsz) < 0) {
+      warn(frontend, NULL, 0, "Failed to convert text to UTF-8\n");
+      free(newtext);
+      newtext = NULL;
+    }
+    iconv_close(cd);
+  }
+
+#else
+  if (!strcasecmp(encoding, "iso-8859-1") || !strcasecmp(encoding, "latin1")) {
       /* simple, characters above 0x7f are broken in two,
          and code points map to the iso-8859-1 8 bit codes */
       nbytes=0;
@@ -256,11 +316,11 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
         }
       }
       newtext[nbytes++]=0;
-      break;
-    default:
+  }
+#endif
+  else {
       warn(frontend, NULL, 0, "encoding %d not handled in conversion!", encoding);
       newtext = strdup("");
-      break;
   }
   return newtext;
 }
@@ -357,7 +417,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
             /* we have all the lines for that subtitle, remove the last \n */
             remove_last_newline(text);
 
-            /* we want all text to be UTF8 */
+            /* we want all text to be UTF-8 */
             utf8=convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8, frontend);
             if (!utf8) {
               warn(frontend, this->filename, line, "Failed to get UTF-8 text");
@@ -479,6 +539,7 @@ void free_subtitles(ff2theora this)
         ff2theora_kate_stream *ks=this->kate_streams+i;
         for (n=0; n<ks->num_subtitles; ++n) free(ks->subtitles[n].text);
         free(ks->subtitles);
+        free(ks->subtitles_encoding);
     }
     free(this->kate_streams);
 }

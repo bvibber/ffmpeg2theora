@@ -1637,7 +1637,11 @@ void print_usage() {
         "Subtitles options:\n"
         "      --subtitles file                 use subtitles from the given file (SubRip (.srt) format)\n"
         "      --subtitles-encoding encoding    set encoding of the subtitles file\n"
+#ifdef HAVE_ICONV
+        "             supported are all encodings supported by iconv (see iconv help for list)\n"
+#else
         "             supported are " SUPPORTED_ENCODINGS "\n"
+#endif
         "      --subtitles-language language    set subtitles language (de, en_GB, etc)\n"
         "      --subtitles-category category    set subtitles category (default \"subtitles\")\n"
         "      --subtitles-ignore-non-utf8      ignores any non UTF-8 sequence in UTF-8 text\n"
@@ -1900,11 +1904,12 @@ int main(int argc, char **argv) {
                             info.with_kate=1;
                             break;
                         case SUBTITLES_ENCODING_FLAG:
-                            if (!strcasecmp(optarg,"utf-8")) set_subtitles_encoding(convert,ENC_UTF8);
-                            else if (!strcasecmp(optarg,"utf8")) set_subtitles_encoding(convert,ENC_UTF8);
-                            else if (!strcasecmp(optarg,"iso-8859-1")) set_subtitles_encoding(convert,ENC_ISO_8859_1);
-                            else if (!strcasecmp(optarg,"latin1")) set_subtitles_encoding(convert,ENC_ISO_8859_1);
-                            else report_unknown_subtitle_encoding(optarg, info.frontend);
+                            if (is_valid_encoding(optarg)) {
+                              set_subtitles_encoding(convert,optarg);
+                            }
+                            else {
+                              report_unknown_subtitle_encoding(optarg, info.frontend);
+                            }
                             flag = -1;
                             break;
                         case SUBTITLES_IGNORE_NON_UTF8_FLAG:

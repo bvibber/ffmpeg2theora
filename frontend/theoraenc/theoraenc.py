@@ -31,15 +31,19 @@ def probe_ffmpeg2theora():
 
 def probe_kate(ffmpeg2theora):
   hasKate = False
-  cmd = ffmpeg2theora + ' --help'
-  f = os.popen(cmd)
-  line = f.readline()
-  while line:
-    if line.find('Subtitles options:') >= 0:
-      hasKate = True
-    line = f.readline()
-  f.close()
+  p = subprocess.Popen([ffmpeg2theora, '--help'], shell=False, stdout=subprocess.PIPE, close_fds=True)
+  data, err = p.communicate()
+  if 'Subtitles options:' in data:
+    hasKate = True
   return hasKate
+
+def probe_iconv(ffmpeg2theora):
+  hasIconv = False
+  p = subprocess.Popen([ffmpeg2theora, '--help'], shell=False, stdout=subprocess.PIPE, close_fds=True)
+  data, err = p.communicate()
+  if 'supported are all encodings supported by iconv' in data:
+      hasIconv = True
+  return hasIconv
 
 def timestr(seconds):
   hours   = int(seconds/3600)
@@ -175,4 +179,5 @@ def fileInfo(filename):
 
 ffmpeg2theora = probe_ffmpeg2theora()
 hasKate = probe_kate(ffmpeg2theora)
+hasIconv = probe_iconv(ffmpeg2theora)
 

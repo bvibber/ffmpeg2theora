@@ -12,11 +12,14 @@ import theoraenc
 
 class AddVideoDialog(wx.Dialog):
   def __init__(
-          self, parent, ID, title, hasKate, size=wx.DefaultSize, pos=wx.DefaultPosition, 
+          self, parent, ID, title, hasKate, hasIconv,
+          size=wx.DefaultSize, pos=wx.DefaultPosition, 
           style=wx.DEFAULT_DIALOG_STYLE,
           ):
     
     self.videoFile = ''
+    self.hasKate = hasKate
+    self.hasIconv = hasIconv
     
     pre = wx.PreDialog()
     #pre.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
@@ -360,7 +363,7 @@ class AddVideoDialog(wx.Dialog):
     category = self.subtitles.GetItem(idx, 1).GetText()
     encoding = self.subtitles.GetItem(idx, 2).GetText()
     file = self.subtitles.GetItem(idx, 3).GetText()
-    result = addSubtitlesPropertiesDialog(self, language, category, encoding, file)
+    result = addSubtitlesPropertiesDialog(self, language, category, encoding, file, self.hasIconv)
     time.sleep(0.5) # why ? race condition ?
     if result['ok']:
       self.subtitles.SetStringItem(idx, 0, result['subtitlesLanguage'])
@@ -372,8 +375,8 @@ class AddVideoDialog(wx.Dialog):
       return False
 
 
-def addVideoDialog(parent, hasKate):
-  dlg = AddVideoDialog(parent, -1, "Add Video", hasKate, size=(490, 560), style=wx.DEFAULT_DIALOG_STYLE)
+def addVideoDialog(parent, hasKate, hasIconv):
+  dlg = AddVideoDialog(parent, -1, "Add Video", hasKate, hasIconv, size=(490, 560), style=wx.DEFAULT_DIALOG_STYLE)
   dlg.CenterOnScreen()
   val = dlg.ShowModal()
   result = dict()

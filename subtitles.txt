@@ -14,6 +14,8 @@ Subtitles are read from SubRip (.srt) format files and converted to
 Kate streams. Those SubRip files must be encoded in UTF-8 (7 bit ASCII
 is a subset of UTF-8 so is valid input as well). See below for more
 information on converting SubRip files with other encodings to UTF-8.
+ffmpeg2theora can convert files to UTF-8 transparently if build with
+a C library that supports iconv.
 
 Subtitles support requires libkate, available from:
 http://code.google.com/p/libkate
@@ -79,6 +81,8 @@ Use --nosubtitles if those are not to be converted.
 
  * Converting non-UTF-8 files to UTF-8
 
+If ffmpeg2theora wasn't build with iconv support, only UTF-8 and latin1
+input text is supported.
 If you have SubRip files in another format than UTF-8, you can use the
 iconv or recode programs to convert them to UTF-8 so ffmpeg2theora can
 read them.

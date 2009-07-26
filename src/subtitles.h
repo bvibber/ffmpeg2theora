@@ -15,6 +15,7 @@
 
 #define SUPPORTED_ENCODINGS "utf-8, utf8, iso-8859-1, latin1"
 
+extern int is_valid_encoding(const char *encoding);
 extern void add_kate_stream(ff2theora this);
 extern int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *frontend);
 extern void free_subtitles(ff2theora this);
@@ -24,7 +25,7 @@ extern int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams,
 extern void set_subtitles_file(ff2theora this,const char *filename);
 extern void set_subtitles_language(ff2theora this,const char *language);
 extern void set_subtitles_category(ff2theora this,const char *category);
-extern void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding);
+extern void set_subtitles_encoding(ff2theora this,const char *encoding);
 extern void report_unknown_subtitle_encoding(const char *name, FILE *frontend);
 
 #endif
