@@ -119,6 +119,16 @@ class SimpleTheoraEncoder(wx.Frame):
       if key in options and options[key]:
         settings.append('--%s' % key)
         settings.append("%s" % float(options[key]))
+    if 'subtitles' in options and options['subtitles']:
+      for s in options['subtitles']:
+        settings.append('--subtitles')
+        settings.append('%s' % s['file'])
+        settings.append('--subtitles-language')
+        settings.append('%s' % s['language'])
+        settings.append('--subtitles-category')
+        settings.append('%s' % s['category'])
+        settings.append('--subtitles-encoding')
+        settings.append('%s' % s['encoding'])
     return settings
 
   def addItemThread(self, item):
@@ -167,7 +177,7 @@ class SimpleTheoraEncoder(wx.Frame):
     self.removeItem.Enable()
   
   def OnClickAdd(self, event):
-    result = addVideoDialog(self)
+    result = addVideoDialog(self, theoraenc.hasKate)
     time.sleep(0.5)
     if result['ok']:
       self.addItemToQueue(result['videoFile'], result)

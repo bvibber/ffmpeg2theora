@@ -4,12 +4,13 @@
 import os
 from os.path import basename
 import time
+from addSubtitlesDialog import addSubtitlesPropertiesDialog, SubtitlesList
 
 import wx
 
 class AddVideoDialog(wx.Dialog):
   def __init__(
-          self, parent, ID, title, size=wx.DefaultSize, pos=wx.DefaultPosition, 
+          self, parent, ID, title, hasKate, size=wx.DefaultSize, pos=wx.DefaultPosition, 
           style=wx.DEFAULT_DIALOG_STYLE,
           ):
     
@@ -145,6 +146,54 @@ class AddVideoDialog(wx.Dialog):
     hbox = wx.BoxSizer(wx.HORIZONTAL)
     mainBox.Add(hbox)
 
+    # subtitles ('add' button and list)
+    hbox = wx.BoxSizer(wx.HORIZONTAL)
+    mainBox.Add(hbox)
+    label = wx.StaticText(self, -1, "Subtitles")
+    hbox.AddSpacer((12, 10))
+    hbox.Add(label, 0, wx.EXPAND|wx.ALL, padding)
+
+    hbox = wx.BoxSizer(wx.HORIZONTAL)
+    mainBox.Add(hbox)
+
+    hbox.AddSpacer((section_padding, 10))
+
+    if hasKate:
+      vbox = wx.BoxSizer(wx.VERTICAL)
+      hbox.Add(vbox)
+
+      subtitlesButtons_hbox = wx.BoxSizer(wx.HORIZONTAL)
+      vbox.Add(subtitlesButtons_hbox)
+
+      self.btnSubtitlesAdd = wx.Button(self, size=(120, -1))
+      self.btnSubtitlesAdd.SetLabel('Add...')
+      self.Bind(wx.EVT_BUTTON, self.OnClickSubtitlesAdd, self.btnSubtitlesAdd)
+      subtitlesButtons_hbox.Add(self.btnSubtitlesAdd, 0, wx.EXPAND|wx.ALL, padding)
+
+      self.btnSubtitlesRemove = wx.Button(self, size=(120, -1))
+      self.btnSubtitlesRemove.SetLabel('Remove')
+      self.Bind(wx.EVT_BUTTON, self.OnClickSubtitlesRemove, self.btnSubtitlesRemove)
+      self.btnSubtitlesRemove.Disable()
+      subtitlesButtons_hbox.Add(self.btnSubtitlesRemove, 0, wx.EXPAND|wx.ALL, padding)
+
+      self.btnSubtitlesProperties = wx.Button(self, size=(120, -1))
+      self.btnSubtitlesProperties.SetLabel('Properties')
+      self.Bind(wx.EVT_BUTTON, self.OnClickSubtitlesProperties, self.btnSubtitlesProperties)
+      self.btnSubtitlesProperties.Disable()
+      subtitlesButtons_hbox.Add(self.btnSubtitlesProperties, 0, wx.EXPAND|wx.ALL, padding)
+
+      #self.subtitles = wx.ListCtrl(self, -1, style=wx.LC_REPORT)
+      self.subtitles = SubtitlesList(self)
+      self.subtitles.Bind(wx.EVT_LIST_ITEM_SELECTED, self.CheckSubtitlesSelection)
+      self.subtitles.Bind(wx.EVT_LEFT_DCLICK, self.OnClickSubtitlesProperties)
+      self.subtitles.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.CheckSubtitlesSelection)
+      self.subtitles.Bind(wx.EVT_KILL_FOCUS, self.CheckSubtitlesSelection)
+      vbox.Add(self.subtitles, 0, wx.EXPAND|wx.ALL, padding)
+
+    else:
+      self.subtitles = None
+      hbox.Add(wx.StaticText(self, -1, "ffmpeg2theora doesn't seem to be built with subtitles support.\nSee documentation for how to enable subtitles.\n"))
+
     '''
     #Metadata
     label = wx.StaticText(self, -1, "Metadata")
@@ -257,14 +306,61 @@ class AddVideoDialog(wx.Dialog):
   def selectVideoFile(self, videoFile):
         self.videoFile = videoFile
         lValue = videoFile
-        lLenght = 45
-        if len(lValue) > lLenght:
-          lValue = "..." + lValue[-lLenght:]
+        lLength = 45
+        if len(lValue) > lLength:
+          lValue = "..." + lValue[-lLength:]
         self.btnVideoFile.SetLabel(lValue)
         self.btnOK.Enable()
 
-def addVideoDialog(parent):
-  dlg = AddVideoDialog(parent, -1, "Add Video", size=(490, 560), style=wx.DEFAULT_DIALOG_STYLE)
+  def CheckSubtitlesSelection(self, event):
+    idx=self.subtitles.GetFirstSelected()
+    if idx<0:
+      self.btnSubtitlesRemove.Disable()
+      self.btnSubtitlesProperties.Disable()
+    else:
+      self.btnSubtitlesRemove.Enable()
+      self.btnSubtitlesProperties.Enable()
+    self.subtitles.ResizeFilenameColumn()
+
+  def OnClickSubtitlesAdd(self, event):
+    self.subtitles.Append(['', '', '', ''])
+    if not self.ChangeSubtitlesProperties(self.subtitles.GetItemCount()-1):
+      self.subtitles.DeleteItem(self.subtitles.GetItemCount()-1)
+    self.subtitles.ResizeFilenameColumn()
+
+  def OnClickSubtitlesRemove(self, event):
+    while 1:
+      idx=self.subtitles.GetFirstSelected()
+      if idx<0:
+         break
+      self.subtitles.DeleteItem(idx)
+    self.CheckSubtitlesSelection(event)
+
+  def OnClickSubtitlesProperties(self, event):
+    idx=self.subtitles.GetFirstSelected()
+    if idx<0:
+       return
+    self.ChangeSubtitlesProperties(idx)
+
+  def ChangeSubtitlesProperties(self, idx):
+    language = self.subtitles.GetItem(idx, 0).GetText()
+    category = self.subtitles.GetItem(idx, 1).GetText()
+    encoding = self.subtitles.GetItem(idx, 2).GetText()
+    file = self.subtitles.GetItem(idx, 3).GetText()
+    result = addSubtitlesPropertiesDialog(self, language, category, encoding, file)
+    time.sleep(0.5) # why ? race condition ?
+    if result['ok']:
+      self.subtitles.SetStringItem(idx, 0, result['subtitlesLanguage'])
+      self.subtitles.SetStringItem(idx, 1, result['subtitlesCategory'])
+      self.subtitles.SetStringItem(idx, 2, result['subtitlesEncoding'])
+      self.subtitles.SetStringItem(idx, 3, result['subtitlesFile'])
+      return True
+    else:
+      return False
+
+
+def addVideoDialog(parent, hasKate):
+  dlg = AddVideoDialog(parent, -1, "Add Video", hasKate, size=(490, 560), style=wx.DEFAULT_DIALOG_STYLE)
   dlg.CenterOnScreen()
   val = dlg.ShowModal()
   result = dict()
@@ -274,6 +370,16 @@ def addVideoDialog(parent):
     for key in ('width', 'height', 'videoquality', 'videobitrate', 'framerate',
                 'audioquality', 'audiobitrate', 'samplerate'):
       result[key] = getattr(dlg, key).GetValue()
+    # subtitles
+    if dlg.subtitles:
+      for idx in range(dlg.subtitles.GetItemCount()):
+        if not 'subtitles' in result:
+          result['subtitles'] = []
+        language = dlg.subtitles.GetItem(idx, 0).GetText()
+        category = dlg.subtitles.GetItem(idx, 1).GetText()
+        encoding = dlg.subtitles.GetItem(idx, 2).GetText()
+        file = dlg.subtitles.GetItem(idx, 3).GetText()
+        result['subtitles'].append({'encoding':encoding, 'language':language, 'category':category, 'file':file})
     print result
   else:
     result['ok'] = False

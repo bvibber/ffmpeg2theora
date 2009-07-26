@@ -857,7 +857,7 @@ void ff2theora_output(ff2theora this) {
               info.with_kate=1;
             }
         }
-        else if (load_subtitles(ks,this->ignore_non_utf8)>0) {
+        else if (load_subtitles(ks,this->ignore_non_utf8,info.frontend)>0) {
 #ifdef DEBUG
             printf("Muxing Kate stream %d from %s as %s %s\n",
                 i,ks->filename,
@@ -1350,7 +1350,7 @@ void ff2theora_output(ff2theora this) {
                     t = 0;
                   }
                   if (utf8 && t >= 0)
-                    add_subtitle_for_stream(this->kate_streams, this->n_kate_streams, pkt.stream_index, t, duration, utf8, utf8len);
+                    add_subtitle_for_stream(this->kate_streams, this->n_kate_streams, pkt.stream_index, t, duration, utf8, utf8len, info.frontend);
                   if (allocated_utf8) free(allocated_utf8);
                 }
                 else {
@@ -1640,7 +1640,7 @@ void print_usage() {
         "             supported are " SUPPORTED_ENCODINGS "\n"
         "      --subtitles-language language    set subtitles language (de, en_GB, etc)\n"
         "      --subtitles-category category    set subtitles category (default \"subtitles\")\n"
-        "      --subtitles-ignore-non-utf8      ignores any non utf-8 sequence in utf-8 text\n"
+        "      --subtitles-ignore-non-utf8      ignores any non UTF-8 sequence in UTF-8 text\n"
         "      --nosubtitles                    disables subtitles from input\n"
         "\n"
 #endif
@@ -1900,11 +1900,11 @@ int main(int argc, char **argv) {
                             info.with_kate=1;
                             break;
                         case SUBTITLES_ENCODING_FLAG:
-                            if (!strcmp(optarg,"utf-8")) set_subtitles_encoding(convert,ENC_UTF8);
-                            if (!strcmp(optarg,"utf8")) set_subtitles_encoding(convert,ENC_UTF8);
-                            else if (!strcmp(optarg,"iso-8859-1")) set_subtitles_encoding(convert,ENC_ISO_8859_1);
-                            else if (!strcmp(optarg,"latin1")) set_subtitles_encoding(convert,ENC_ISO_8859_1);
-                            else report_unknown_subtitle_encoding(optarg);
+                            if (!strcasecmp(optarg,"utf-8")) set_subtitles_encoding(convert,ENC_UTF8);
+                            else if (!strcasecmp(optarg,"utf8")) set_subtitles_encoding(convert,ENC_UTF8);
+                            else if (!strcasecmp(optarg,"iso-8859-1")) set_subtitles_encoding(convert,ENC_ISO_8859_1);
+                            else if (!strcasecmp(optarg,"latin1")) set_subtitles_encoding(convert,ENC_ISO_8859_1);
+                            else report_unknown_subtitle_encoding(optarg, info.frontend);
                             flag = -1;
                             break;
                         case SUBTITLES_IGNORE_NON_UTF8_FLAG:

@@ -26,6 +26,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #include "libavformat/avformat.h"
 
@@ -36,6 +37,26 @@
 #include "theorautils.h"
 #include "subtitles.h"
 
+
+static void warn(FILE *frontend, const char *file, unsigned int line, const char *format,...)
+{
+  va_list ap;
+  va_start(ap,format);
+  if (frontend) {
+    fprintf(frontend,"{\"WARNING\": \"");
+    vfprintf(frontend,format,ap);
+    fprintf(frontend,"\"}\n");
+  }
+  else {
+    if (file)
+      fprintf(stderr, "WARNING - %s:%u: ", file, line);
+    else
+      fprintf(stderr, "WARNING - ");
+    vfprintf(stderr,format,ap);
+    fprintf(stderr,"\n");
+  }
+  va_end(ap);
+}
 
 /**
   * adds a new kate stream structure
@@ -125,11 +146,13 @@ void set_subtitles_encoding(ff2theora this,F2T_ENCODING encoding){
 }
 
 
-void report_unknown_subtitle_encoding(const char *name)
+void report_unknown_subtitle_encoding(const char *name, FILE *frontend)
 {
-  fprintf(stderr, "Unknown character encoding: %s\n",name);
-  fprintf(stderr, "Valid character encodings are:\n");
-  fprintf(stderr, "  " SUPPORTED_ENCODINGS "\n");
+  warn(frontend, NULL, 0, "Unknown character encoding: %s",name);
+  if (!frontend) {
+    fprintf(stderr, "Valid character encodings are:\n");
+    fprintf(stderr, "  " SUPPORTED_ENCODINGS "\n");
+  }
 }
 
 #ifdef HAVE_KATE
@@ -152,7 +175,7 @@ static double hmsms2s(int h,int m,int s,int ms)
 }
 
 /* very simple implementation when no iconv */
-static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore_non_utf8)
+static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignore_non_utf8, FILE *frontend)
 {
   size_t nbytes;
   char *ptr;
@@ -163,10 +186,10 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
 
   switch (encoding) {
     case ENC_UNSET:
-      /* we don't know what encoding this is, assume utf-8 and we'll yell if it ain't */
+      /* we don't know what encoding this is, assume UTF-8 and we'll yell if it ain't */
       /* fall through */
     case ENC_UTF8:
-      /* nothing to do, already in utf-8 */
+      /* nothing to do, already in UTF-8 */
       if (ignore_non_utf8) {
         /* actually, give the user the option of just ignoring non UTF8 characters */
         char *wptr;
@@ -175,7 +198,7 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
         nbytes = strlen(text)+1;
         newtext=(char*)malloc(nbytes);
         if (!newtext) {
-          fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
+          warn(frontend, NULL, 0, "Memory allocation failed - cannot convert text");
           return NULL;
         }
         ptr = text;
@@ -187,7 +210,7 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
             /* valid character */
             ret=kate_text_set_character(kate_utf8, ret, &wptr, &wlen0);
             if (ret<0) {
-              fprintf(stderr, "WARNING - failed to filter utf8 text: %s\n", text);
+              warn(frontend, NULL, 0, "Failed to filter utf8 text: %s", text);
               free(newtext);
               return NULL;
             }
@@ -202,7 +225,7 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
         }
 
         if (errors) {
-          fprintf(stderr, "WARNING - Found non utf8 character(s) in string %s, scrubbed out\n", text);
+          warn(frontend, NULL, 0, "Found non utf8 character(s) in string %s, scrubbed out", text);
         }
       }
       else {
@@ -219,7 +242,7 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
       }
       newtext=(char*)malloc(1+nbytes);
       if (!newtext) {
-        fprintf(stderr, "WARNING - Memory allocation failed - cannot convert text\n");
+        warn(frontend, NULL, 0, "Memory allocation failed - cannot convert text");
         return NULL;
       }
       nbytes=0;
@@ -235,7 +258,7 @@ static char *convert_subtitle_to_utf8(F2T_ENCODING encoding,char *text,int ignor
       newtext[nbytes++]=0;
       break;
     default:
-      fprintf(stderr, "ERROR: encoding %d not handled in conversion!\n", encoding);
+      warn(frontend, NULL, 0, "encoding %d not handled in conversion!", encoding);
       newtext = strdup("");
       break;
   }
@@ -252,7 +275,7 @@ static void remove_last_newline(char *text)
 
 #endif
 
-int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
+int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *frontend)
 {
 #ifdef HAVE_KATE
     enum { need_id, need_timing, need_text };
@@ -274,13 +297,13 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
     this->subtitles = NULL;
 
     if (!this->filename) {
-        fprintf(stderr,"WARNING - No subtitles file to load from\n");
+        warn(frontend, NULL, 0, "No subtitles file to load from");
         return -1;
     }
 
     f = fopen(this->filename, "r");
     if (!f) {
-        fprintf(stderr,"WARNING - Failed to open subtitles file %s (%s)\n", this->filename, strerror(errno));
+        warn(frontend, NULL, 0, "Failed to open subtitles file %s (%s)", this->filename, strerror(errno));
         return -1;
     }
 
@@ -302,13 +325,13 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
           else {
             ret=sscanf(str,"%d\n",&id);
             if (ret!=1 || id<0) {
-              fprintf(stderr,"WARNING - %s:%u: Syntax error: %s\n",this->filename,line,str);
+              warn(frontend, this->filename, line, "Syntax error: %s",str);
               fclose(f);
               free(this->subtitles);
               return -1;
             }
             if (id!=last_seen_id+1) {
-              fprintf(stderr,"WARNING - %s:%u: non consecutive ids: %s - pretending not to have noticed\n",this->filename,line,str);
+              warn(frontend, this->filename, line, "Non consecutive ids: %s - pretending not to have noticed",str);
             }
             last_seen_id=id;
             need=need_timing;
@@ -318,7 +341,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
         case need_timing:
           ret=sscanf(str,"%d:%d:%d%*[.,]%d --> %d:%d:%d%*[.,]%d\n",&h0,&m0,&s0,&ms0,&h1,&m1,&s1,&ms1);
           if (ret!=8 || (h0|m0|s0|ms0)<0 || (h1|m1|s1|ms1)<0) {
-            fprintf(stderr,"WARNING - %s:%u: Syntax error: %s\n",this->filename,line,str);
+            warn(frontend, this->filename, line, "Syntax error: %s",str);
             fclose(f);
             free(this->subtitles);
             return -1;
@@ -335,8 +358,9 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             remove_last_newline(text);
 
             /* we want all text to be UTF8 */
-            utf8=convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8);
+            utf8=convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8, frontend);
             if (!utf8) {
+              warn(frontend, this->filename, line, "Failed to get UTF-8 text");
               fclose(f);
               free(this->subtitles);
               return -1;
@@ -347,7 +371,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             this->subtitles = (ff2theora_subtitle*)realloc(this->subtitles, (this->num_subtitles+1)*sizeof(ff2theora_subtitle));
             if (!this->subtitles) {
               free(utf8);
-              fprintf(stderr, "Out of memory\n");
+              warn(frontend, NULL, 0, "Out of memory");
               fclose(f);
               free(this->subtitles);
               return -1;
@@ -355,8 +379,9 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             ret=kate_text_validate(kate_utf8,utf8,len+1);
             if (ret<0) {
               if (!warned) {
-                fprintf(stderr,"WARNING - %s:%u: subtitle %s is not valid utf-8\n",this->filename,line,utf8);
-                fprintf(stderr,"  further invalid subtitles will NOT be flagged\n");
+                warn(frontend, this->filename, line, "subtitle is not valid UTF-8: %s",utf8);
+                if (!frontend)
+                  fprintf(stderr,"  further invalid subtitles will NOT be flagged\n");
                 warned=1;
               }
             }
@@ -377,7 +402,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
             /* in case of very long subtitles */
             len=strlen(text);
             if (len+strlen(str) >= sizeof(text)) {
-              fprintf(stderr,"WARNING - %s:%u: subtitle text is too long - truncated\n",this->filename,line);
+              warn(frontend, this->filename, line, "Subtitle text is too long - truncated");
             }
             strncpy(text+len,str,sizeof(text)-len);
             text[sizeof(text)-1]=0;
@@ -390,10 +415,13 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
 
     fclose(f);
 
+#if 0
+    // there seems to be quite a lot of files like this, so disable this test.
     if (need!=need_id) {
       /* shouldn't be a problem though, but warn */
-      fprintf(stderr,"WARNING - %s:%u: missing data in %s - truncated file ?\n",this->filename,line,this->filename);
+      warn(frontend, this->filename, line, "Missing data in - truncated file ?");
     }
+#endif
 
     /* fprintf(stderr,"  %u subtitles loaded.\n", this->num_subtitles); */
 
@@ -403,7 +431,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8)
 #endif
 }
 
-int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int idx, float t, float duration, const char *utf8, size_t utf8len)
+int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int idx, float t, float duration, const char *utf8, size_t utf8len, FILE *frontend)
 {
 #ifdef HAVE_KATE
   int n, ret;
@@ -412,19 +440,19 @@ int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int id
     if (idx == ks->stream_index) {
       ks->subtitles = (ff2theora_subtitle*)realloc(ks->subtitles, (ks->num_subtitles+1)*sizeof(ff2theora_subtitle));
       if (!ks->subtitles) {
-        fprintf(stderr, "Out of memory\n");
+        warn(frontend, NULL, 0, "Out of memory");
         return -1;
       }
       ret=kate_text_validate(kate_utf8,utf8,utf8len);
       if (ret<0) {
-        fprintf(stderr,"WARNING - stream %d: subtitle %s is not valid UTF-8\n",idx,utf8);
+        warn(frontend, NULL, 0, "stream %d: subtitle %s is not valid UTF-8",idx,utf8);
       }
       else {
         /* make a copy */
         size_t len = utf8len;
         char *utf8copy = (char*)malloc(utf8len);
         if (!utf8copy) {
-	  fprintf(stderr, "Out of memory\n");
+	  warn(frontend, NULL, 0, "Out of memory");
 	  return -1;
         }
         memcpy(utf8copy, utf8, utf8len);

@@ -2,7 +2,7 @@ Text subtitles can be embedded in an Ogg stream alongside a Theora video.
 
  * Overview
  * Subtitles related options
- * Converting non-utf-8 files to utf-8
+ * Converting non-UTF-8 files to UTF-8
  * Examples
  * Playing subtitles
 
@@ -11,9 +11,9 @@ Text subtitles can be embedded in an Ogg stream alongside a Theora video.
  * Overview
 
 Subtitles are read from SubRip (.srt) format files and converted to
-Kate streams. Those SubRip files must be encoded in utf-8 (7 bit ASCII
-is a subset of utf-8 so is valid input as well). See below for more
-information on converting SubRip files with other encodings to utf-8.
+Kate streams. Those SubRip files must be encoded in UTF-8 (7 bit ASCII
+is a subset of UTF-8 so is valid input as well). See below for more
+information on converting SubRip files with other encodings to UTF-8.
 
 Subtitles support requires libkate, available from:
 http://code.google.com/p/libkate
@@ -36,7 +36,7 @@ Use --nosubtitles if those are not to be converted.
  * Subtitles related options
 
 --subtitles <file>
-   Loads subtitles from a file, which must be an utf-8 encoded SubRip
+   Loads subtitles from a file, which must be an UTF-8 encoded SubRip
    (.srt) file
 
 --subtitles-language <language>
@@ -57,19 +57,19 @@ Use --nosubtitles if those are not to be converted.
 
 --subtitles-encoding <encoding>
   Sets the encoding of the relevant input file. Allowed encodings are
-  utf-8, utf8, iso-8859-1, and latin1. The first two are synonymous and
+  UTF-8, UTF8, iso-8859-1, and latin1. The first two are synonymous and
   yield no conversion. The latter two are synonymous and convert from
-  iso-8859-1 to utf-8.
+  iso-8859-1 to UTF-8.
   If the input file is in another encoding, a separate step is needed
-  to convert the input file to utf-8. See below for more information on
-  converting other encoding to utf-8.
-  If unspecified, the default is utf-8.
+  to convert the input file to UTF-8. See below for more information on
+  converting other encoding to UTF-8.
+  If unspecified, the default is UTF-8.
 
 --subtitles-ignore-non-utf8
-  Any invalid sequence in utf-8 text will be ignored. This may be useful
-  when using an utf-8 file with stray non utf-8 characters. This is not
-  a substitute for converting a non utf-8 file to utf-8, however, as the
-  non utf-8 sequence will be missing from the output stream.
+  Any invalid sequence in UTF-8 text will be ignored. This may be useful
+  when using an UTF-8 file with stray non UTF-8 characters. This is not
+  a substitute for converting a non UTF-8 file to UTF-8, however, as the
+  non UTF-8 sequence will be missing from the output stream.
 
 --nosubtitles
   Subtitle streams from the input file will not be converted. Subtitles
@@ -77,15 +77,15 @@ Use --nosubtitles if those are not to be converted.
 
 
 
- * Converting non-utf-8 files to utf-8
+ * Converting non-UTF-8 files to UTF-8
 
-If you have SubRip files in another format than utf-8, you can use the
-iconv or recode programs to convert them to utf-8 so ffmpeg2theora can
+If you have SubRip files in another format than UTF-8, you can use the
+iconv or recode programs to convert them to UTF-8 so ffmpeg2theora can
 read them.
 
    * iconv
-      If you have a file called subtitles.srt which is not in utf-8,
-      you can convert it to utf-8 with the command:
+      If you have a file called subtitles.srt which is not in UTF-8,
+      you can convert it to UTF-8 with the command:
 
          iconv -t utf-8 -f ENCODING subtitles.srt > subtitles.utf8.srt
 
@@ -95,18 +95,18 @@ read them.
       encoding, replace ENCODING with UCS-2BE.
 
       This will create a new file called subtitles.utf8.srt, which will
-      be the equivalent of the input file, but in utf-8 format, so it
+      be the equivalent of the input file, but in UTF-8 format, so it
       can be used as input to ffmpeg2theora.
 
-      To view a list of all the encodings iconv can convert to utf-8,
+      To view a list of all the encodings iconv can convert to UTF-8,
       see the output of `iconv -l'.
 
    * recode
 
-      If you have a file called subtitles.srt which is not in utf-8,
-      you can convert it to utf-8 with the command:
+      If you have a file called subtitles.srt which is not in UTF-8,
+      you can convert it to UTF-8 with the command:
 
-         recode ENCODING..utf-8 < subtitles.srt > subtitles.utf8.srt
+         recode ENCODING..UTF-8 < subtitles.srt > subtitles.utf8.srt
 
       Substitute ENCODING with the actual encoding of the input file.
       For instance, if your input file is in Shift-JIS encoding, replace
@@ -114,10 +114,10 @@ read them.
       replace ENCODING with BIG5.
 
       This will create a new file called subtitles.utf8.srt, which will
-      be the equivalent of the input file, but in utf-8 format, so it
+      be the equivalent of the input file, but in UTF-8 format, so it
       can be used as input to ffmpeg2theora.
 
-      To view a list of all the encodings recode can convert to utf-8,
+      To view a list of all the encodings recode can convert to UTF-8,
       see the output of `recode -l'.
 
 
@@ -148,5 +148,5 @@ read them.
 
 At the moment, only VLC has playback support for Kate streams. However, the
 libkate distribution includes patches for other players and media frameworks
-(MPlayer, GStreamer).
+(MPlayer, GStreamer, liboggplay).
 

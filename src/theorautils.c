@@ -152,7 +152,6 @@ void add_fishead_packet (oggmux_info *info) {
  */
 void add_fisbone_packet (oggmux_info *info) {
     ogg_packet op;
-    int n;
 
     if (!info->audio_only) {
         memset (&op, 0, sizeof (op));
@@ -211,6 +210,7 @@ void add_fisbone_packet (oggmux_info *info) {
 
 #ifdef HAVE_KATE
     if (info->with_kate) {
+        int n;
         for (n=0; n<info->n_kate_streams; ++n) {
             oggmux_kate_stream *ks=info->kate_streams+n;
         memset (&op, 0, sizeof (op));
@@ -294,8 +294,8 @@ void oggmux_init (oggmux_info *info) {
 
     /* initialize kate if we have subtitles */
     if (info->with_kate) {
-        int ret, n;
 #ifdef HAVE_KATE
+        int ret, n;
         for (n=0; n<info->n_kate_streams; ++n) {
             oggmux_kate_stream *ks=info->kate_streams+n;
             ogg_stream_init (&ks->ko, rand ());    /* oops, add one ot the above */
