@@ -65,6 +65,21 @@ higher/smoother overall. Soft target also
 allows an optional \-v setting to specify
 a minimum allowed quality.
 .TP
+.B \-\-two-pass
+Compress input using two-pass rate control.
+This option requires that the input to the
+to the encoder is seekable and performs both passes automatically.
+.TP
+.B \-\-first-pass <filename>
+Perform first-pass of a two-pass rate controlled encoding,
+saving pass data to <filename> for a later second pass
+.TP
+.B \-\-second-pass <filename>
+Perform second-pass of a two-pass rate controlled encoding, reading first-pass
+data from <filename>.  The first pass data must come from a first encoding pass
+using identical input video to work properly.
+
+.TP
 .B \-\-optimize
 Optimize output Theora video, using a full search for motion vectors
 instead of a hierarchical one. This can reduce video bitrate about 5%,
