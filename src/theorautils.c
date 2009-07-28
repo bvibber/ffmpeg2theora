@@ -71,6 +71,10 @@ void init_info(oggmux_info *info) {
     info->k_page=0;
 #endif
 
+    info->twopass_file = NULL;
+    info->twopass = 0;
+    info->passno = 0;
+
     info->with_kate = 0;
     info->n_kate_streams = 0;
     info->kate_streams = NULL;
@@ -254,7 +258,6 @@ void oggmux_init (oggmux_info *info) {
         ogg_stream_init (&info->to, rand ());    /* oops, add one ot the above */
     }
     /* init theora done */
-
     /* initialize Vorbis too, if we have audio. */
     if (!info->video_only) {
         int ret;
@@ -285,7 +288,7 @@ void oggmux_init (oggmux_info *info) {
     /* audio init done */
 
     /* initialize kate if we have subtitles */
-    if (info->with_kate) {
+    if (info->with_kate && info->passno!=1) {
 #ifdef HAVE_KATE
         int ret, n;
         for (n=0; n<info->n_kate_streams; ++n) {
@@ -309,7 +312,7 @@ void oggmux_init (oggmux_info *info) {
 
     /* first packet should be skeleton fishead packet, if skeleton is used */
 
-    if (info->with_skeleton) {
+    if (info->with_skeleton && info->passno!=1) {
         ogg_stream_init (&info->so, rand());
         add_fishead_packet (info);
         if (ogg_stream_pageout (&info->so, &og) != 1) {
@@ -337,13 +340,15 @@ void oggmux_init (oggmux_info *info) {
           fprintf(stderr, "Internal Theora library error.\n");
           exit(1);
         }
-        ogg_stream_packetin(&info->to, &op);
-        if(ogg_stream_pageout(&info->to, &og) != 1) {
-            fprintf(stderr, "Internal Ogg library error.\n");
-            exit(1);
+        if(info->passno!=1){
+            ogg_stream_packetin(&info->to, &op);
+            if(ogg_stream_pageout(&info->to, &og) != 1) {
+                fprintf(stderr, "Internal Ogg library error.\n");
+                exit(1);
+            }
+            fwrite(og.header, 1, og.header_len, info->outfile);
+            fwrite(og.body, 1, og.body_len, info->outfile);
         }
-        fwrite(og.header, 1, og.header_len, info->outfile);
-        fwrite(og.body, 1, og.body_len, info->outfile);
 
         /* create the remaining theora headers */
         for(;;){
@@ -353,10 +358,11 @@ void oggmux_init (oggmux_info *info) {
             exit(1);
           }
           else if(!ret) break;
-          ogg_stream_packetin(&info->to, &op);
+          if(info->passno!=1)
+            ogg_stream_packetin(&info->to, &op);
         }
     }
-    if (!info->video_only) {
+    if (!info->video_only && info->passno!=1) {
         ogg_packet header;
         ogg_packet header_comm;
         ogg_packet header_code;
@@ -378,7 +384,7 @@ void oggmux_init (oggmux_info *info) {
     }
 
 #ifdef HAVE_KATE
-    if (info->with_kate) {
+    if (info->with_kate && info->passno!=1) {
         int n;
         for (n=0; n<info->n_kate_streams; ++n) {
             oggmux_kate_stream *ks=info->kate_streams+n;
@@ -406,7 +412,7 @@ void oggmux_init (oggmux_info *info) {
 #endif
 
     /* output the appropriate fisbone packets */
-    if (info->with_skeleton) {
+    if (info->with_skeleton && info->passno!=1) {
         add_fisbone_packet (info);
         while (1) {
             int result = ogg_stream_flush (&info->so, &og);
@@ -425,7 +431,7 @@ void oggmux_init (oggmux_info *info) {
     /* Flush the rest of our headers. This ensures
      * the actual data in each stream will start
      * on a new page, as per spec. */
-    while (1 && !info->audio_only) {
+    while (1 && !info->audio_only && info->passno!=1) {
         int result = ogg_stream_flush (&info->to, &og);
         if (result < 0) {
             /* can't get here */
@@ -437,7 +443,7 @@ void oggmux_init (oggmux_info *info) {
         fwrite (og.header, 1, og.header_len, info->outfile);
         fwrite (og.body, 1, og.body_len, info->outfile);
     }
-    while (1 && !info->video_only) {
+    while (1 && !info->video_only && info->passno!=1) {
         int result = ogg_stream_flush (&info->vo, &og);
         if (result < 0) {
             /* can't get here */
@@ -450,7 +456,7 @@ void oggmux_init (oggmux_info *info) {
         fwrite (og.body, 1, og.body_len, info->outfile);
     }
 #ifdef HAVE_KATE
-    if (info->with_kate) {
+    if (info->with_kate && info->passno!=1) {
         int n;
         for (n=0; n<info->n_kate_streams; ++n) {
             oggmux_kate_stream *ks=info->kate_streams+n;
@@ -470,7 +476,7 @@ void oggmux_init (oggmux_info *info) {
     }
 #endif
 
-    if (info->with_skeleton) {
+    if (info->with_skeleton && info->passno!=1) {
         int result;
 
         /* build and add the e_o_s packet */
@@ -505,11 +511,78 @@ void oggmux_init (oggmux_info *info) {
  */
 void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s) {
     ogg_packet op;
-    int r;
+    int r, ret;
+
+    if(info->passno==2){
+        for(;;){
+          static unsigned char buffer[80];
+          static int buf_pos;
+          int bytes;
+          /*Ask the encoder how many bytes it would like.*/
+          bytes=th_encode_ctl(info->td,TH_ENCCTL_2PASS_IN,NULL,0);
+          if(bytes<0){
+            fprintf(stderr,"Error submitting pass data in second pass.\n");
+            exit(1);
+          }
+          /*If it's got enough, stop.*/
+          if(bytes==0)break;
+          /*Read in some more bytes, if necessary.*/
+          if(bytes>80-buf_pos)bytes=80-buf_pos;
+          if(bytes>0&&fread(buffer+buf_pos,1,bytes,info->twopass_file)<bytes){
+            fprintf(stderr,"Could not read frame data from two-pass data file!\n");
+            exit(1);
+          }
+          /*And pass them off.*/
+          ret=th_encode_ctl(info->td,TH_ENCCTL_2PASS_IN,buffer,bytes);
+          if(ret<0){
+            fprintf(stderr,"Error submitting pass data in second pass.\n");
+            exit(1);
+          }
+          /*If the encoder consumed the whole buffer, reset it.*/
+          if(ret>=bytes)buf_pos=0;
+          /*Otherwise remember how much it used.*/
+          else buf_pos+=ret;
+        }
+    }
+
     th_encode_ycbcr_in(info->td, ycbcr);
+    /* in two-pass mode's first pass we need to extract and save the pass data */
+    if(info->passno==1){
+
+        unsigned char *buffer;
+        int bytes = th_encode_ctl(info->td, TH_ENCCTL_2PASS_OUT, &buffer, sizeof(buffer));
+        if(bytes<0){
+          fprintf(stderr,"Could not read two-pass data from encoder.\n");
+          exit(1);
+        }
+        if(fwrite(buffer,1,bytes,info->twopass_file)<bytes){
+          fprintf(stderr,"Unable to write to two-pass data file.\n");
+          exit(1);
+        }
+        fflush(info->twopass_file);
+    }
+
     while (th_encode_packetout (info->td, e_o_s, &op) > 0) {
         ogg_stream_packetin (&info->to, &op);
         info->v_pkg++;
+    }
+    if(info->passno==1 && e_o_s){
+        /* need to read the final (summary) packet */
+        unsigned char *buffer;
+        int bytes = th_encode_ctl(info->td, TH_ENCCTL_2PASS_OUT, &buffer, sizeof(buffer));
+        if(bytes<0){
+          fprintf(stderr,"Could not read two-pass summary data from encoder.\n");
+          exit(1);
+        }
+        if(fseek(info->twopass_file,0,SEEK_SET)<0){
+          fprintf(stderr,"Unable to seek in two-pass data file.\n");
+          exit(1);
+        }
+        if(fwrite(buffer,1,bytes,info->twopass_file)<bytes){
+          fprintf(stderr,"Unable to write to two-pass data file.\n");
+          exit(1);
+        }
+        fflush(info->twopass_file);
     }
 }
 
@@ -641,7 +714,17 @@ static void print_stats(oggmux_info *info, double timebase) {
     int remaining_seconds = (long) remaining % 60;
     int remaining_minutes = ((long) remaining / 60) % 60;
     int remaining_hours = (long) remaining / 3600;
-    if (timebase - last > 0.5) {
+
+    if (info->passno==1) {
+        remaining = time(NULL) - info->start_time;
+        remaining_seconds = (long) remaining % 60;
+        remaining_minutes = ((long) remaining / 60) % 60;
+        remaining_hours = (long) remaining / 3600;
+        fprintf (stderr,"\r  Scanning video first pass, time elapsed: %02d:%02d:%02d ",
+            remaining_hours, remaining_minutes, remaining_seconds
+        );
+    }
+    else if (timebase - last > 0.5) {
         last = timebase;
         if (info->frontend) {
             fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
@@ -652,7 +735,7 @@ static void print_stats(oggmux_info *info, double timebase) {
             );
             fflush (info->frontend);
         }
-        else if (timebase > 0 ) {
+        else if (timebase > 0) {
             if (!remaining) {
                 remaining = time(NULL) - info->start_time;
                 remaining_seconds = (long) remaining % 60;
@@ -665,11 +748,12 @@ static void print_stats(oggmux_info *info, double timebase) {
                 );
             }
             else {
-                fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, ET: %02d:%02d:%02d, est. size: %.01lf MB ",
+                fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, ET: %02d:%02d:%02d, est. size: %.01lf MB   ",
                     hours, minutes, seconds, hundredths,
                     info->akbps, info->vkbps,
                     remaining_hours, remaining_minutes, remaining_seconds,
-                    estimated_size(info, timebase)
+                    estimated_size(info, timebase),
+                    info->passno
                 );
             }
         }
@@ -777,6 +861,10 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
     ogg_page og;
     int best;
 
+    if (info->passno==1) {
+        print_stats(info, info->videotime);
+        return;
+    }
     /* flush out the ogg pages to info->outfile */
     while (1) {
         /* Get pages for both streams, if not already present, and if available.*/
@@ -936,8 +1024,10 @@ void oggmux_close (oggmux_info *info) {
     if (info->with_skeleton)
         ogg_stream_clear (&info->so);
 
-    if (info->outfile && info->outfile != stdout)
+    if (info->passno!=1 && info->outfile && info->outfile != stdout)
         fclose (info->outfile);
+    if(info->twopass_file)
+        fclose(info->twopass_file);
 
     if (info->videopage)
         free(info->videopage);

@@ -7,6 +7,8 @@ svn
     - update to ffmpeg trunk and new ffmepg api
     - use new libtheora encoding api
       add new encoding options --soft-target, --buf-delay
+    - two pass encoding, --two-pass
+      or in two calls with --first-pass and --second-pass
 
 0.24 2009-03-12
     - fix to make --max_size --no_upscaling work

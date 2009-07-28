@@ -103,6 +103,7 @@ typedef struct ff2theora{
     int uv_lut_used;
     unsigned char y_lut[256];
     unsigned char uv_lut[256];
+
 }
 *ff2theora;
 

@@ -53,6 +53,9 @@ enum {
     NULL_FLAG,
     DEINTERLACE_FLAG,
     SOFTTARGET_FLAG,
+    TWOPASS_FLAG,
+    FIRSTPASS_FLAG,
+    SECONDPASS_FLAG,
     OPTIMIZE_FLAG,
     SYNC_FLAG,
     NOAUDIO_FLAG,
@@ -178,7 +181,7 @@ static ff2theora ff2theora_init() {
         this->picture_height=0;      // set to 0 to not resize the output
         this->video_quality=-1; // defaults set later
         this->video_bitrate=0;
-        this->keyint=64;
+        this->keyint=0;
         this->force_input_fps.num = -1;
         this->force_input_fps.den = 1;
         this->sync=0;
@@ -764,7 +767,7 @@ void ff2theora_output(ff2theora this) {
                         this->picture_width, this->picture_height, this->pix_fmt,
                         sws_flags, NULL, NULL, NULL
             );
-            if (!info.frontend) {
+            if (!info.frontend && !(info.twopass==3 && info.passno==2)) {
                 if (this->frame_topBand || this->frame_bottomBand ||
                     this->frame_leftBand || this->frame_rightBand ||
                     this->picture_width != (display_width-this->frame_leftBand - this->frame_rightBand) ||
@@ -1021,11 +1024,15 @@ void ff2theora_output(ff2theora this) {
                     info.speed_level = max_speed_level;
                 th_encode_ctl(info.td, TH_ENCCTL_SET_SPLEVEL, &info.speed_level, sizeof(int));
             }
-            if(this->buf_delay >= 0){
+            if(info.passno!=1 && this->buf_delay >= 0){
+                int arg = this->buf_delay;
                 ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER,
                                     &this->buf_delay, sizeof(this->buf_delay));
+                if (this->buf_delay != arg)
+                    fprintf(stderr, "Warning: could not set desired buffer delay of %d, using %d instead.\n",
+                                    arg, this->buf_delay);
                 if(ret < 0){
-                    fprintf(stderr, "Warning: could not set desired buffer delay. %d\n", ret);
+                    fprintf(stderr, "Warning: could not set desired buffer delay.\n");
                 }
             }
             /* setting just the granule shift only allows power-of-two keyframe
@@ -1042,16 +1049,58 @@ void ff2theora_output(ff2theora this) {
               if(ret<0)
                 fprintf(stderr, "Could not set encoder flags for --soft-target\n");
                 /* Default buffer control is overridden on two-pass */
-                if(this->buf_delay<0){
-                if((this->keyint*7>>1)>5*this->framerate_new.num/this->framerate_new.den)
-                  arg = this->keyint*7>>1;
-                else
-                  arg = 30*this->framerate_new.num/this->framerate_new.den;
-                ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER, &arg,sizeof(arg));
-                if(ret<0)
-                  fprintf(stderr, "Could not set rate control buffer for --soft-target\n");
+                if(!info.twopass && this->buf_delay<0){
+                    if((this->keyint*7>>1)>5*this->framerate_new.num/this->framerate_new.den)
+                        arg = this->keyint*7>>1;
+                    else
+                        arg = 30*this->framerate_new.num/this->framerate_new.den;
+                    ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER, &arg,sizeof(arg));
+                    if(ret<0)
+                        fprintf(stderr, "Could not set rate control buffer for --soft-target\n");
               }
             }
+            /* set up two-pass if needed */
+            if(info.passno==1){
+              unsigned char *buffer;
+              int bytes;
+              bytes=th_encode_ctl(info.td,TH_ENCCTL_2PASS_OUT,&buffer,sizeof(buffer));
+              if(bytes<0){
+                fprintf(stderr,"Could not set up the first pass of two-pass mode.\n");
+                fprintf(stderr,"Did you remember to specify an estimated bitrate?\n");
+                exit(1);
+              }
+              /*Perform a seek test to ensure we can overwrite this placeholder data at
+                 the end; this is better than letting the user sit through a whole
+                 encode only to find out their pass 1 file is useless at the end.*/
+              if(fseek(info.twopass_file,0,SEEK_SET)<0){
+                fprintf(stderr,"Unable to seek in two-pass data file.\n");
+                exit(1);
+              }
+              if(fwrite(buffer,1,bytes,info.twopass_file)<bytes){
+                fprintf(stderr,"Unable to write to two-pass data file.\n");
+                exit(1);
+              }
+              fflush(info.twopass_file);
+            }
+            if(info.passno==2){
+              /* enable second pass here, actual data feeding comes later */
+              if(th_encode_ctl(info.td,TH_ENCCTL_2PASS_IN,NULL,0)<0){
+                fprintf(stderr,"Could not set up the second pass of two-pass mode.\n");
+                exit(1);
+              }
+              if(info.twopass==3){
+                /* 'automatic' second pass */
+                if(av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1)<0){
+                  fprintf(stderr,"Could not rewind video input file for second pass!\n");
+                  exit(1);
+                }
+                if(fseek(info.twopass_file,0,SEEK_SET)<0){
+                  fprintf(stderr,"Unable to seek in two-pass data file.\n");
+                  exit(1);
+                }
+              }
+            }
+
         }
         /* audio settings here */
         info.channels = this->channels;
@@ -1302,7 +1351,8 @@ void ff2theora_output(ff2theora this) {
                     }
                 }
             }
-            if ((audio_eos && !audio_done) || (ret >= 0 && pkt.stream_index == this->audio_index)) {
+            if (info.passno!=1)
+              if ((audio_eos && !audio_done) || (ret >= 0 && pkt.stream_index == this->audio_index)) {
                 this->pts_offset = (double) pkt.pts / AV_TIME_BASE -
                     (double) this->sample_count / this->sample_rate;
                 while((audio_eos && !audio_done) || avpkt.size > 0 ) {
@@ -1352,6 +1402,7 @@ void ff2theora_output(ff2theora this) {
                 }
             }
 
+            if (info.passno!=1)
             if (!this->disable_subtitles && subtitles_enabled[pkt.stream_index] && is_supported_subtitle_stream(this, pkt.stream_index)) {
               AVStream *stream=this->context->streams[pkt.stream_index];
               AVCodecContext *enc = stream->codec;
@@ -1425,7 +1476,7 @@ void ff2theora_output(ff2theora this) {
             }
 
             /* if we have subtitles starting before then, add it */
-            if (info.with_kate) {
+            if (info.passno!=1 && info.with_kate) {
                 double avtime = info.audio_only ? info.audiotime :
                     info.video_only ? info.videotime :
                     info.audiotime < info.videotime ? info.audiotime : info.videotime;
@@ -1446,8 +1497,8 @@ void ff2theora_output(ff2theora this) {
             }
 
             /* flush out the file */
-            
             oggmux_flush (&info, video_eos + audio_eos);
+
             av_free_packet (&pkt);
         } while (ret >= 0 && !(audio_done && video_done));
 
@@ -1651,6 +1702,19 @@ void print_usage() {
         "                         higher/smoother overall. Soft target also\n"
         "                         allows an optional -v setting to specify\n"
         "                         a minimum allowed quality.\n\n"
+        "      --two-pass         Compress input using two-pass rate control\n"
+        "                         This option requires that the input to the\n"
+        "                         to the encoder is seekable and performs\n"
+        "                         both passes automatically.\n\n"
+        "      --first-pass <filename> Perform first-pass of a two-pass rate\n"
+        "                         controlled encoding, saving pass data to\n"
+        "                         <filename> for a later second pass\n\n"
+        "      --second-pass <filename> Perform second-pass of a two-pass rate\n"
+        "                         controlled encoding, reading first-pass\n"
+        "                         data from <filename>.  The first pass\n"
+        "                         data must come from a first encoding pass\n"
+        "                         using identical input video to work\n"
+        "                         properly.\n\n"
         "      --optimize         optimize video output filesize (slower) (same as speedlevel 0)\n"
         "      --speedlevel       [0 2] encoding is faster with higher values the cost is quality and bandwidth\n"
 
@@ -1800,7 +1864,9 @@ int main(int argc, char **argv) {
         {"videobitrate",required_argument,NULL,'V'},
         {"audioquality",required_argument,NULL,'a'},
         {"audiobitrate",required_argument,NULL,'A'},
-        {"soft-target",0,&flag,SOFTTARGET_FLAG},
+        {"two-pass",0,&flag,TWOPASS_FLAG},
+        {"first-pass",required_argument,&flag,FIRSTPASS_FLAG},
+        {"second-pass",required_argument,&flag,SECONDPASS_FLAG},
         {"keyint",required_argument,NULL,'K'},
         {"buf-delay",required_argument,NULL,'d'},
         {"deinterlace",0,&flag,DEINTERLACE_FLAG},
@@ -1885,6 +1951,33 @@ int main(int argc, char **argv) {
                             break;
                         case SOFTTARGET_FLAG:
                             convert->soft_target = 1;
+                            flag = -1;
+                            break;
+                        case TWOPASS_FLAG:
+                            info.twopass = 3;
+                            info.twopass_file = tmpfile();
+                            if(!info.twopass_file){
+                                fprintf(stderr,"Unable to open temporary file for twopass data\n");
+                                exit(1);
+                            }
+                            flag = -1;
+                            break;
+                        case FIRSTPASS_FLAG:
+                            info.twopass = 1;
+                            info.twopass_file = fopen(optarg,"wb");
+                            if(!info.twopass_file){
+                                fprintf(stderr,"Unable to open \'%s\' for twopass data\n", optarg);
+                                exit(1);
+                            }
+                            flag = -1;
+                            break;
+                        case SECONDPASS_FLAG:
+                            info.twopass = 2;
+                            info.twopass_file = fopen(optarg,"rb");
+                            if(!info.twopass_file){
+                                fprintf(stderr,"Unable to open \'%s\' for twopass data\n", optarg);
+                                exit(1);
+                            }
                             flag = -1;
                             break;
                         case PP_FLAG:
@@ -2256,6 +2349,12 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    if(convert->keyint <= 0) {
+        /*Use a default keyframe frequency of 64 for 1-pass (streaming) mode, and
+           256 for two-pass mode.*/
+        convert->keyint = info.twopass?256:64;
+    }
+
     if (convert->soft_target) {
         if (convert->video_bitrate <= 0) {
           fprintf(stderr,"Soft rate target (--soft-tagret) requested without a bitrate (-V).\n");
@@ -2320,13 +2419,15 @@ int main(int argc, char **argv) {
                     info.outfile = stdout;
                 }
                 else {
-                    info.outfile = fopen(outputfile_name,"wb");
+                    if(info.twopass!=1)
+                        info.outfile = fopen(outputfile_name,"wb");
                 }
 #else
                 if (!strcmp(outputfile_name,"-")) {
                     snprintf(outputfile_name,sizeof(outputfile_name),"/dev/stdout");
                 }
-                info.outfile = fopen(outputfile_name,"wb");
+                if(info.twopass!=1)
+                    info.outfile = fopen(outputfile_name,"wb");
 #endif
                 if (output_json) {
                     if (using_stdin) {
@@ -2358,7 +2459,7 @@ int main(int argc, char **argv) {
 
                 convert->pts_offset =
                     (double) convert->context->start_time / AV_TIME_BASE;
-                if (!info.outfile) {
+                if (info.twopass!=1 && !info.outfile) {
                     if (info.frontend)
                         fprintf(info.frontend, "\"{result\": \"Unable to open output file.\"}\n");
                     else
@@ -2368,7 +2469,9 @@ int main(int argc, char **argv) {
                 if (convert->context->duration != AV_NOPTS_VALUE) {
                     info.duration = (double)convert->context->duration / AV_TIME_BASE;
                 }
-                ff2theora_output(convert);
+                for(info.passno=(info.twopass==3?1:info.twopass);info.passno<=(info.twopass==3?2:info.twopass);info.passno++){
+                    ff2theora_output(convert);
+                }
                 convert->audio_index = convert->video_index = -1;
             }
             else{
