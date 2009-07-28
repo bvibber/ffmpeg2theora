@@ -724,18 +724,18 @@ void ff2theora_output(ff2theora this) {
             frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
                                 (this->aspect_denominator*this->picture_height);
         }
-        if (!info.frontend && this->aspect_denominator && frame_aspect) {
+        if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->aspect_denominator && frame_aspect) {
             fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
             fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n", frame_aspect);
         }
 
-        if (!info.frontend && this->deinterlace==1)
+        if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->deinterlace==1)
             fprintf(stderr, "  Deinterlace: on\n");
 
         if (strcmp(this->pp_mode, "")) {
             ppContext = pp_get_context(display_width, display_height, PP_FORMAT_420);
             ppMode = pp_get_mode_by_name_and_quality(this->pp_mode, PP_QUALITY_MAX);
-            if(!info.frontend)
+            if(!(info.twopass==3 && info.passno==2) && !info.frontend)
                 fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
         }
 
@@ -788,7 +788,7 @@ void ff2theora_output(ff2theora this) {
 
         lut_init(this);
     }
-    if (!info.frontend && this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
+    if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
         fprintf(stderr, "  Resample Framerate: %0.3f => %0.3f\n",
                         this->fps, (double)this->framerate_new.num / this->framerate_new.den);
     }
