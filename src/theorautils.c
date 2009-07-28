@@ -25,7 +25,7 @@
 #include <string.h>
 #include <time.h>
 
-#include "theora/theora.h"
+#include "theora/theoraenc.h"
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
 #ifdef HAVE_OGGKATE
@@ -169,7 +169,7 @@ void add_fisbone_packet (oggmux_info *info) {
         write64le(op.packet+28, info->ti.fps_denominator); /* granulrate denominator */
         write64le(op.packet+36, 0); /* start granule */
         write32le(op.packet+44, 0); /* preroll, for theora its 0 */
-        *(op.packet+48) = theora_granule_shift (&info->ti); /* granule shift */
+        *(op.packet+48) = info->ti.keyframe_granule_shift; /* granule shift */
         memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/theora\r\n", 28); /* message header field, Content-Type */
 
         op.b_o_s = 0;
@@ -244,6 +244,7 @@ void add_fisbone_packet (oggmux_info *info) {
 void oggmux_init (oggmux_info *info) {
     ogg_page og;
     ogg_packet op;
+    int ret;
 
     /* yayness.  Set up Ogg output stream */
     srand (time (NULL));
@@ -251,15 +252,6 @@ void oggmux_init (oggmux_info *info) {
 
     if (!info->audio_only) {
         ogg_stream_init (&info->to, rand ());    /* oops, add one ot the above */
-        theora_encode_init (&info->td, &info->ti);
-
-        if (info->speed_level >= 0) {
-            int max_speed_level;
-            theora_control(&info->td, TH_ENCCTL_GET_SPLEVEL_MAX, &max_speed_level, sizeof(int));
-            if (info->speed_level > max_speed_level)
-                info->speed_level = max_speed_level;
-            theora_control(&info->td, TH_ENCCTL_SET_SPLEVEL, &info->speed_level, sizeof(int));
-        }
     }
     /* init theora done */
 
@@ -332,28 +324,37 @@ void oggmux_init (oggmux_info *info) {
 
     /* first packet will get its own page automatically */
     if (!info->audio_only) {
-
-        theora_encode_header (&info->td, &op);
-        ogg_stream_packetin (&info->to, &op);
-        if (ogg_stream_pageout (&info->to, &og) != 1) {
-            fprintf (stderr, "Internal Ogg library error.\n");
-            exit (1);
+        /* write the bitstream header packets with proper page interleave */
+        th_comment_init(&info->tc);
+        th_comment_add_tag(&info->tc, "ENCODER",PACKAGE_STRING);
+        if (strcmp(info->oshash,"0") > 0) {
+            th_comment_add_tag(&info->tc, "SOURCE_OSHASH", info->oshash);
         }
-        fwrite (og.header, 1, og.header_len, info->outfile);
-        fwrite (og.body, 1, og.body_len, info->outfile);
+
+        /* write the bitstream header packets with proper page interleave */
+        /* first packet will get its own page automatically */
+        if(th_encode_flushheader(info->td, &info->tc, &op) <= 0) {
+          fprintf(stderr, "Internal Theora library error.\n");
+          exit(1);
+        }
+        ogg_stream_packetin(&info->to, &op);
+        if(ogg_stream_pageout(&info->to, &og) != 1) {
+            fprintf(stderr, "Internal Ogg library error.\n");
+            exit(1);
+        }
+        fwrite(og.header, 1, og.header_len, info->outfile);
+        fwrite(og.body, 1, og.body_len, info->outfile);
 
         /* create the remaining theora headers */
-        /* theora_comment_init (&info->tc); is called in main() prior to parsing options */
-        theora_comment_add_tag (&info->tc, "ENCODER",PACKAGE_STRING);
-        if (strcmp(info->oshash,"0") > 0) {
-            theora_comment_add_tag (&info->tc, "SOURCE_OSHASH", info->oshash);
+        for(;;){
+          ret=th_encode_flushheader(info->td, &info->tc, &op);
+          if(ret < 0) {
+            fprintf(stderr,"Internal Theora library error.\n");
+            exit(1);
+          }
+          else if(!ret) break;
+          ogg_stream_packetin(&info->to, &op);
         }
-        theora_encode_comment (&info->tc, &op);
-        ogg_stream_packetin (&info->to, &op);
-        _ogg_free (op.packet);
-
-        theora_encode_tables (&info->td, &op);
-        ogg_stream_packetin (&info->to, &op);
     }
     if (!info->video_only) {
         ogg_packet header;
@@ -419,10 +420,6 @@ void oggmux_init (oggmux_info *info) {
                 fwrite (og.header, 1, og.header_len, info->outfile);
             fwrite (og.body, 1, og.body_len, info->outfile);
         }
-    }
-
-    if (!info->audio_only) {
-    theora_info_clear(&info->ti);
     }
 
     /* Flush the rest of our headers. This ensures
@@ -493,6 +490,9 @@ void oggmux_init (oggmux_info *info) {
         fwrite (og.header, 1, og.header_len,info->outfile);
         fwrite (og.body, 1, og.body_len, info->outfile);
     }
+    if (!info->audio_only) {
+        th_info_clear(&info->ti);
+    }
 }
 
 /**
@@ -503,10 +503,11 @@ void oggmux_init (oggmux_info *info) {
  * @param yuv_buffer
  * @param e_o_s 1 indicates ond of stream
  */
-void oggmux_add_video (oggmux_info *info, yuv_buffer *yuv, int e_o_s) {
+void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s) {
     ogg_packet op;
-    theora_encode_YUVin (&info->td, yuv);
-    while (theora_encode_packetout (&info->td, e_o_s, &op) > 0) {
+    int r;
+    th_encode_ycbcr_in(info->td, ycbcr);
+    while (th_encode_packetout (info->td, e_o_s, &op) > 0) {
         ogg_stream_packetin (&info->to, &op);
         info->v_pkg++;
     }
@@ -801,7 +802,7 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
 
                 info->videopage_valid = 1;
                 if (ogg_page_granulepos(&og)>0) {
-                    info->videotime = theora_granule_time (&info->td, ogg_page_granulepos(&og));
+                    info->videotime = th_granule_time(info->td, ogg_page_granulepos(&og));
                 }
             }
         }
@@ -921,8 +922,7 @@ void oggmux_close (oggmux_info *info) {
     vorbis_info_clear (&info->vi);
 
     ogg_stream_clear (&info->to);
-    theora_comment_clear (&info->tc);
-    theora_clear (&info->td);
+    th_comment_clear (&info->tc);
 
 #ifdef HAVE_KATE
     for (n=0; n<info->n_kate_streams; ++n) {

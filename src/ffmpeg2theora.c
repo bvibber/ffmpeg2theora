@@ -35,7 +35,7 @@
 #include "libswscale/swscale.h"
 #include "libpostproc/postprocess.h"
 
-#include "theora/theora.h"
+#include "theora/theoraenc.h"
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
 
@@ -52,6 +52,7 @@
 enum {
     NULL_FLAG,
     DEINTERLACE_FLAG,
+    SOFTTARGET_FLAG,
     OPTIMIZE_FLAG,
     SYNC_FLAG,
     NOAUDIO_FLAG,
@@ -111,6 +112,12 @@ static int using_stdin = 0;
 static int padcolor[3] = { 16, 128, 128 };
 
 
+static int ilog(unsigned _v){
+  int ret;
+  for(ret=0;_v;ret++)_v>>=1;
+  return ret;
+}
+
 /**
  * Allocate and initialise an AVFrame.
  */
@@ -169,9 +176,8 @@ static ff2theora ff2theora_init() {
         this->videostream = -1;
         this->picture_width=0;      // set to 0 to not resize the output
         this->picture_height=0;      // set to 0 to not resize the output
-        this->video_quality=rint(5*6.3); // video quality 5
+        this->video_quality=-1; // defaults set later
         this->video_bitrate=0;
-        this->sharpness=0;
         this->keyint=64;
         this->force_input_fps.num = -1;
         this->force_input_fps.den = 1;
@@ -181,6 +187,8 @@ static ff2theora ff2theora_init() {
         this->frame_aspect=0;
         this->max_size=-1;
         this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace.
+        this->soft_target=0;
+        this->buf_delay=-1;
         this->vhook=0;
         this->framerate_new.num = -1;
         this->framerate_new.den = 1;
@@ -283,27 +291,30 @@ static void lut_apply(unsigned char *lut, unsigned char *src, unsigned char *dst
     }
 }
 
-static void prepare_yuv_buffer(ff2theora this, yuv_buffer *yuv, AVFrame *frame) {
+static void prepare_ycbcr_buffer(ff2theora this, th_ycbcr_buffer ycbcr, AVFrame *frame) {
     int i;
     /* pysical pages */
-    yuv->y_width = this->frame_width;
-    yuv->y_height = this->frame_height;
-    yuv->y_stride = frame->linesize[0];
+    ycbcr[0].width = this->frame_width;
+    ycbcr[0].height = this->frame_height;
+    ycbcr[0].stride = frame->linesize[0];
+    ycbcr[0].data = frame->data[0];
 
-    yuv->uv_width = this->frame_width / 2;
-    yuv->uv_height = this->frame_height / 2;
-    yuv->uv_stride = frame->linesize[1];
+    ycbcr[1].width = this->frame_width / 2;
+    ycbcr[1].height = this->frame_height / 2;
+    ycbcr[1].stride = frame->linesize[1];
+    ycbcr[1].data = frame->data[1];
 
-    yuv->y = frame->data[0];
-    yuv->u = frame->data[1];
-    yuv->v = frame->data[2];
+    ycbcr[2].width = this->frame_width / 2;
+    ycbcr[2].height = this->frame_height / 2;
+    ycbcr[2].stride = frame->linesize[1];
+    ycbcr[2].data = frame->data[2];
 
     if (this->y_lut_used) {
-        lut_apply(this->y_lut, yuv->y, yuv->y, yuv->y_width, yuv->y_height, yuv->y_stride);
+        lut_apply(this->y_lut, ycbcr[0].data, ycbcr[0].data, ycbcr[0].width, ycbcr[0].height, ycbcr[0].stride);
     }
     if (this->uv_lut_used) {
-        lut_apply(this->uv_lut, yuv->u, yuv->u, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
-        lut_apply(this->uv_lut, yuv->v, yuv->v, yuv->uv_width, yuv->uv_height, yuv->uv_stride);
+        lut_apply(this->uv_lut, ycbcr[1].data, ycbcr[1].data, ycbcr[1].width, ycbcr[1].height, ycbcr[1].stride);
+        lut_apply(this->uv_lut, ycbcr[2].data, ycbcr[2].data, ycbcr[2].width, ycbcr[2].height, ycbcr[2].stride);
     }
 }
 
@@ -735,9 +746,10 @@ void ff2theora_output(ff2theora this) {
         this->frame_width = ((this->picture_width + 15) >>4)<<4;
         this->frame_height = ((this->picture_height + 15) >>4)<<4;
 
-
-        this->frame_x_offset = 0;
-        this->frame_y_offset = 0;
+        /*Force the offsets to be even so that chroma samples line up like we
+           expect.*/
+        this->frame_x_offset = this->frame_width-this->picture_width>>1&~1;
+        this->frame_y_offset = this->frame_height-this->picture_height>>1&~1;
 
         if (this->frame_width > 0 || this->frame_height > 0) {
             this->sws_colorspace_ctx = sws_getContext(
@@ -944,14 +956,16 @@ void ff2theora_output(ff2theora this) {
             /* video settings here */
             /* config file? commandline options? v2v presets? */
 
-            theora_info_init(&info.ti);
+            th_info_init(&info.ti);
 
-            info.ti.width = this->frame_width;
-            info.ti.height = this->frame_height;
-            info.ti.frame_width = this->picture_width;
-            info.ti.frame_height = this->picture_height;
-            info.ti.offset_x = this->frame_x_offset;
-            info.ti.offset_y = this->frame_y_offset;
+            //encoded size
+            info.ti.frame_width = this->frame_width;
+            info.ti.frame_height = this->frame_height;
+            //displayed size
+            info.ti.pic_width = this->picture_width;
+            info.ti.pic_height = this->picture_height;
+            info.ti.pic_x = this->frame_x_offset;
+            info.ti.pic_y = this->frame_y_offset;
             if (this->framerate_new.num > 0) {
                 // new framerate is interger only right now,
                 // so denominator is always 1
@@ -965,17 +979,28 @@ void ff2theora_output(ff2theora this) {
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
             info.ti.aspect_denominator=this->aspect_denominator;
+            /*
             // FIXME: is all input material with fps==25 OC_CS_ITU_REC_470BG?
             // guess not, commandline option to select colorspace would be the best.
             if ((this->fps-25)<1)
-                info.ti.colorspace = OC_CS_ITU_REC_470BG;
+                info.ti.colorspace = TH_CS_ITU_REC_470BG;
             else if (abs(this->fps-30)<1)
-                info.ti.colorspace = OC_CS_ITU_REC_470M;
+                info.ti.colorspace = TH_CS_ITU_REC_470M;
             else
-                info.ti.colorspace = OC_CS_UNSPECIFIED;
+            */
+            info.ti.colorspace = TH_CS_UNSPECIFIED;
 
-            info.ti.target_bitrate = this->video_bitrate;
+            /*Account for the Ogg page overhead.
+              This is 1 byte per 255 for lacing values, plus 26 bytes per 4096 bytes for
+               the page header, plus approximately 1/2 byte per packet (not accounted for
+               here).*/
+            info.ti.target_bitrate=(int)(64870*(ogg_int64_t)this->video_bitrate>>16);
+
             info.ti.quality = this->video_quality;
+            info.ti.keyframe_granule_shift = ilog(this->keyint-1);
+            info.ti.pixel_fmt = TH_PF_420;
+
+            /* no longer in new encoder api
             info.ti.dropframes_p = 0;
             info.ti.keyframe_auto_p = 1;
             info.ti.keyframe_frequency = this->keyint;
@@ -986,7 +1011,47 @@ void ff2theora_output(ff2theora this) {
             info.ti.noise_sensitivity = 1;
             // range 0-2, 0 sharp, 2 less sharp,less bandwidth
             info.ti.sharpness = this->sharpness;
+            */
+            info.td = th_encode_alloc(&info.ti);
 
+            if (info.speed_level >= 0) {
+                int max_speed_level;
+                th_encode_ctl(info.td, TH_ENCCTL_GET_SPLEVEL_MAX, &max_speed_level, sizeof(int));
+                if (info.speed_level > max_speed_level)
+                    info.speed_level = max_speed_level;
+                th_encode_ctl(info.td, TH_ENCCTL_SET_SPLEVEL, &info.speed_level, sizeof(int));
+            }
+            if(this->buf_delay >= 0){
+                ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER,
+                                    &this->buf_delay, sizeof(this->buf_delay));
+                if(ret < 0){
+                    fprintf(stderr, "Warning: could not set desired buffer delay. %d\n", ret);
+                }
+            }
+            /* setting just the granule shift only allows power-of-two keyframe
+               spacing.  Set the actual requested spacing. */
+            ret = th_encode_ctl(info.td, TH_ENCCTL_SET_KEYFRAME_FREQUENCY_FORCE,
+                                &this->keyint, sizeof(this->keyint-1));
+            if(ret<0){
+                fprintf(stderr,"Could not set keyframe interval to %d.\n",(int)this->keyint);
+            }
+            if(this->soft_target){
+              /* reverse the rate control flags to favor a 'long time' strategy */
+              int arg = TH_RATECTL_CAP_UNDERFLOW;
+              ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_FLAGS, &arg, sizeof(arg));
+              if(ret<0)
+                fprintf(stderr, "Could not set encoder flags for --soft-target\n");
+                /* Default buffer control is overridden on two-pass */
+                if(this->buf_delay<0){
+                if((this->keyint*7>>1)>5*this->framerate_new.num/this->framerate_new.den)
+                  arg = this->keyint*7>>1;
+                else
+                  arg = 30*this->framerate_new.num/this->framerate_new.den;
+                ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER, &arg,sizeof(arg));
+                if(ret<0)
+                  fprintf(stderr, "Could not set rate control buffer for --soft-target\n");
+              }
+            }
         }
         /* audio settings here */
         info.channels = this->channels;
@@ -1101,7 +1166,7 @@ void ff2theora_output(ff2theora this) {
                 }
                 while(video_eos || avpkt.size > 0) {
                     int dups = 0;
-                    yuv_buffer yuv;
+                    static th_ycbcr_buffer ycbcr;
                     len1 = avcodec_decode_video2(vstream->codec, frame, &got_picture, &avpkt);
                     if (len1>=0) {
                         if (got_picture) {
@@ -1218,9 +1283,9 @@ void ff2theora_output(ff2theora this) {
 
                     if (!first) {
                         if (got_picture || video_eos) {
-                            prepare_yuv_buffer(this, &yuv, output_buffered);
+                            prepare_ycbcr_buffer(this, ycbcr, output_buffered);
                             do {
-                                oggmux_add_video(&info, &yuv, video_eos);
+                                oggmux_add_video(&info, ycbcr, video_eos);
                                 if(video_eos) {
                                     video_done = 1;
                                 }
@@ -1540,11 +1605,11 @@ void print_presets_info() {
         //  "v2v presets - more info at http://wiki.v2v.cc/presets"
         "v2v presets:\n"
         "  preview        Video: 320x240 if fps ~ 30, 384x288 otherwise\n"
-        "                        Quality 5 - Sharpness 2\n"
+        "                        Quality 5\n"
         "                 Audio: Max 2 channels - Quality 1\n"
         "\n"
         "  pro            Video: 720x480 if fps ~ 30, 720x576 otherwise\n"
-        "                        Quality 7 - Sharpness 0\n"
+        "                        Quality 7\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  videobin       Video: 512x288 for 16:9 material, 448x336 for 4:3 material\n"
@@ -1552,7 +1617,7 @@ void print_presets_info() {
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  padma          Video: 640x360 for 16:9 material, 640x480 for 4:3 material\n"
-        "                        Quality 5 - Sharpness 0\n"
+        "                        Quality 5\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  padma-stream   Video: 128x72 for 16:9 material, 128x96 for 4:3 material\n"
@@ -1580,8 +1645,15 @@ void print_usage() {
         "  -v, --videoquality     [0 to 10] encoding quality for video (default: 5)\n"
         "                                   use higher values for better quality\n"
         "  -V, --videobitrate     [1 to 16778] encoding bitrate for video (kb/s)\n"
+        "      --soft-target      Use a large reservoir and treat the rate\n"
+        "                         as a soft target; rate control is less\n"
+        "                         strict but resulting quality is usually\n"
+        "                         higher/smoother overall. Soft target also\n"
+        "                         allows an optional -v setting to specify\n"
+        "                         a minimum allowed quality.\n\n"
         "      --optimize         optimize video output filesize (slower) (same as speedlevel 0)\n"
         "      --speedlevel       [0 2] encoding is faster with higher values the cost is quality and bandwidth\n"
+
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
         "      --max_size         scale output frame to be withing box of \n"
@@ -1590,9 +1662,15 @@ void print_usage() {
         "  -F, --framerate        output framerate e.g 25:2 or 16\n"
         "      --croptop, --cropbottom, --cropleft, --cropright\n"
         "                         crop input by given pixels before resizing\n"
-        "  -S, --sharpness        [0 to 2] sharpness of images (default: 0).\n"
-        "                          Note: lower values make the video sharper.\n"
-        "  -K, --keyint           [1 to 65536] keyframe interval (default: 64)\n"
+        "  -K, --keyint           [1 to 2147483647] keyframe interval (default: 64)\n"
+        "  -d --buf-delay <n>     Buffer delay (in frames). Longer delays\n"
+        "                         allow smoother rate adaptation and provide\n"
+        "                         better overall quality, but require more\n"
+        "                         client side buffering and add latency. The\n"
+        "                         default value is the keyframe interval for\n"
+        "                         one-pass encoding (or somewhat larger if\n"
+        "                         --soft-target is used) and infinite for\n"
+        "                         two-pass encoding. (only works in bitrate mode)\n"
         "      --no-upscaling     only scale video or resample audio if input is\n"
         "                         bigger than provided parameters\n"
         "\n"
@@ -1708,7 +1786,7 @@ int main(int argc, char **argv) {
     AVFormatParameters params, *formatParams = NULL;
 
     int c,long_option_index;
-    const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:S:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
+    const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
     struct option options [] = {
         {"pid",required_argument,NULL, 'P'},
         {"output",required_argument,NULL,'o'},
@@ -1722,8 +1800,9 @@ int main(int argc, char **argv) {
         {"videobitrate",required_argument,NULL,'V'},
         {"audioquality",required_argument,NULL,'a'},
         {"audiobitrate",required_argument,NULL,'A'},
-        {"sharpness",required_argument,NULL,'S'},
+        {"soft-target",0,&flag,SOFTTARGET_FLAG},
         {"keyint",required_argument,NULL,'K'},
+        {"buf-delay",required_argument,NULL,'d'},
         {"deinterlace",0,&flag,DEINTERLACE_FLAG},
         {"pp",required_argument,&flag,PP_FLAG},
         {"samplerate",required_argument,NULL,'H'},
@@ -1802,6 +1881,10 @@ int main(int argc, char **argv) {
                     {
                         case DEINTERLACE_FLAG:
                             convert->deinterlace = 1;
+                            flag = -1;
+                            break;
+                        case SOFTTARGET_FLAG:
+                            convert->soft_target = 1;
                             flag = -1;
                             break;
                         case PP_FLAG:
@@ -2009,7 +2092,6 @@ int main(int argc, char **argv) {
                         fprintf(stderr, "Only values from 0 to 10 are valid for video quality.\n");
                         exit(1);
                 }
-                convert->video_bitrate=0;
                 break;
             case 'V':
                 convert->video_bitrate=rint(atof(optarg)*1000);
@@ -2017,7 +2099,6 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "Only values from 1 to 16000 are valid for video bitrate (in kb/s).\n");
                     exit(1);
                 }
-                convert->video_quality=0;
                 break;
             case 'a':
                 convert->audio_quality=atof(optarg);
@@ -2047,19 +2128,15 @@ int main(int argc, char **argv) {
             case 'B':
                 convert->video_bright = atof(optarg);
                 break;
-            case 'S':
-                convert->sharpness = atoi(optarg);
-                if (convert->sharpness < 0 || convert->sharpness > 2) {
-                    fprintf(stderr, "Only values from 0 to 2 are valid for sharpness.\n");
+            case 'K':
+                convert->keyint = atoi(optarg);
+                if (convert->keyint < 1 || convert->keyint > 2147483647) {
+                    fprintf(stderr, "Only values from 1 to 2147483647 are valid for keyframe interval.\n");
                     exit(1);
                 }
                 break;
-            case 'K':
-                convert->keyint = atoi(optarg);
-                if (convert->keyint < 1 || convert->keyint > 65536) {
-                    fprintf(stderr, "Only values from 1 to 65536 are valid for keyframe interval.\n");
-                    exit(1);
-                }
+            case 'd':
+                convert->buf_delay = atoi(optarg);
                 break;
             case 'H':
                 convert->sample_rate=atoi(optarg);
@@ -2085,7 +2162,6 @@ int main(int argc, char **argv) {
                     convert->preset=V2V_PRESET_PRO;
                     convert->video_quality = rint(7*6.3);
                     convert->audio_quality = 3.00;
-                    convert->sharpness = 0;
                     info.speed_level = 0;
                 }
                 else if (!strcmp(optarg,"preview")) {
@@ -2093,7 +2169,6 @@ int main(int argc, char **argv) {
                     convert->preset=V2V_PRESET_PREVIEW;
                     convert->video_quality = rint(5*6.3);
                     convert->audio_quality = 1.00;
-                    convert->sharpness = 2;
                     info.speed_level = 0;
                 }
                 else if (!strcmp(optarg,"videobin")) {
@@ -2101,14 +2176,12 @@ int main(int argc, char **argv) {
                     convert->video_bitrate=rint(600*1000);
                     convert->video_quality = 0;
                     convert->audio_quality = 3.00;
-                    convert->sharpness = 2;
                     info.speed_level = 0;
                 }
                 else if (!strcmp(optarg,"padma")) {
                     convert->preset=V2V_PRESET_PADMA;
                     convert->video_quality = rint(5*6.3);
                     convert->audio_quality = 3.00;
-                    convert->sharpness = 0;
                     info.speed_level = 0;
                 }
                 else if (!strcmp(optarg,"padma-stream")) {
@@ -2117,7 +2190,6 @@ int main(int argc, char **argv) {
                     convert->video_quality = 0;
                     convert->audio_quality = -1.00;
                     convert->sample_rate=44100;
-                    convert->sharpness = 2;
                     convert->keyint = 16;
                     info.speed_level = 0;
                 }
@@ -2181,6 +2253,24 @@ int main(int argc, char **argv) {
 
     if (convert->end_time>0 && convert->end_time <= convert->start_time) {
         fprintf(stderr, "End time has to be bigger than start time.\n");
+        exit(1);
+    }
+
+    if (convert->soft_target) {
+        if (convert->video_bitrate <= 0) {
+          fprintf(stderr,"Soft rate target (--soft-tagret) requested without a bitrate (-V).\n");
+          exit(1);
+        }
+        if (convert->video_quality == -1)
+            convert->video_quality = 0;
+    } else {
+        if (convert->video_bitrate > 0)
+            convert->video_quality = 0;
+        if (convert->video_quality == -1)
+            convert->video_quality = rint(5*6.3); // default quality 5
+    }
+    if (convert->buf_delay>0 && convert->video_bitrate == 0) {
+        fprintf(stderr, "Buffer delay can only be used with target bitrate (-V).\n");
         exit(1);
     }
 

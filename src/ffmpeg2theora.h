@@ -32,6 +32,8 @@ typedef struct ff2theora{
     int audio_index;
 
     int deinterlace;
+    int soft_target;
+    int buf_delay;
     int vhook;
     int disable_video;
     int no_upscaling;
@@ -61,8 +63,7 @@ typedef struct ff2theora{
     int pix_fmt;
     int video_quality;
     int video_bitrate;
-    int sharpness;
-    int keyint;
+    ogg_uint32_t keyint;
     char pp_mode[255];
 
     AVRational force_input_fps;
