@@ -1644,7 +1644,7 @@ void print_usage() {
         "Video output options:\n"
         "  -v, --videoquality     [0 to 10] encoding quality for video (default: 5)\n"
         "                                   use higher values for better quality\n"
-        "  -V, --videobitrate     [1 to 16778] encoding bitrate for video (kb/s)\n"
+        "  -V, --videobitrate     encoding bitrate for video (kb/s)\n"
         "      --soft-target      Use a large reservoir and treat the rate\n"
         "                         as a soft target; rate control is less\n"
         "                         strict but resulting quality is usually\n"
@@ -2096,7 +2096,7 @@ int main(int argc, char **argv) {
             case 'V':
                 convert->video_bitrate=rint(atof(optarg)*1000);
                 if (convert->video_bitrate < 1) {
-                    fprintf(stderr, "Only values from 1 to 16000 are valid for video bitrate (in kb/s).\n");
+                    fprintf(stderr, "Only positive values are allowed for video bitrate (in kb/s).\n");
                     exit(1);
                 }
                 break;
