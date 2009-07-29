@@ -716,15 +716,25 @@ static void print_stats(oggmux_info *info, double timebase) {
     int remaining_hours = (long) remaining / 3600;
 
     if (info->passno==1) {
-        remaining = time(NULL) - info->start_time;
-        remaining_seconds = (long) remaining % 60;
-        remaining_minutes = ((long) remaining / 60) % 60;
-        remaining_hours = (long) remaining / 3600;
-        fprintf (stderr,"\r  Scanning video first pass, time elapsed: %02d:%02d:%02d ",
-            remaining_hours, remaining_minutes, remaining_seconds
-        );
-    }
-    else if (timebase - last > 0.5) {
+        if (timebase - last > 0.5 || timebase < last) {
+            last = timebase;
+            if (info->frontend) {
+                fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"remaining\": %.02lf}\n",
+                    (double)info->duration,
+                    timebase,
+                    remaining
+                );
+                fflush (info->frontend);
+            } else {
+                fprintf (stderr,"\rScanning first pass pos: %d:%02d:%02d.%02d ET: %02d:%02d:%02d             ",
+                    hours, minutes, seconds, hundredths,
+                    remaining_hours, remaining_minutes, remaining_seconds
+                );
+            }
+        }
+
+    } 
+    else if (timebase - last > 0.5 || timebase < last) {
         last = timebase;
         if (info->frontend) {
             fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
@@ -752,8 +762,7 @@ static void print_stats(oggmux_info *info, double timebase) {
                     hours, minutes, seconds, hundredths,
                     info->akbps, info->vkbps,
                     remaining_hours, remaining_minutes, remaining_seconds,
-                    estimated_size(info, timebase),
-                    info->passno
+                    estimated_size(info, timebase)
                 );
             }
         }

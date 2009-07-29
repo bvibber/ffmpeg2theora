@@ -85,6 +85,7 @@ typedef struct ff2theora{
     double end_time;
 
     AVRational framerate_new;
+    AVRational framerate;
 
     double pts_offset; /* between given input pts and calculated output pts */
     int64_t frame_count; /* total video frames output so far */

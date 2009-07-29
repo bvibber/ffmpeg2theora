@@ -972,13 +972,15 @@ void ff2theora_output(ff2theora this) {
             if (this->framerate_new.num > 0) {
                 // new framerate is interger only right now,
                 // so denominator is always 1
-                info.ti.fps_numerator = this->framerate_new.num;
-                info.ti.fps_denominator = this->framerate_new.den;
+                this->framerate.num = this->framerate_new.num;
+                this->framerate.den = this->framerate_new.den;
             }
             else {
-                info.ti.fps_numerator = vstream_fps.num;
-                info.ti.fps_denominator = vstream_fps.den;
+                this->framerate.num = vstream_fps.num;
+                this->framerate.den = vstream_fps.den;
             }
+            info.ti.fps_numerator = this->framerate.num;
+            info.ti.fps_denominator = this->framerate.den;
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
             info.ti.aspect_denominator=this->aspect_denominator;
@@ -1089,6 +1091,7 @@ void ff2theora_output(ff2theora this) {
                 exit(1);
               }
               if(info.twopass==3){
+                info.videotime = 0;
                 /* 'automatic' second pass */
                 if(av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1)<0){
                   fprintf(stderr,"Could not rewind video input file for second pass!\n");
@@ -1339,6 +1342,9 @@ void ff2theora_output(ff2theora this) {
                                     video_done = 1;
                                 }
                                 this->frame_count++;
+                                if (info.passno == 1)
+                                    info.videotime = (double)this->frame_count * \
+                                         this->framerate.den / this->framerate.num;
                             } while(dups--);
                         }
                     }
