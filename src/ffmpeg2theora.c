@@ -1870,6 +1870,7 @@ int main(int argc, char **argv) {
         {"videobitrate",required_argument,NULL,'V'},
         {"audioquality",required_argument,NULL,'a'},
         {"audiobitrate",required_argument,NULL,'A'},
+        {"soft-target",0,&flag,SOFTTARGET_FLAG},
         {"two-pass",0,&flag,TWOPASS_FLAG},
         {"first-pass",required_argument,&flag,FIRSTPASS_FLAG},
         {"second-pass",required_argument,&flag,SECONDPASS_FLAG},
