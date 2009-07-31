@@ -154,6 +154,9 @@ if conf.CheckCHeader('iconv.h'):
     env.Append(CCFLAGS=[
       '-DHAVE_ICONV'
     ])
+    if conf.CheckLib('iconv'):
+        env.Append(LIBS=['iconv'])
+
 
 env = conf.Finish()
 
