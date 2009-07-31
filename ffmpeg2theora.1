@@ -1,5 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.TH FFMPEG2THEORA 1 "April 9, 2009"
+.TH FFMPEG2THEORA 1 "July 31, 2009"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -197,8 +197,9 @@ unless the --subtitles-encoding option is also given.
 .TP
 .B \-\-subtitles-encoding encoding
 Assumes the corresponding subtitles file is encoded in the given
-encoding (UTF-8 and iso-8859-1 (aka latin1) are supported). The
-default is UTF-8.
+encoding. If ffmpeg2theora was built with iconv support, all
+encodings supported by iconv may be used. Otherwise, UTF-8 and
+ISO-8859-1 (aka latin1) are supported. The default is UTF-8.
 .TP
 .B \-\-subtitles-language language
 Sets the language of the corresponding subtitles stream. This will
