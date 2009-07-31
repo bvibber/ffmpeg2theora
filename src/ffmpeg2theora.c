@@ -2486,7 +2486,9 @@ int main(int argc, char **argv) {
             }
             else{
                 if (info.frontend)
-                    fprintf(info.frontend, "{\"result\": \"input format not suported.\"}\n");
+                    fprintf(info.frontend, "{\"code\": \"basfile\", \"input format not supported.\"}\n");
+                else if (output_json)
+                    fprintf(stdout, "{\"code\": \"basfile\", \"input format not supported.\"}\n");
                 else
                     fprintf(stderr,"\nUnable to decode input.\n");
                 return(1);
@@ -2495,7 +2497,9 @@ int main(int argc, char **argv) {
         }
         else{
             if (info.frontend)
-                fprintf(info.frontend, "{\"result\": \"file does not exist or has unknown data format.\"}\n");
+                fprintf(info.frontend, "{\"code\": \"basfile\", \"file does not exist or has unknown data format.\"}\n");
+            else if (output_json)
+                fprintf(stdout, "{\"code\": \"basfile\", \"file does not exist or has unknown data format.\"}\n");
             else
                 fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
             return(1);
