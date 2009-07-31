@@ -2474,7 +2474,10 @@ int main(int argc, char **argv) {
                     return(1);
                 }
                 if (convert->context->duration != AV_NOPTS_VALUE) {
-                    info.duration = (double)convert->context->duration / AV_TIME_BASE;
+                    info.duration = (double)convert->context->duration / AV_TIME_BASE - \
+                                            convert->start_time;
+                    if (convert->end_time)
+                        info.duration = convert->end_time - convert->start_time;
                 }
                 for(info.passno=(info.twopass==3?1:info.twopass);info.passno<=(info.twopass==3?2:info.twopass);info.passno++){
                     ff2theora_output(convert);

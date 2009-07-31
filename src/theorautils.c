@@ -720,7 +720,7 @@ static void print_stats(oggmux_info *info, double timebase) {
             last = timebase;
             if (info->frontend) {
                 fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"remaining\": %.02lf}\n",
-                    (double)info->duration,
+                    info->duration,
                     timebase,
                     remaining
                 );
@@ -738,7 +738,7 @@ static void print_stats(oggmux_info *info, double timebase) {
         last = timebase;
         if (info->frontend) {
             fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
-                (double)info->duration,
+                info->duration,
                 timebase,
                 info->akbps, info->vkbps,
                 remaining
