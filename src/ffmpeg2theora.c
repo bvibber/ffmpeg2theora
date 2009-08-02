@@ -836,24 +836,26 @@ void ff2theora_output(ff2theora this) {
         }
     }
 
-    for (i = 0; i < this->context->nb_streams; i++) {
-      subtitles_enabled[i] = 0;
-      subtitles_opened[i] = 0;
+    if (info.passno != 1) {
+      for (i = 0; i < this->context->nb_streams; i++) {
+        subtitles_enabled[i] = 0;
+        subtitles_opened[i] = 0;
 #ifdef HAVE_KATE
-      if (!this->disable_subtitles) {
-        AVStream *stream = this->context->streams[i];
-        AVCodecContext *enc = stream->codec;
-        if (enc->codec_type == CODEC_TYPE_SUBTITLE) {
-          AVCodec *codec = avcodec_find_decoder (enc->codec_id);
-          if (codec && avcodec_open (enc, codec) >= 0) {
-            subtitles_opened[i] = 1;
-          }
-          if (is_supported_subtitle_stream(this, i)) {
-            subtitles_enabled[i] = 1;
-            add_subtitles_stream(this, i, find_language_for_subtitle_stream(stream), NULL);
-          }
-          else if(!info.frontend) {
-            fprintf(stderr,"Subtitle stream %d codec not supported, ignored\n", i);
+        if (!this->disable_subtitles) {
+          AVStream *stream = this->context->streams[i];
+          AVCodecContext *enc = stream->codec;
+          if (enc->codec_type == CODEC_TYPE_SUBTITLE) {
+            AVCodec *codec = avcodec_find_decoder (enc->codec_id);
+            if (codec && avcodec_open (enc, codec) >= 0) {
+              subtitles_opened[i] = 1;
+            }
+            if (is_supported_subtitle_stream(this, i)) {
+              subtitles_enabled[i] = 1;
+              add_subtitles_stream(this, i, find_language_for_subtitle_stream(stream), NULL);
+            }
+            else if(!info.frontend) {
+              fprintf(stderr,"Subtitle stream %d codec not supported, ignored\n", i);
+            }
           }
         }
       }
@@ -861,7 +863,8 @@ void ff2theora_output(ff2theora this) {
     }
 
 #ifdef HAVE_KATE
-    for (i=0; i<this->n_kate_streams; ++i) {
+    if (info.passno != 1) {
+      for (i=0; i<this->n_kate_streams; ++i) {
         ff2theora_kate_stream *ks=this->kate_streams+i;
         if (ks->stream_index >= 0) {
 #ifdef DEBUG
@@ -887,10 +890,13 @@ void ff2theora_output(ff2theora this) {
             --i;
           }
         }
+      }
     }
 #endif
 
-    oggmux_setup_kate_streams(&info, this->n_kate_streams);
+    if (info.passno != 1) {
+      oggmux_setup_kate_streams(&info, this->n_kate_streams);
+    }
 
     if (this->video_index >= 0 || this->audio_index >= 0) {
         AVFrame *frame=NULL;
@@ -1113,7 +1119,8 @@ void ff2theora_output(ff2theora this) {
         info.vorbis_bitrate = this->audio_bitrate;
         /* subtitles */
 #ifdef HAVE_KATE
-        for (i=0; i<this->n_kate_streams; ++i) {
+        if (info.passno != 1) {
+          for (i=0; i<this->n_kate_streams; ++i) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
             kate_info *ki = &info.kate_streams[i].ki;
             kate_info_init(ki);
@@ -1141,6 +1148,7 @@ void ff2theora_output(ff2theora this) {
                 }
                 ki->granule_shift = 32;
             }
+          }
         }
 #endif
         oggmux_init(&info);
@@ -1149,12 +1157,14 @@ void ff2theora_output(ff2theora this) {
             av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
             /* discard subtitles by their end time, so we still have those that start before the start time,
              but end after it */
-            for (i=0; i<this->n_kate_streams; ++i) {
+            if (info.passno != 1) {
+              for (i=0; i<this->n_kate_streams; ++i) {
                 ff2theora_kate_stream *ks=this->kate_streams+i;
                 while (ks->subtitles_count < ks->num_subtitles && ks->subtitles[ks->subtitles_count].t1 <= this->start_time) {
                     /* printf("skipping subtitle %u\n", ks->subtitles_count); */
                     ks->subtitles_count++;
                 }
+              }
             }
         }
 
@@ -1509,20 +1519,22 @@ void ff2theora_output(ff2theora this) {
             av_free_packet (&pkt);
         } while (ret >= 0 && !(audio_done && video_done));
 
-        for (i=0; i<this->n_kate_streams; ++i) {
+        if (info.passno != 1) {
+          for (i=0; i<this->n_kate_streams; ++i) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
             if (ks->num_subtitles > 0) {
                 double t = (info.videotime<info.audiotime?info.audiotime:info.videotime)+this->start_time;
                 oggmux_add_kate_end_packet(&info, i, t);
                 oggmux_flush (&info, video_eos + audio_eos);
             }
-        }
+          }
 
-        if (!this->disable_subtitles) {
-          for (i = 0; i < this->context->nb_streams; i++) {
-            if (subtitles_opened[i]) {
-              AVCodecContext *enc = this->context->streams[i]->codec;
-              if (enc) avcodec_close(enc);
+          if (!this->disable_subtitles) {
+            for (i = 0; i < this->context->nb_streams; i++) {
+              if (subtitles_opened[i]) {
+                AVCodecContext *enc = this->context->streams[i]->codec;
+                if (enc) avcodec_close(enc);
+              }
             }
           }
         }
@@ -1559,7 +1571,8 @@ void ff2theora_close(ff2theora this) {
     sws_freeContext(this->sws_colorspace_ctx);
     sws_freeContext(this->sws_scale_ctx);
     /* clear out state */
-    free_subtitles(this);
+    if (info.passno!=1)
+      free_subtitles(this);
     av_free(this);
 }
 
