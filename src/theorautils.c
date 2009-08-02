@@ -1022,11 +1022,13 @@ void oggmux_close (oggmux_info *info) {
     th_comment_clear (&info->tc);
 
 #ifdef HAVE_KATE
-    for (n=0; n<info->n_kate_streams; ++n) {
+    if (info->with_kate && info->passno!=1) {
+      for (n=0; n<info->n_kate_streams; ++n) {
         ogg_stream_clear (&info->kate_streams[n].ko);
         kate_comment_clear (&info->kate_streams[n].kc);
         kate_info_clear (&info->kate_streams[n].ki);
         kate_clear (&info->kate_streams[n].k);
+      }
     }
 #endif
 
