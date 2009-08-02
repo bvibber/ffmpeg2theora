@@ -1019,6 +1019,7 @@ void oggmux_close (oggmux_info *info) {
     vorbis_info_clear (&info->vi);
 
     ogg_stream_clear (&info->to);
+    th_encode_free (info->td);
     th_comment_clear (&info->tc);
 
 #ifdef HAVE_KATE
