@@ -858,8 +858,8 @@ void ff2theora_output(ff2theora this) {
             }
           }
         }
-      }
 #endif
+      }
     }
 
 #ifdef HAVE_KATE
