@@ -2524,6 +2524,8 @@ int main(int argc, char **argv) {
 
     if (*pidfile_name)
         unlink(pidfile_name);
+    if (info.twopass_file)
+        fclose(info.twopass_file);
 
     if (info.frontend)
         fprintf(info.frontend, "{\"result\": \"ok\"}\n");
