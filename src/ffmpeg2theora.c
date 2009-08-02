@@ -1026,17 +1026,6 @@ void ff2theora_output(ff2theora this) {
                     info.speed_level = max_speed_level;
                 th_encode_ctl(info.td, TH_ENCCTL_SET_SPLEVEL, &info.speed_level, sizeof(int));
             }
-            if(info.passno!=1 && this->buf_delay >= 0){
-                int arg = this->buf_delay;
-                ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER,
-                                    &this->buf_delay, sizeof(this->buf_delay));
-                if (this->buf_delay != arg)
-                    fprintf(stderr, "Warning: could not set desired buffer delay of %d, using %d instead.\n",
-                                    arg, this->buf_delay);
-                if(ret < 0){
-                    fprintf(stderr, "Warning: could not set desired buffer delay.\n");
-                }
-            }
             /* setting just the granule shift only allows power-of-two keyframe
                spacing.  Set the actual requested spacing. */
             ret = th_encode_ctl(info.td, TH_ENCCTL_SET_KEYFRAME_FREQUENCY_FORCE,
@@ -1044,6 +1033,7 @@ void ff2theora_output(ff2theora this) {
             if(ret<0){
                 fprintf(stderr,"Could not set keyframe interval to %d.\n",(int)this->keyint);
             }
+
             if(this->soft_target){
               /* reverse the rate control flags to favor a 'long time' strategy */
               int arg = TH_RATECTL_CAP_UNDERFLOW;
@@ -1102,6 +1092,17 @@ void ff2theora_output(ff2theora this) {
                   exit(1);
                 }
               }
+            }
+            if(info.passno!=1 && this->buf_delay >= 0){
+                int arg = this->buf_delay;
+                ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER,
+                                    &this->buf_delay, sizeof(this->buf_delay));
+                if (this->buf_delay != arg)
+                    fprintf(stderr, "Warning: could not set desired buffer delay of %d, using %d instead.\n",
+                                    arg, this->buf_delay);
+                if(ret < 0){
+                    fprintf(stderr, "Warning: could not set desired buffer delay.\n");
+                }
             }
 
         }
