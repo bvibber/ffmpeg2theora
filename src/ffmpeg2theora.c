@@ -215,6 +215,8 @@ static ff2theora ff2theora_init() {
 
         this->y_lut_used = 0;
         this->uv_lut_used = 0;
+        this->sws_colorspace_ctx = NULL;
+        this->sws_scale_ctx = NULL;
     }
     return this;
 }
@@ -942,7 +944,7 @@ void ff2theora_output(ff2theora this) {
 
         if(info.audio_only)
             video_done = 1;
-        if(info.video_only)
+        if(info.video_only || info.passno == 1)
             audio_done = 1;
 
         if (!info.audio_only) {
@@ -1088,11 +1090,7 @@ void ff2theora_output(ff2theora this) {
               }
               if(info.twopass==3){
                 info.videotime = 0;
-                /* 'automatic' second pass */
-                if(av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1)<0){
-                  fprintf(stderr,"Could not rewind video input file for second pass!\n");
-                  exit(1);
-                }
+                this->frame_count = 0;
                 if(fseek(info.twopass_file,0,SEEK_SET)<0){
                   fprintf(stderr,"Unable to seek in two-pass data file.\n");
                   exit(1);
@@ -1570,10 +1568,14 @@ void ff2theora_output(ff2theora this) {
 void ff2theora_close(ff2theora this) {
     sws_freeContext(this->sws_colorspace_ctx);
     sws_freeContext(this->sws_scale_ctx);
+    this->sws_colorspace_ctx = NULL;
+    this->sws_scale_ctx = NULL;
     /* clear out state */
-    if (info.passno!=1)
+    if (info.passno != 1)
       free_subtitles(this);
-    av_free(this);
+    if (info.twopass != 3) {
+        av_free(this);
+    }
 }
 
 double aspect_check(const char *arg)
@@ -2402,6 +2404,7 @@ int main(int argc, char **argv) {
         }
     }
 
+    for(info.passno=(info.twopass==3?1:info.twopass);info.passno<=(info.twopass==3?2:info.twopass);info.passno++){
     //detect image sequences and set framerate if provided
     if (av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
         (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
@@ -2463,7 +2466,9 @@ int main(int argc, char **argv) {
                 }
 
                 if (!info.frontend) {
-                    dump_format(convert->context, 0,inputfile_name, 0);
+                    if (info.twopass!=3 || info.passno==1) {
+                        dump_format(convert->context, 0,inputfile_name, 0);
+                    }
                 }
                 if (convert->disable_audio) {
                     fprintf(stderr, "  [audio disabled].\n");
@@ -2493,12 +2498,9 @@ int main(int argc, char **argv) {
                     if (convert->end_time)
                         info.duration = convert->end_time - convert->start_time;
                 }
-                for(info.passno=(info.twopass==3?1:info.twopass);info.passno<=(info.twopass==3?2:info.twopass);info.passno++){
-                    ff2theora_output(convert);
-                }
-                convert->audio_index = convert->video_index = -1;
-            }
-            else{
+                ff2theora_output(convert);
+        }
+        else{
                 if (info.frontend)
                     fprintf(info.frontend, "{\"code\": \"basfile\", \"input format not supported.\"}\n");
                 else if (output_json)
@@ -2506,10 +2508,10 @@ int main(int argc, char **argv) {
                 else
                     fprintf(stderr,"\nUnable to decode input.\n");
                 return(1);
-            }
-            av_close_input_file(convert->context);
         }
-        else{
+        av_close_input_file(convert->context);
+    }
+    else{
             if (info.frontend)
                 fprintf(info.frontend, "{\"code\": \"basfile\", \"file does not exist or has unknown data format.\"}\n");
             else if (output_json)
@@ -2517,8 +2519,10 @@ int main(int argc, char **argv) {
             else
                 fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
             return(1);
-        }
+    }
     ff2theora_close(convert);
+    } // 2pass loop
+
     if (!info.frontend)
         fprintf(stderr, "\n");
 

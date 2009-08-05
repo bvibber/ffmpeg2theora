@@ -1038,8 +1038,6 @@ void oggmux_close (oggmux_info *info) {
 
     if (info->passno!=1 && info->outfile && info->outfile != stdout)
         fclose (info->outfile);
-    if(info->twopass!=3 && info->twopass_file)
-        fclose(info->twopass_file);
 
     if (info->videopage)
         free(info->videopage);
