@@ -594,7 +594,9 @@ void ff2theora_output(ff2theora this) {
                 this->aspect_numerator = 10000*this->frame_aspect*display_height;
                 this->aspect_denominator = 10000*display_width;
             }
-            av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
+            av_reduce(&this->aspect_numerator,&this->aspect_denominator,
+                       this->aspect_numerator,this->aspect_denominator,
+                       1024*1024);
             frame_aspect=this->frame_aspect;
         }
 
@@ -723,9 +725,13 @@ void ff2theora_output(ff2theora this) {
         }
 
         if (this->no_upscaling) {
-            if (this->picture_width && this->picture_width > display_width) {
-                this->picture_width = display_width;
+            if (this->picture_height && this->picture_height > display_height) {
+                this->picture_width = display_height * display_aspect_ratio.num / display_aspect_ratio.den;
                 this->picture_height = display_height;
+            }
+            else if (this->picture_width && this->picture_width > display_width) {
+                this->picture_width = display_width;
+                this->picture_height = display_width * display_aspect_ratio.den / display_aspect_ratio.num;
             }
             if (this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
                 this->framerate_new.num = vstream_fps.num;
@@ -1363,8 +1369,8 @@ void ff2theora_output(ff2theora this) {
                                 if (av_picture_pad((AVPicture *)output_padded,
                                                  (AVPicture *)output_resized,
                                                  this->frame_height, this->frame_width, this->pix_fmt,
-                                                 0, this->frame_height - this->picture_height,
-                                                 0, this->frame_width - this->picture_width,
+                                                 this->frame_y_offset, this->frame_y_offset,
+                                                 this->frame_x_offset, this->frame_x_offset,
                                                  padcolor ) < 0 ) {
                                     av_log(NULL, AV_LOG_ERROR, "error padding frame\n");
                                 }
