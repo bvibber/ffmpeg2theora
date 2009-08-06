@@ -474,6 +474,7 @@ void ff2theora_output(ff2theora this) {
     char *subtitles_enabled = (char*)alloca(this->context->nb_streams);
     char *subtitles_opened = (char*)alloca(this->context->nb_streams);
     int synced = this->start_time == 0.0;
+    AVRational display_aspect_ratio, sample_aspect_ratio;
 
     if (this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
@@ -550,6 +551,53 @@ void ff2theora_output(ff2theora this) {
             this->picture_width = this->picture_width - this->picture_width%2;
         }
 
+
+        if (this->picture_height==0 &&
+            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ) {
+            this->picture_height=display_height-
+                    this->frame_topBand-this->frame_bottomBand;
+        }
+        if (this->picture_width==0 &&
+            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ) {
+            this->picture_width=display_width-
+                    this->frame_leftBand-this->frame_rightBand;
+        }
+
+        //set display_aspect_ratio from source
+        av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
+                  venc->width*vstream->sample_aspect_ratio.num,
+                  venc->height*vstream->sample_aspect_ratio.den,
+                  1024*1024);
+
+        if (vstream->sample_aspect_ratio.num && // default
+            av_cmp_q(vstream->sample_aspect_ratio, vstream->codec->sample_aspect_ratio)) {
+            sample_aspect_ratio.num = vstream->sample_aspect_ratio.num;
+            sample_aspect_ratio.den = vstream->sample_aspect_ratio.den;
+        } else {
+            sample_aspect_ratio.num = venc->sample_aspect_ratio.num;
+            sample_aspect_ratio.den = venc->sample_aspect_ratio.den;
+        }
+        if (venc->sample_aspect_ratio.num) {
+            av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
+                      venc->width*venc->sample_aspect_ratio.num,
+                      venc->height*venc->sample_aspect_ratio.den,
+                      1024*1024);
+        }
+
+        //so frame_aspect is set on the commandline
+        if (this->frame_aspect != 0) {
+            if (this->picture_height) {
+                this->aspect_numerator = 10000*this->frame_aspect*this->picture_height;
+                this->aspect_denominator = 10000*this->picture_width;
+            }
+            else{
+                this->aspect_numerator = 10000*this->frame_aspect*display_height;
+                this->aspect_denominator = 10000*display_width;
+            }
+            av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
+            frame_aspect=this->frame_aspect;
+        }
+
         if (this->preset == V2V_PRESET_PREVIEW) {
             if (abs(this->fps-30)<1 && (display_width!=NTSC_HALF_WIDTH || display_height!=NTSC_HALF_HEIGHT) ) {
                 this->picture_width=NTSC_HALF_WIDTH;
@@ -573,8 +621,10 @@ void ff2theora_output(ff2theora this) {
         else if (this->preset == V2V_PRESET_PADMA) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
-                height=((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
+            if (sample_aspect_ratio.den!=0 && sample_aspect_ratio.num!=0) {
+                height=((float)sample_aspect_ratio.den/sample_aspect_ratio.num) * height;
+                sample_aspect_ratio.den = 1;
+                sample_aspect_ratio.num = 1;
             }
             if (this->frame_aspect == 0)
                 this->frame_aspect = (float)width/height;
@@ -604,8 +654,10 @@ void ff2theora_output(ff2theora this) {
         else if (this->preset == V2V_PRESET_PADMASTREAM) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
-                height=((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
+            if (sample_aspect_ratio.den!=0 && sample_aspect_ratio.num!=0) {
+                height=((float)sample_aspect_ratio.den/sample_aspect_ratio.num) * height;
+                sample_aspect_ratio.den = 1;
+                sample_aspect_ratio.num = 1;
             }
             if (this->frame_aspect == 0)
                 this->frame_aspect = (float)width/height;
@@ -621,8 +673,10 @@ void ff2theora_output(ff2theora this) {
         else if (this->preset == V2V_PRESET_VIDEOBIN) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
             int height=display_height-this->frame_topBand-this->frame_bottomBand;
-            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
-                height=((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
+            if (sample_aspect_ratio.den!=0 && sample_aspect_ratio.num!=0) {
+                height=((float)sample_aspect_ratio.den/sample_aspect_ratio.num) * height;
+                sample_aspect_ratio.den = 1;
+                sample_aspect_ratio.num = 1;
             }
             if ( ((float)width /height) <= 1.5) {
                 if (width > 448) {
@@ -650,8 +704,10 @@ void ff2theora_output(ff2theora this) {
         if (this->max_size > 0) {
             int width = display_width-this->frame_leftBand-this->frame_rightBand;
             int height = display_height-this->frame_topBand-this->frame_bottomBand;
-            if (vstream->sample_aspect_ratio.den!=0 && vstream->sample_aspect_ratio.num!=0) {
-                height = ((float)vstream->sample_aspect_ratio.den/vstream->sample_aspect_ratio.num) * height;
+            if (sample_aspect_ratio.den!=0 && sample_aspect_ratio.num!=0) {
+                height=((float)sample_aspect_ratio.den/sample_aspect_ratio.num) * height;
+                sample_aspect_ratio.den = 1;
+                sample_aspect_ratio.num = 1;
             }
             if (this->frame_aspect == 0)
                 this->frame_aspect = (float)width/height;
@@ -677,33 +733,10 @@ void ff2theora_output(ff2theora this) {
             }
         }
 
-        if (this->picture_height==0 &&
-            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ) {
-            this->picture_height=display_height-
-                    this->frame_topBand-this->frame_bottomBand;
-        }
-        if (this->picture_width==0 &&
-            (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ) {
-            this->picture_width=display_width-
-                    this->frame_leftBand-this->frame_rightBand;
-        }
-        //so frame_aspect is set on the commandline
-        if (this->frame_aspect != 0) {
-            if (this->picture_height) {
-                this->aspect_numerator = 10000*this->frame_aspect*this->picture_height;
-                this->aspect_denominator = 10000*this->picture_width;
-            }
-            else{
-                this->aspect_numerator = 10000*this->frame_aspect*display_height;
-                this->aspect_denominator = 10000*display_width;
-            }
-            av_reduce(&this->aspect_numerator,&this->aspect_denominator,this->aspect_numerator,this->aspect_denominator,10000);
-            frame_aspect=this->frame_aspect;
-        }
-        if (vstream->sample_aspect_ratio.num!=0 && this->frame_aspect==0) {
+        if (sample_aspect_ratio.num!=0 && this->frame_aspect==0) {
             // just use the ratio from the input
-            this->aspect_numerator=vstream->sample_aspect_ratio.num;
-            this->aspect_denominator=vstream->sample_aspect_ratio.den;
+            this->aspect_numerator=sample_aspect_ratio.num;
+            this->aspect_denominator=sample_aspect_ratio.den;
             // or we use ratio for the output
             if (this->picture_height) {
                 int width=display_width-this->frame_leftBand-this->frame_rightBand;
@@ -726,6 +759,8 @@ void ff2theora_output(ff2theora this) {
             frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
                                 (this->aspect_denominator*this->picture_height);
         }
+
+
         if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->aspect_denominator && frame_aspect) {
             fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
             fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n", frame_aspect);
