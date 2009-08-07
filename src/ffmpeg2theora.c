@@ -1094,7 +1094,7 @@ void ff2theora_output(ff2theora this) {
                     if((this->keyint*7>>1)>5*this->framerate_new.num/this->framerate_new.den)
                         arg = this->keyint*7>>1;
                     else
-                        arg = 30*this->framerate_new.num/this->framerate_new.den;
+                        arg = 5*this->framerate_new.num/this->framerate_new.den;
                     ret = th_encode_ctl(info.td, TH_ENCCTL_SET_RATE_BUFFER, &arg,sizeof(arg));
                     if(ret<0)
                         fprintf(stderr, "Could not set rate control buffer for --soft-target\n");
