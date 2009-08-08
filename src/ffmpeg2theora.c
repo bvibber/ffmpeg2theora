@@ -1743,7 +1743,8 @@ void print_presets_info() {
 
 void print_usage() {
     fprintf(stdout,
-        PACKAGE " " PACKAGE_VERSION "\n"
+        PACKAGE " " PACKAGE_VERSION " - %s\n", th_version_string());
+    fprintf(stdout,
         "\n"
         "  Usage: " PACKAGE " [options] input\n"
         "\n"
