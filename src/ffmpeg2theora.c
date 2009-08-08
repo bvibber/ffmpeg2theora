@@ -188,7 +188,8 @@ static ff2theora ff2theora_init() {
         this->aspect_numerator=0;
         this->aspect_denominator=0;
         this->frame_aspect=0;
-        this->max_size=-1;
+        this->max_x=-1;
+        this->max_y=-1;
         this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace.
         this->soft_target=0;
         this->buf_delay=-1;
@@ -703,7 +704,7 @@ void ff2theora_output(ff2theora this) {
                 }
             }
         }
-        if (this->max_size > 0) {
+        if (this->max_x > 0) {
             int width = display_width-this->frame_leftBand-this->frame_rightBand;
             int height = display_height-this->frame_topBand-this->frame_bottomBand;
             if (sample_aspect_ratio.den!=0 && sample_aspect_ratio.num!=0) {
@@ -713,13 +714,13 @@ void ff2theora_output(ff2theora this) {
             }
             if (this->frame_aspect == 0)
                 this->frame_aspect = (float)width/height;
-            if (width > height) {
-                this->picture_width = this->max_size;
-                this->picture_height = this->max_size / this->frame_aspect;
+            if (width > height && this->max_x/this->frame_aspect <= this->max_y) {
+                this->picture_width = this->max_x;
+                this->picture_height = this->max_x / this->frame_aspect;
                 this->picture_height = this->picture_height + this->picture_height%2;
             } else {
-                this->picture_height = this->max_size;
-                this->picture_width = this->max_size * this->frame_aspect;
+                this->picture_height = this->max_y;
+                this->picture_width = this->max_y * this->frame_aspect;
                 this->picture_width = this->picture_width + this->picture_width%2;
             }
         }
@@ -1788,8 +1789,8 @@ void print_usage() {
 
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
-        "      --max_size         scale output frame to be withing box of \n"
-        "                         given size (in pixels)\n"
+        "      --max_size         scale output frame to be within box of \n"
+        "                         given size, height optional (%%d[x%%d], i.e. 640x480)\n"
         "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
         "  -F, --framerate        output framerate e.g 25:2 or 16\n"
         "      --croptop, --cropbottom, --cropleft, --cropright\n"
@@ -2121,7 +2122,9 @@ int main(int argc, char **argv) {
                             flag = -1;
                             break;
                         case MAXSIZE_FLAG:
-                            convert->max_size = atoi(optarg);
+                            if(sscanf(optarg, "%dx%d", &convert->max_x, &convert->max_y) != 2) {
+                                convert->max_y = convert->max_x = atoi(optarg);
+                            }
                             flag = -1;
                             break;
                         case INPUTFPS_FLAG:
