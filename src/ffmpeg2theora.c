@@ -239,7 +239,7 @@ static void y_lut_init(ff2theora this) {
     if (g == 1.0 && c == 1.0 && b == 0.0) return;
     this->y_lut_used = 1;
 
-    printf("  Video correction: gamma=%g, contrast=%g, brightness=%g\n", g, c, b);
+    fprintf(stderr, "  Video correction: gamma=%g, contrast=%g, brightness=%g\n", g, c, b);
 
     g = 1.0 / g;    // larger values shall make brighter video.
 
@@ -267,7 +267,7 @@ static void uv_lut_init(ff2theora this) {
     if (s == 1.0) return;
     this->uv_lut_used = 1;
 
-    printf("  Color correction: saturation=%g\n", s);
+    fprintf(stderr, "  Color correction: saturation=%g\n", s);
 
     for (i = 0; i < 256; i++) {
         v = 127.0 + (s * ((double)i - 127.0));
@@ -2552,9 +2552,9 @@ int main(int argc, char **argv) {
         }
         else{
                 if (info.frontend)
-                    fprintf(info.frontend, "{\"code\": \"basfile\", \"input format not supported.\"}\n");
+                    fprintf(info.frontend, "{\"code\": \"badfile\", \"input format not supported.\"}\n");
                 else if (output_json)
-                    fprintf(stdout, "{\"code\": \"basfile\", \"input format not supported.\"}\n");
+                    fprintf(stdout, "{\"code\": \"badfile\", \"input format not supported.\"}\n");
                 else
                     fprintf(stderr,"\nUnable to decode input.\n");
                 return(1);
@@ -2563,9 +2563,9 @@ int main(int argc, char **argv) {
     }
     else{
             if (info.frontend)
-                fprintf(info.frontend, "{\"code\": \"basfile\", \"file does not exist or has unknown data format.\"}\n");
+                fprintf(info.frontend, "{\"code\": \"badfile\", \"file does not exist or has unknown data format.\"}\n");
             else if (output_json)
-                fprintf(stdout, "{\"code\": \"basfile\", \"file does not exist or has unknown data format.\"}\n");
+                fprintf(stdout, "{\"code\": \"badfile\", \"file does not exist or has unknown data format.\"}\n");
             else
                 fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
             return(1);
