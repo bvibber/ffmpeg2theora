@@ -734,7 +734,7 @@ static void print_stats(oggmux_info *info, double timebase) {
         }
 
     } 
-    else if (timebase - last > 0.5 || timebase < last) {
+    else if (timebase - last > 0.5 || timebase < last || !remaining) {
         last = timebase;
         if (info->frontend) {
             fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
@@ -751,7 +751,7 @@ static void print_stats(oggmux_info *info, double timebase) {
                 remaining_seconds = (long) remaining % 60;
                 remaining_minutes = ((long) remaining / 60) % 60;
                 remaining_hours = (long) remaining / 3600;
-                fprintf (stderr,"\r      %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d ",
+                fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d               ",
                     hours, minutes, seconds, hundredths,
                     info->akbps, info->vkbps,
                     remaining_hours, remaining_minutes, remaining_seconds
@@ -1011,6 +1011,8 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
 
 void oggmux_close (oggmux_info *info) {
     int n;
+
+    print_stats(info, info->duration);
 
     ogg_stream_clear (&info->vo);
     vorbis_block_clear (&info->vb);
