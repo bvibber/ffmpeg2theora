@@ -2537,7 +2537,7 @@ int main(int argc, char **argv) {
                     (double) convert->context->start_time / AV_TIME_BASE;
                 if (info.twopass!=1 && !info.outfile) {
                     if (info.frontend)
-                        fprintf(info.frontend, "\"{result\": \"Unable to open output file.\"}\n");
+                        fprintf(info.frontend, "{\"code\": \"badfile\", \"error\":\"Unable to open output file.\"}\n");
                     else
                         fprintf(stderr,"\nUnable to open output file `%s'.\n", outputfile_name);
                     return(1);
@@ -2552,9 +2552,9 @@ int main(int argc, char **argv) {
         }
         else{
                 if (info.frontend)
-                    fprintf(info.frontend, "{\"code\": \"badfile\", \"input format not supported.\"}\n");
+                    fprintf(info.frontend, "{\"code\": \"badfile\", \"error\":\"input format not supported.\"}\n");
                 else if (output_json)
-                    fprintf(stdout, "{\"code\": \"badfile\", \"input format not supported.\"}\n");
+                    fprintf(stdout, "{\"code\": \"badfile\", \"error\":\"input format not supported.\"}\n");
                 else
                     fprintf(stderr,"\nUnable to decode input.\n");
                 return(1);
@@ -2563,9 +2563,9 @@ int main(int argc, char **argv) {
     }
     else{
             if (info.frontend)
-                fprintf(info.frontend, "{\"code\": \"badfile\", \"file does not exist or has unknown data format.\"}\n");
+                fprintf(info.frontend, "{\"code\": \"badfile\", \"error\":\"file does not exist or has unknown data format.\"}\n");
             else if (output_json)
-                fprintf(stdout, "{\"code\": \"badfile\", \"file does not exist or has unknown data format.\"}\n");
+                fprintf(stdout, "{\"code\": \"badfile\", \"error\":\"file does not exist or has unknown data format.\"}\n");
             else
                 fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
             return(1);
