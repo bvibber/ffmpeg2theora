@@ -2059,7 +2059,8 @@ int main(int argc, char **argv) {
     }
     // set some variables;
     init_info(&info);
-    theora_comment_init(&info.tc);
+    th_comment_init(&info.tc);
+    vorbis_comment_init(&info.vc);
 
     while((c=getopt_long(argc,argv,optstring,options,&long_option_index))!=EOF) {
         switch(c)
