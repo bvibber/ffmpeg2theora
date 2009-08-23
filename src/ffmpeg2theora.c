@@ -1914,7 +1914,7 @@ int main(int argc, char **argv) {
     int output_json = 0;
 
     static int flag = -1;
-    static int metadata_flag = 0;
+    static int metadata_flag = -1;
 
     AVInputFormat *input_fmt = NULL;
     AVFormatParameters params, *formatParams = NULL;
@@ -1980,15 +1980,15 @@ int main(int argc, char **argv) {
         {"frontend",0,&flag,FRONTEND_FLAG},
         {"frontendfile",required_argument,&flag,FRONTENDFILE_FLAG},
         {"info",no_argument,&flag,INFO_FLAG},
-        {"artist",required_argument,&metadata_flag,10},
-        {"title",required_argument,&metadata_flag,11},
-        {"date",required_argument,&metadata_flag,12},
-        {"location",required_argument,&metadata_flag,13},
-        {"organization",required_argument,&metadata_flag,14},
-        {"copyright",required_argument,&metadata_flag,15},
-        {"license",required_argument,&metadata_flag,16},
-        {"contact",required_argument,&metadata_flag,17},
-        {"source-hash",required_argument,&metadata_flag,18},
+        {"artist",required_argument,&metadata_flag,0},
+        {"title",required_argument,&metadata_flag,1},
+        {"date",required_argument,&metadata_flag,2},
+        {"location",required_argument,&metadata_flag,3},
+        {"organization",required_argument,&metadata_flag,4},
+        {"copyright",required_argument,&metadata_flag,5},
+        {"license",required_argument,&metadata_flag,6},
+        {"contact",required_argument,&metadata_flag,7},
+        {"source-hash",required_argument,&metadata_flag,8},
 
         {"help",0,NULL,'h'},
         {NULL,0,NULL,0}
@@ -2193,37 +2193,21 @@ int main(int argc, char **argv) {
                 }
 
                 /* metadata */
-                if (metadata_flag) {
-                    switch(metadata_flag) {
-                        case 10:
-                            theora_comment_add_tag(&info.tc, "ARTIST", optarg);
-                            break;
-                        case 11:
-                            theora_comment_add_tag(&info.tc, "TITLE", optarg);
-                            break;
-                        case 12:
-                            theora_comment_add_tag(&info.tc, "DATE", optarg);
-                            break;
-                        case 13:
-                            theora_comment_add_tag(&info.tc, "LOCATION", optarg);
-                            break;
-                        case 14:
-                            theora_comment_add_tag(&info.tc, "ORGANIZATION", optarg);
-                            break;
-                        case 15:
-                            theora_comment_add_tag(&info.tc, "COPYRIGHT", optarg);
-                            break;
-                        case 16:
-                            theora_comment_add_tag(&info.tc, "LICENSE", optarg);
-                            break;
-                        case 17:
-                            theora_comment_add_tag(&info.tc, "CONTACT", optarg);
-                            break;
-                        case 18:
-                            theora_comment_add_tag(&info.tc, "SOURCE HASH", optarg);
-                            break;
-                    }
-                    metadata_flag=0;
+                if (metadata_flag >= 0) {
+                    static char *metadata_keys[] = {
+                        "ARTIST",
+                        "TITLE",
+                        "DATE",
+                        "LOCATION",
+                        "ORGANIZATION",
+                        "COPYRIGHT",
+                        "LICENSE",
+                        "CONTACT",
+                        "SOURCE HASH"
+                    };
+                    th_comment_add_tag(&info.tc, metadata_keys[metadata_flag], optarg);
+                    vorbis_comment_add_tag(&info.vc, metadata_keys[metadata_flag], optarg);
+                    metadata_flag = -1;
                 }
                 break;
             case 'e':

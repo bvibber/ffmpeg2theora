@@ -254,6 +254,13 @@ void oggmux_init (oggmux_info *info) {
     srand (time (NULL));
     ogg_stream_init (&info->vo, rand ());
 
+    th_comment_add_tag(&info->tc, "ENCODER", PACKAGE_STRING);
+    vorbis_comment_add_tag(&info->vc, "ENCODER", PACKAGE_STRING);
+    if (strcmp(info->oshash, "0") > 0) {
+        th_comment_add_tag(&info->tc, "SOURCE_OSHASH", info->oshash);
+        vorbis_comment_add_tag(&info->vc, "SOURCE_OSHASH", info->oshash);
+    }
+
     if (!info->audio_only) {
         ogg_stream_init (&info->to, rand ());    /* oops, add one ot the above */
     }
@@ -275,11 +282,6 @@ void oggmux_init (oggmux_info *info) {
             exit (1);
         }
 
-        vorbis_comment_init (&info->vc);
-        vorbis_comment_add_tag (&info->vc, "ENCODER",PACKAGE_STRING);
-        if (strcmp(info->oshash,"0000000000000000") > 0) {
-            vorbis_comment_add_tag (&info->vc, "SOURCE_OSHASH", info->oshash);
-        }
         /* set up the analysis state and auxiliary encoding storage */
         vorbis_analysis_init (&info->vd, &info->vi);
         vorbis_block_init (&info->vd, &info->vb);
@@ -327,13 +329,6 @@ void oggmux_init (oggmux_info *info) {
 
     /* first packet will get its own page automatically */
     if (!info->audio_only) {
-        /* write the bitstream header packets with proper page interleave */
-        th_comment_init(&info->tc);
-        th_comment_add_tag(&info->tc, "ENCODER",PACKAGE_STRING);
-        if (strcmp(info->oshash,"0") > 0) {
-            th_comment_add_tag(&info->tc, "SOURCE_OSHASH", info->oshash);
-        }
-
         /* write the bitstream header packets with proper page interleave */
         /* first packet will get its own page automatically */
         if(th_encode_flushheader(info->td, &info->tc, &op) <= 0) {
