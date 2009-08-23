@@ -49,6 +49,8 @@
 #include "ffmpeg2theora.h"
 #include "avinfo.h"
 
+#define LENGTH(x) (sizeof(x) / sizeof(*x))
+
 enum {
     NULL_FLAG,
     DEINTERLACE_FLAG,
@@ -61,6 +63,7 @@ enum {
     NOAUDIO_FLAG,
     NOVIDEO_FLAG,
     NOSUBTITLES_FLAG,
+    NOMETADATA_FLAG,
     NOUPSCALING_FLAG,
     CROPTOP_FLAG,
     CROPBOTTOM_FLAG,
@@ -162,6 +165,7 @@ static ff2theora ff2theora_init() {
         this->disable_audio=0;
         this->disable_video=0;
         this->disable_subtitles=0;
+        this->disable_metadata=0;
         this->no_upscaling=0;
         this->video_index = -1;
         this->audio_index = -1;
@@ -1713,6 +1717,48 @@ int crop_check(ff2theora this, char *name, const char *arg)
     return crop_value;
 }
 
+void copy_metadata(const AVFormatContext *av)
+{
+    static const char *allowed[] = {
+        "TITLE",
+        "VERSION",
+        "ALBUM",
+        "TRACKNUMBER",
+        "ARTIST",
+        "PERFORMER",
+        "COPYRIGHT",
+        "LICENSE",
+        "ORGANIZATION",
+        "DESCRIPTION",
+        "GENRE",
+        "DATE",
+        "LOCATION",
+        "CONTACT",
+        "ISRC",
+
+        "AUTHOR"
+    };
+    AVMetadataTag *tag = NULL;
+    while ((tag = av_metadata_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
+        char uc_key[16];
+        int i;
+        for (i = 0; tag->key[i] != '\0' && i < LENGTH(uc_key) - 1; i++)
+            uc_key[i] = toupper(tag->key[i]);
+        uc_key[i] = '\0';
+
+        for (i = 0; i < LENGTH(allowed); i++)
+            if (!strcmp(uc_key, allowed[i]))
+                break;
+        if (i != LENGTH(allowed)) {
+            if (!strcmp(uc_key, "AUTHOR"))
+                strcpy(uc_key, "ARTIST");
+            if (th_comment_query(&info.tc, uc_key, 0) == NULL) {
+                th_comment_add_tag(&info.tc, uc_key, tag->value);
+                vorbis_comment_add_tag(&info.vc, uc_key, tag->value);
+            }
+        }
+    }
+}
 
 
 void print_presets_info() {
@@ -1786,7 +1832,7 @@ void print_usage() {
         "                         the cost is quality and bandwidth\n"
         "                         - 0: Slowest (best)\n"
         "                         - 1: Enable early skip (default)\n"
-	"                         - 2: Disable motion compensation\n"
+    "                         - 2: Disable motion compensation\n"
 
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
@@ -1869,6 +1915,7 @@ void print_usage() {
         "      --copyright        Copyright\n"
         "      --license          License\n"
         "      --contact          Contact link\n"
+        "      --nometadata       disables metadata from input\n"
         "\n"
         "Other options:\n"
 #ifndef _WIN32
@@ -1952,6 +1999,7 @@ int main(int argc, char **argv) {
         {"noaudio",0,&flag,NOAUDIO_FLAG},
         {"novideo",0,&flag,NOVIDEO_FLAG},
         {"nosubtitles",0,&flag,NOSUBTITLES_FLAG},
+        {"nometadata",0,&flag,NOMETADATA_FLAG},
         {"no-upscaling",0,&flag,NOUPSCALING_FLAG},
 #ifdef HAVE_FRAMEHOOK
         {"vhook",required_argument,&flag,VHOOK_FLAG},
@@ -2079,6 +2127,10 @@ int main(int argc, char **argv) {
                             break;
                         case NOSUBTITLES_FLAG:
                             convert->disable_subtitles = 1;
+                            flag = -1;
+                            break;
+                        case NOMETADATA_FLAG:
+                            convert->disable_metadata = 1;
                             flag = -1;
                             break;
                         case NOUPSCALING_FLAG:
@@ -2513,6 +2565,12 @@ int main(int argc, char **argv) {
                 if (convert->disable_subtitles) {
                     fprintf(stderr, "  [subtitles disabled].\n");
                 }
+                if (convert->disable_metadata) {
+                    fprintf(stderr, "  [metadata disabled].\n");
+                } else {
+                    copy_metadata(convert->context);
+                }
+
                 if (convert->sync) {
                     fprintf(stderr, "  Use A/V Sync from input container.\n");
                 }
