@@ -48,6 +48,7 @@ typedef struct ff2theora{
 
     int disable_subtitles;
     int disable_metadata;
+    int disable_oshash;
 
     int videostream;
     int picture_width;

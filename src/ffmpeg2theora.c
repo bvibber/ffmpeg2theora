@@ -64,6 +64,7 @@ enum {
     NOVIDEO_FLAG,
     NOSUBTITLES_FLAG,
     NOMETADATA_FLAG,
+    NOOSHASH_FLAG,
     NOUPSCALING_FLAG,
     CROPTOP_FLAG,
     CROPBOTTOM_FLAG,
@@ -166,6 +167,7 @@ static ff2theora ff2theora_init() {
         this->disable_video=0;
         this->disable_subtitles=0;
         this->disable_metadata=0;
+        this->disable_oshash=0;
         this->no_upscaling=0;
         this->video_index = -1;
         this->audio_index = -1;
@@ -1916,6 +1918,7 @@ void print_usage() {
         "      --license          License\n"
         "      --contact          Contact link\n"
         "      --nometadata       disables metadata from input\n"
+        "      --no-oshash        do not include oshash of source file(SOURCE_OSHASH)\n"
         "\n"
         "Other options:\n"
 #ifndef _WIN32
@@ -2000,6 +2003,7 @@ int main(int argc, char **argv) {
         {"novideo",0,&flag,NOVIDEO_FLAG},
         {"nosubtitles",0,&flag,NOSUBTITLES_FLAG},
         {"nometadata",0,&flag,NOMETADATA_FLAG},
+        {"no-oshash",0,&flag,NOOSHASH_FLAG},
         {"no-upscaling",0,&flag,NOUPSCALING_FLAG},
 #ifdef HAVE_FRAMEHOOK
         {"vhook",required_argument,&flag,VHOOK_FLAG},
@@ -2131,6 +2135,11 @@ int main(int argc, char **argv) {
                             break;
                         case NOMETADATA_FLAG:
                             convert->disable_metadata = 1;
+                            flag = -1;
+                            break;
+                        case NOOSHASH_FLAG:
+                            convert->disable_oshash = 1;
+                            sprintf(info.oshash,"0");
                             flag = -1;
                             break;
                         case NOUPSCALING_FLAG:
@@ -2518,11 +2527,13 @@ int main(int argc, char **argv) {
     }
     if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0) {
         if (av_find_stream_info(convert->context) >= 0) {
+            if(!convert->disable_oshash) {
 #ifdef WIN32
-            sprintf(info.oshash,"%016I64x", gen_oshash(inputfile_name));
+                sprintf(info.oshash,"%016I64x", gen_oshash(inputfile_name));
 #else
-            sprintf(info.oshash,"%016qx", gen_oshash(inputfile_name));
+                sprintf(info.oshash,"%016qx", gen_oshash(inputfile_name));
 #endif
+            }
 #ifdef WIN32
                 if (!strcmp(outputfile_name,"-") || !strcmp(outputfile_name,"/dev/stdout")) {
                     _setmode(_fileno(stdout), _O_BINARY);
