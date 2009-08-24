@@ -4,8 +4,13 @@ import os
 
 import SCons
 
+def svnversion():
+    f = os.popen("svnversion")
+    version = f.read().strip()
+    f.close()
+    return version
 
-pkg_version="0.24+svn"
+pkg_version="0.24+svn" + svnversion()
 pkg_name="ffmpeg2theora"
 
 scons_version=(0,97,0)
