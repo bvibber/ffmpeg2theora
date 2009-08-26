@@ -1,10 +1,10 @@
 #!/bin/sh
 
 #optional, if you have those libs installed:
-#extra=" --enable-libopencore-amrnb --enable-libopencore-amrwb"
+#extra="--enable-version3 --enable-libopencore-amrnb --enable-libopencore-amrwb"
 
 #apt-get install liba52-dev libfaad-dev libgsm1-dev
-#extra=" --enable-libfaad --enable-libgsm"
+#extra="$extra --enable-libfaad --enable-libgsm"
 
 common="--enable-gpl --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
 
