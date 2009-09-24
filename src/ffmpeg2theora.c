@@ -2491,7 +2491,10 @@ int main(int argc, char **argv) {
             convert->video_quality = 0;
     } else {
         if (convert->video_quality == -1)
-            convert->video_quality = rint(5*6.3); // default quality 5
+            if (convert->video_bitrate > 0)
+                convert->video_quality = 0;
+            else
+                convert->video_quality = rint(5*6.3); // default quality 5
     }
     if (convert->buf_delay>0 && convert->video_bitrate == 0) {
         fprintf(stderr, "Buffer delay can only be used with target bitrate (-V).\n");
