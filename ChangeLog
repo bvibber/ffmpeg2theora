@@ -5,6 +5,7 @@ svn
     - frontend mode outputs one json dict per line now
     - select video stream if input has more than one video(--videostream N)
     - update to ffmpeg trunk and new ffmepg api
+    - use new libtheora 1.1
     - use new libtheora encoding api
       add new encoding options --soft-target, --buf-delay
     - two pass encoding, --two-pass

@@ -1776,11 +1776,11 @@ void print_presets_info() {
         //  "v2v presets - more info at http://wiki.v2v.cc/presets"
         "v2v presets:\n"
         "  preview        Video: 320x240 if fps ~ 30, 384x288 otherwise\n"
-        "                        Quality 5\n"
+        "                        Quality 6\n"
         "                 Audio: Max 2 channels - Quality 1\n"
         "\n"
         "  pro            Video: 720x480 if fps ~ 30, 720x576 otherwise\n"
-        "                        Quality 7\n"
+        "                        Quality 8\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  videobin       Video: 512x288 for 16:9 material, 448x336 for 4:3 material\n"
@@ -1788,7 +1788,7 @@ void print_presets_info() {
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  padma          Video: 640x360 for 16:9 material, 640x480 for 4:3 material\n"
-        "                        Quality 5\n"
+        "                        Quality 6\n"
         "                 Audio: Max 2 channels - Quality 3\n"
         "\n"
         "  padma-stream   Video: 128x72 for 16:9 material, 128x96 for 4:3 material\n"
@@ -1814,7 +1814,7 @@ void print_usage() {
         "                          '"PACKAGE" -p info' for more informations\n"
         "\n"
         "Video output options:\n"
-        "  -v, --videoquality     [0 to 10] encoding quality for video (default: 5)\n"
+        "  -v, --videoquality     [0 to 10] encoding quality for video (default: 6)\n"
         "                                   use higher values for better quality\n"
         "  -V, --videobitrate     encoding bitrate for video (kb/s)\n"
         "      --soft-target      Use a large reservoir and treat the rate\n"
@@ -2380,14 +2380,14 @@ int main(int argc, char **argv) {
                 else if (!strcmp(optarg, "pro")) {
                     //need a way to set resize here. and not later
                     convert->preset=V2V_PRESET_PRO;
-                    convert->video_quality = rint(7*6.3);
+                    convert->video_quality = rint(8*6.3);
                     convert->audio_quality = 3.00;
                     info.speed_level = 0;
                 }
                 else if (!strcmp(optarg,"preview")) {
                     //need a way to set resize here. and not later
                     convert->preset=V2V_PRESET_PREVIEW;
-                    convert->video_quality = rint(5*6.3);
+                    convert->video_quality = rint(6*6.3);
                     convert->audio_quality = 1.00;
                     info.speed_level = 0;
                 }
@@ -2400,7 +2400,7 @@ int main(int argc, char **argv) {
                 }
                 else if (!strcmp(optarg,"padma")) {
                     convert->preset=V2V_PRESET_PADMA;
-                    convert->video_quality = rint(5*6.3);
+                    convert->video_quality = rint(6*6.3);
                     convert->audio_quality = 3.00;
                     info.speed_level = 0;
                 }
@@ -2494,7 +2494,7 @@ int main(int argc, char **argv) {
             if (convert->video_bitrate > 0)
                 convert->video_quality = 0;
             else
-                convert->video_quality = rint(5*6.3); // default quality 5
+                convert->video_quality = rint(6*6.3); // default quality 5
     }
     if (convert->buf_delay>0 && convert->video_bitrate == 0) {
         fprintf(stderr, "Buffer delay can only be used with target bitrate (-V).\n");
