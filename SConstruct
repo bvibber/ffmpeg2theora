@@ -112,7 +112,7 @@ if not conf.CheckPKGConfig(pkgconfig_version):
    print 'pkg-config >= %s not found.' % pkgconfig_version 
    Exit(1)
 
-XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theoraenc >= 1.1beta3"
+XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theoraenc >= 1.1.0"
 
 if not conf.CheckPKG(XIPH_LIBS): 
   print 'some xiph libs are missing, ffmpeg2theora depends on %s' % XIPH_LIBS

@@ -2490,8 +2490,6 @@ int main(int argc, char **argv) {
         if (convert->video_quality == -1)
             convert->video_quality = 0;
     } else {
-        if (convert->video_bitrate > 0)
-            convert->video_quality = 0;
         if (convert->video_quality == -1)
             convert->video_quality = rint(5*6.3); // default quality 5
     }
