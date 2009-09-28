@@ -10,8 +10,7 @@ def svnversion():
     f.close()
     return version
 
-#pkg_version="0.25+svn" + svnversion()
-pkg_version="0.25"
+pkg_version="0.25+svn" + svnversion()
 pkg_name="ffmpeg2theora"
 
 scons_version=(0,97,0)
