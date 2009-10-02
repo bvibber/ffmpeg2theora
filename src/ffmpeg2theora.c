@@ -468,6 +468,7 @@ void ff2theora_output(ff2theora this) {
     unsigned int i;
     AVCodecContext *aenc = NULL;
     AVCodecContext *venc = NULL;
+    int venc_pix_fmt;
     AVStream *astream = NULL;
     AVStream *vstream = NULL;
     AVCodec *acodec = NULL;
@@ -523,10 +524,10 @@ void ff2theora_output(ff2theora this) {
     if (this->video_index >= 0) {
         vstream = this->context->streams[this->video_index];
         venc = vstream->codec;
-
         vcodec = avcodec_find_decoder (venc->codec_id);
         display_width = venc->width;
         display_height = venc->height;
+        venc_pix_fmt =  venc->pix_fmt;
 
         if (vstream->time_base.den && vstream->time_base.num
                                   && av_q2d(vstream->time_base) > 0.001) {
@@ -577,7 +578,7 @@ void ff2theora_output(ff2theora this) {
                   1024*1024);
 
         if (vstream->sample_aspect_ratio.num && // default
-            av_cmp_q(vstream->sample_aspect_ratio, vstream->codec->sample_aspect_ratio)) {
+            av_cmp_q(vstream->sample_aspect_ratio, venc->sample_aspect_ratio)) {
             sample_aspect_ratio.num = vstream->sample_aspect_ratio.num;
             sample_aspect_ratio.den = vstream->sample_aspect_ratio.den;
         } else {
@@ -806,7 +807,7 @@ void ff2theora_output(ff2theora this) {
 
         if (this->frame_width > 0 || this->frame_height > 0) {
             this->sws_colorspace_ctx = sws_getContext(
-                            display_width, display_height, venc->pix_fmt,
+                            display_width, display_height, venc_pix_fmt,
                             display_width, display_height, this->pix_fmt,
                             sws_flags, NULL, NULL, NULL
             );
@@ -996,17 +997,17 @@ void ff2theora_output(ff2theora this) {
             audio_done = 1;
 
         if (!info.audio_only) {
-            frame_p = frame = frame_alloc(vstream->codec->pix_fmt,
-                            vstream->codec->width,vstream->codec->height);
+            frame_p = frame = frame_alloc(venc_pix_fmt,
+                            venc->width,venc->height);
             output_tmp_p = output_tmp = frame_alloc(this->pix_fmt,
-                            vstream->codec->width, vstream->codec->height);
+                            venc->width, venc->height);
             output_p = output = frame_alloc(this->pix_fmt,
-                            vstream->codec->width,vstream->codec->height);
+                            venc->width,venc->height);
             output_resized_p = output_resized = frame_alloc(this->pix_fmt,
                             this->picture_width, this->picture_height);
             output_cropped_p = output_cropped = frame_alloc(this->pix_fmt,
-                            vstream->codec->width-this->frame_leftBand,
-                            vstream->codec->height-this->frame_topBand);
+                            venc->width-this->frame_leftBand,
+                            venc->height-this->frame_topBand);
             output_buffered_p = output_buffered = frame_alloc(this->pix_fmt,
                             this->frame_width, this->frame_height);
             output_padded_p = output_padded = frame_alloc(this->pix_fmt,
@@ -1257,7 +1258,7 @@ void ff2theora_output(ff2theora this) {
                       first frame decodec in case its not a keyframe
                     */
                     if (pkt.stream_index == this->video_index) {
-                      avcodec_decode_video2(vstream->codec, frame, &got_picture, &pkt);
+                      avcodec_decode_video2(venc, frame, &got_picture, &pkt);
                     }
                     av_free_packet (&pkt);
                     continue;
@@ -1276,7 +1277,7 @@ void ff2theora_output(ff2theora this) {
                 while(video_eos || avpkt.size > 0) {
                     int dups = 0;
                     static th_ycbcr_buffer ycbcr;
-                    len1 = avcodec_decode_video2(vstream->codec, frame, &got_picture, &avpkt);
+                    len1 = avcodec_decode_video2(venc, frame, &got_picture, &avpkt);
                     if (len1>=0) {
                         if (got_picture) {
                             // this is disabled by default since it does not work
@@ -1320,7 +1321,7 @@ void ff2theora_output(ff2theora this) {
                             //For audio only files command line option"-e" will not work
                             //as we don't increment frame_count in audio section.
 
-                            if (venc->pix_fmt != this->pix_fmt) {
+                            if (venc_pix_fmt != this->pix_fmt) {
                                 sws_scale(this->sws_colorspace_ctx,
                                 frame->data, frame->linesize, 0, display_height,
                                 output_tmp->data, output_tmp->linesize);
