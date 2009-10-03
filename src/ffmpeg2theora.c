@@ -543,8 +543,11 @@ void ff2theora_output(ff2theora this) {
         if (fps > 10000)
             fps /= 1000;
 
-        if (this->force_input_fps.num > 0)
+        if (this->force_input_fps.num > 0) {
             fps=(double)this->force_input_fps.num / this->force_input_fps.den;
+            vstream_fps.num = this->force_input_fps.num;
+            vstream_fps.den = this->force_input_fps.den;
+        }
         if (vcodec == NULL || avcodec_open (venc, vcodec) < 0) {
             this->video_index = -1;
         }
