@@ -110,8 +110,6 @@ enum {
 #define NTSC_FULL_HEIGHT 480
 
 
-static int sws_flags = SWS_BICUBIC;
-
 oggmux_info info;
 
 static int using_stdin = 0;
@@ -475,6 +473,7 @@ void ff2theora_output(ff2theora this) {
     AVCodec *vcodec = NULL;
     pp_mode_t *ppMode = NULL;
     pp_context_t *ppContext = NULL;
+    int sws_flags;
     float frame_aspect = 0;
     double fps = 0.0;
     AVRational vstream_fps;
@@ -807,6 +806,14 @@ void ff2theora_output(ff2theora this) {
            expect.*/
         this->frame_x_offset = this->frame_width-this->picture_width>>1&~1;
         this->frame_y_offset = this->frame_height-this->picture_height>>1&~1;
+
+        //Bicubic  (best for upscaling),
+        if(display_width - (this->frame_leftBand + this->frame_rightBand) < this->picture_width |
+           display_height - (this->frame_topBand + this->frame_bottomBand) < this->picture_height) {
+           sws_flags = SWS_BICUBIC;
+        } else {        //Bilinear (best for downscaling),
+           sws_flags = SWS_BILINEAR;
+        }
 
         if (this->frame_width > 0 || this->frame_height > 0) {
             this->sws_colorspace_ctx = sws_getContext(
