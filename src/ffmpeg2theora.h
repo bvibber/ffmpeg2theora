@@ -90,7 +90,8 @@ typedef struct ff2theora{
     AVRational framerate_new;
     AVRational framerate;
 
-    double pts_offset; /* between given input pts and calculated output pts */
+    int64_t pts_offset_frame; /* frame, which pts is used as pts_offset */
+    int64_t pts_offset; /* base value for input pts */
     int64_t frame_count; /* total video frames output so far */
     int64_t sample_count; /* total audio samples output so far */
 

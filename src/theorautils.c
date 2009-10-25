@@ -829,8 +829,8 @@ static void write_kate_page(oggmux_info *info, int idx)
     ks->katepage_valid = 0;
     info->k_pkg -= ogg_page_packets((ogg_page *)&ks->katepage);
 #ifdef OGGMUX_DEBUG
-    ks->k_page++;
-    fprintf(stderr,"\nkate page %d (%d pkgs) | pkg remaining %d\n",ks->k_page,ogg_page_packets((ogg_page *)&info->katepage),info->k_pkg);
+    info->k_page++;
+    fprintf(stderr,"\nkate page %d (%d pkgs) | pkg remaining %d\n",info->k_page,ogg_page_packets((ogg_page *)&ks->katepage),info->k_pkg);
 #endif
 
 
@@ -876,10 +876,10 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
             // this way seeking is much better,
             // not sure if 23 packets  is a good value. it works though
             int v_next=0;
-            if (info->v_pkg>22 && ogg_stream_flush(&info->to, &og) > 0) {
+            if (info->v_pkg>22 && ogg_stream_flush(&info->to, &og)) {
                 v_next=1;
             }
-            else if (ogg_stream_pageout(&info->to, &og) > 0) {
+            else if (ogg_stream_pageout(&info->to, &og)) {
                 v_next=1;
             }
             if (v_next) {
@@ -902,10 +902,10 @@ void oggmux_flush (oggmux_info *info, int e_o_s)
             // this way seeking is much better,
             // not sure if 23 packets  is a good value. it works though
             int a_next=0;
-            if (info->a_pkg>22 && ogg_stream_flush(&info->vo, &og) > 0) {
+            if (info->a_pkg>22 && ogg_stream_flush(&info->vo, &og)) {
                 a_next=1;
             }
-            else if (ogg_stream_pageout(&info->vo, &og) > 0) {
+            else if (ogg_stream_pageout(&info->vo, &og)) {
                 a_next=1;
             }
             if (a_next) {

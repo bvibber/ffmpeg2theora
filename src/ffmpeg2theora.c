@@ -59,7 +59,7 @@ enum {
     FIRSTPASS_FLAG,
     SECONDPASS_FLAG,
     OPTIMIZE_FLAG,
-    SYNC_FLAG,
+    NOSYNC_FLAG,
     NOAUDIO_FLAG,
     NOVIDEO_FLAG,
     NOSUBTITLES_FLAG,
@@ -188,7 +188,7 @@ static ff2theora ff2theora_init() {
         this->keyint=0;
         this->force_input_fps.num = -1;
         this->force_input_fps.den = 1;
-        this->sync=0;
+        this->sync = 1;
         this->aspect_numerator=0;
         this->aspect_denominator=0;
         this->frame_aspect=0;
@@ -528,30 +528,32 @@ void ff2theora_output(ff2theora this) {
         display_height = venc->height;
         venc_pix_fmt =  venc->pix_fmt;
 
-        if (vstream->time_base.den && vstream->time_base.num
+        if (this->force_input_fps.num > 0)
+            vstream_fps = this->force_input_fps;
+        else if (vstream->time_base.den && vstream->time_base.num
                                   && av_q2d(vstream->time_base) > 0.001) {
             vstream_fps.num = vstream->time_base.den;
-            vstream_fps.den =  vstream->time_base.num;
-            fps = 1/av_q2d(vstream->time_base);
+            vstream_fps.den = vstream->time_base.num;
         } else {
-            fps = (double) vstream->r_frame_rate.num / vstream->r_frame_rate.den;
-            vstream_fps.num = vstream->r_frame_rate.num;
-            vstream_fps.den = vstream->r_frame_rate.den;
+            vstream_fps.num = venc->time_base.den;
+            vstream_fps.den = venc->time_base.num * venc->ticks_per_frame;
         }
-
-        if (fps > 10000)
-            fps /= 1000;
-
-        if (this->force_input_fps.num > 0) {
-            fps=(double)this->force_input_fps.num / this->force_input_fps.den;
-            vstream_fps.num = this->force_input_fps.num;
-            vstream_fps.den = this->force_input_fps.den;
+        if (av_q2d(vstream->r_frame_rate) < av_q2d(vstream_fps)) {
+            vstream_fps = vstream->r_frame_rate;
         }
+        this->fps = fps = av_q2d(vstream_fps);
+            
         if (vcodec == NULL || avcodec_open (venc, vcodec) < 0) {
             this->video_index = -1;
         }
         this->fps = fps;
-
+#if DEBUG
+        fprintf(stderr, "FPS1(stream): %f\n", 1/av_q2d(vstream->time_base));
+        fprintf(stderr, "FPS2(stream.r_frame_rate): %f\n", av_q2d(vstream->r_frame_rate));
+        fprintf(stderr, "FPS3(codec): %f\n", 1/av_q2d(venc->time_base));
+        fprintf(stderr, "ticks per frame: %i\n", venc->ticks_per_frame);
+        fprintf(stderr, "FPS used: %f\n", fps);
+#endif
         if (this->picture_width && !this->picture_height) {
             this->picture_height = this->picture_width / ((double)display_width/display_height);
             this->picture_height = this->picture_height - this->picture_height%2;
@@ -581,11 +583,9 @@ void ff2theora_output(ff2theora this) {
 
         if (vstream->sample_aspect_ratio.num && // default
             av_cmp_q(vstream->sample_aspect_ratio, venc->sample_aspect_ratio)) {
-            sample_aspect_ratio.num = vstream->sample_aspect_ratio.num;
-            sample_aspect_ratio.den = vstream->sample_aspect_ratio.den;
+            sample_aspect_ratio = vstream->sample_aspect_ratio;
         } else {
-            sample_aspect_ratio.num = venc->sample_aspect_ratio.num;
-            sample_aspect_ratio.den = venc->sample_aspect_ratio.den;
+            sample_aspect_ratio = venc->sample_aspect_ratio;
         }
         if (venc->sample_aspect_ratio.num) {
             av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
@@ -743,10 +743,8 @@ void ff2theora_output(ff2theora this) {
                 this->picture_width = display_width;
                 this->picture_height = display_width * display_aspect_ratio.den / display_aspect_ratio.num;
             }
-            if (this->fps < (double)this->framerate_new.num / this->framerate_new.den) {
-                this->framerate_new.num = vstream_fps.num;
-                this->framerate_new.den = vstream_fps.den;
-            }
+            if (this->fps < av_q2d(this->framerate_new))
+                this->framerate_new = vstream_fps;
         }
 
         if (sample_aspect_ratio.num!=0 && this->frame_aspect==0) {
@@ -849,9 +847,9 @@ void ff2theora_output(ff2theora this) {
 
         lut_init(this);
     }
-    if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->framerate_new.num > 0 && this->fps != (double)this->framerate_new.num / this->framerate_new.den) {
+    if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->framerate_new.num > 0 && av_cmp_q(vstream_fps, this->framerate_new)) {
         fprintf(stderr, "  Resample Framerate: %0.3f => %0.3f\n",
-                        this->fps, (double)this->framerate_new.num / this->framerate_new.den);
+                        this->fps, av_q2d(this->framerate_new));
     }
     if (this->audio_index >= 0) {
         astream = this->context->streams[this->audio_index];
@@ -1039,12 +1037,10 @@ void ff2theora_output(ff2theora this) {
             if (this->framerate_new.num > 0) {
                 // new framerate is interger only right now,
                 // so denominator is always 1
-                this->framerate.num = this->framerate_new.num;
-                this->framerate.den = this->framerate_new.den;
+                this->framerate = this->framerate_new;
             }
             else {
-                this->framerate.num = vstream_fps.num;
-                this->framerate.den = vstream_fps.den;
+                this->framerate = vstream_fps;
             }
             info.ti.fps_numerator = this->framerate.num;
             info.ti.fps_denominator = this->framerate.den;
@@ -1226,7 +1222,7 @@ void ff2theora_output(ff2theora this) {
         }
 
         if (this->framerate_new.num > 0) {
-            double framerate_new = (double)this->framerate_new.num / this->framerate_new.den;
+            double framerate_new = av_q2d(this->framerate_new);
             framerate_add = framerate_new/this->fps;
             //fprintf(stderr, "calculating framerate addition to %f\n",framerate_add);
             this->fps = framerate_new;
@@ -1259,7 +1255,7 @@ void ff2theora_output(ff2theora this) {
                 /* check for start time */
                 if (!synced) {
                     AVStream *stream=this->context->streams[pkt.stream_index];
-                    float t = (float)pkt.pts * stream->time_base.num / stream->time_base.den - this->start_time;
+                    double t = pkt.pts * av_q2d(stream->time_base) - this->start_time;
                     synced = (t >= 0);
                 }
                 if (!synced) {
@@ -1292,39 +1288,32 @@ void ff2theora_output(ff2theora this) {
                         if (got_picture) {
                             // this is disabled by default since it does not work
                             // for all input formats the way it should.
-                            if (this->sync == 1) {
-                                double delta = ((double) pkt.dts /
-                                    AV_TIME_BASE - this->pts_offset) *
-                                    this->fps - this->frame_count;
-                                /* 0.7 is an arbitrary value */
+                            if (this->sync == 1 && pkt.dts != AV_NOPTS_VALUE) {
+                                if (this->pts_offset == AV_NOPTS_VALUE) {
+                                    this->pts_offset = pkt.dts;
+                                    this->pts_offset_frame = this->frame_count;
+                                }
+
+                                double fr = 1/av_q2d(this->framerate);
+
+                                double ivtime = (pkt.dts - this->pts_offset) * av_q2d(vstream->time_base);
+                                double ovtime = (this->frame_count - this->pts_offset_frame) / av_q2d(this->framerate);
+                                double delta = ivtime - ovtime;
+                              
                                 /* it should be larger than half a frame to
                                  avoid excessive dropping and duplicating */
-                                if (delta < -0.7) {
+
+                                if (delta < -0.6*fr) {
 #ifdef DEBUG
                                     fprintf(stderr, "Frame dropped to maintain sync\n");
 #endif
                                     break;
                                 }
-                                if (delta > 0.7) {
-                                    //dups = lrintf(delta);
-                                    dups = (int)delta;
+                                if (delta >= 1.5*fr) {
+                                    dups = (int)(0.5+delta*av_q2d(this->framerate)) - 1;
 #ifdef DEBUG
-                                    fprintf(stderr, "%d duplicate %s added to maintain sync\n",
-                                            dups, (dups == 1) ? "frame" : "frames");
+                                    fprintf(stderr, "%d duplicate %s added to maintain sync\n", dups, (dups == 1) ? "frame" : "frames");
 #endif
-                                }
-                            }
-
-                            if (this->framerate_new.num > 0) {
-                                framerate_tmpcount += framerate_add;
-                                if (framerate_tmpcount < (double)(this->frame_count+1)) {
-                                    got_picture = 0;
-                                }
-                                else {
-                                    dups = 0;
-                                    while (framerate_tmpcount >= (double)(this->frame_count+2+dups)) {
-                                        dups += 1;
-                                    }
                                 }
                             }
 
@@ -1354,7 +1343,7 @@ void ff2theora_output(ff2theora this) {
                             // now output
 
                             if (ppMode)
-                                pp_postprocess(output->data, output->linesize,
+                                pp_postprocess((const uint8_t **)output->data, output->linesize,
                                                output->data, output->linesize,
                                                display_width, display_height,
                                                output->qscale_table, output->qstride,
@@ -1404,16 +1393,14 @@ void ff2theora_output(ff2theora this) {
                     if (!first) {
                         if (got_picture || video_eos) {
                             prepare_ycbcr_buffer(this, ycbcr, output_buffered);
-                            do {
-                                oggmux_add_video(&info, ycbcr, video_eos);
-                                if(video_eos) {
-                                    video_done = 1;
-                                }
-                                this->frame_count++;
-                                if (info.passno == 1)
-                                    info.videotime = (double)this->frame_count * \
-                                         this->framerate.den / this->framerate.num;
-                            } while(dups--);
+                            th_encode_ctl(info.td,TH_ENCCTL_SET_DUP_COUNT,&dups,sizeof(int));
+                            oggmux_add_video(&info, ycbcr, video_eos);
+                            if(video_eos) {
+                                video_done = 1;
+                            }
+                            this->frame_count += dups+1;
+                            if (info.passno == 1)
+                                info.videotime = this->frame_count / av_q2d(this->framerate);
                         }
                     }
                     if (got_picture) {
@@ -1427,8 +1414,6 @@ void ff2theora_output(ff2theora this) {
             }
             if (info.passno!=1)
               if ((audio_eos && !audio_done) || (ret >= 0 && pkt.stream_index == this->audio_index)) {
-                this->pts_offset = (double) pkt.pts / AV_TIME_BASE -
-                    (double) this->sample_count / this->sample_rate;
                 while((audio_eos && !audio_done) || avpkt.size > 0 ) {
                     int samples=0;
                     int samples_out=0;
@@ -1485,16 +1470,15 @@ void ff2theora_output(ff2theora this) {
                   char *allocated_utf8 = NULL;
                   const char *utf8 = pkt.data;
                   size_t utf8len = pkt.size;
-                  float t = (float)pkt.pts * stream->time_base.num / stream->time_base.den - this->start_time;
+                  float t = pkt.pts * av_q2d(stream->time_base) - this->start_time;
                   // my test case has 0 duration, how clever of that. I assume it's that old 'ends whenever the next
                   // one starts' hack, but it means I don't know in advance what duration it has. Great!
                   float duration;
-                  if (pkt.duration <= 0) {
+                  if (pkt.duration <= 0)
                     duration = 2.0f;
-                  }
-                  else {
-                    duration  = (float)pkt.duration * stream->time_base.num / stream->time_base.den;
-                  }
+                  else
+                    duration = pkt.duration * av_q2d(stream->time_base);
+                  
                   // SSA has control stuff in there, extract raw text
                   if (enc->codec_id == CODEC_ID_SSA) {
                     char *dupe = malloc(utf8len+1); // not zero terminated, so make it so
@@ -1909,9 +1893,8 @@ void print_usage() {
         "                          use this to select another audio stream\n"
         "      --videostream id   by default the first video stream is selected,\n"
         "                          use this to select another video stream\n"
-        "      --sync             use A/V sync from input container. Since this does\n"
-        "                          not work with all input format you have to manually\n"
-        "                          enable it if you have issues with A/V sync\n"
+        "      --nosync           do not use A/V sync from input container.\n"
+        "                         try this if you have issues with A/V sync\n"
 #ifdef HAVE_KATE
         "Subtitles options:\n"
         "      --subtitles file                 use subtitles from the given file (SubRip (.srt) format)\n"
@@ -2045,7 +2028,7 @@ int main(int argc, char **argv) {
         {"subtitles-category",required_argument,&flag,SUBTITLES_CATEGORY_FLAG},
         {"starttime",required_argument,NULL,'s'},
         {"endtime",required_argument,NULL,'e'},
-        {"sync",0,&flag,SYNC_FLAG},
+        {"nosync",0,&flag,NOSYNC_FLAG},
         {"optimize",0,&flag,OPTIMIZE_FLAG},
         {"speedlevel",required_argument,&flag,SPEEDLEVEL_FLAG},
         {"frontend",0,&flag,FRONTEND_FLAG},
@@ -2137,8 +2120,8 @@ int main(int argc, char **argv) {
                             flag = -1;
                             break;
 
-                        case SYNC_FLAG:
-                            convert->sync = 1;
+                        case NOSYNC_FLAG:
+                            convert->sync = 0;
                             flag = -1;
                             break;
                         case NOAUDIO_FLAG:
@@ -2605,12 +2588,12 @@ int main(int argc, char **argv) {
                     copy_metadata(convert->context);
                 }
 
-                if (convert->sync) {
-                    fprintf(stderr, "  Use A/V Sync from input container.\n");
+                if (!convert->sync) {
+                    fprintf(stderr, "  Ignore A/V Sync from input container.\n");
                 }
 
-                convert->pts_offset =
-                    (double) convert->context->start_time / AV_TIME_BASE;
+                convert->pts_offset = AV_NOPTS_VALUE;
+
                 if (info.twopass!=1 && !info.outfile) {
                     if (info.frontend)
                         fprintf(info.frontend, "{\"code\": \"badfile\", \"error\":\"Unable to open output file.\"}\n");

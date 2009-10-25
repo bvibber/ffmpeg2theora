@@ -29,7 +29,7 @@
 #endif
 #include "ogg/ogg.h"
 
-// #define OGGMUX_DEBUG
+//#define OGGMUX_DEBUG
 
 #define SKELETON_VERSION_MAJOR 3
 #define SKELETON_VERSION_MINOR 0
