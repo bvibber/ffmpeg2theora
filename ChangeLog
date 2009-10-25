@@ -1,3 +1,7 @@
+svn
+    - use a/v sync from input container
+      this should fix many issues that came up with variable framerate inputs
+
 0.25 2009-09-28
     - fix input from codecs where width/height is not encoded width/height
     - fix a/v sync issues with some mov/mp4 files with strange framerates
