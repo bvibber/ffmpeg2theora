@@ -2142,7 +2142,7 @@ int main(int argc, char **argv) {
                             break;
                         case NOOSHASH_FLAG:
                             convert->disable_oshash = 1;
-                            sprintf(info.oshash,"0");
+                            sprintf(info.oshash,"0000000000000000");
                             flag = -1;
                             break;
                         case NOUPSCALING_FLAG:
@@ -2610,24 +2610,24 @@ int main(int argc, char **argv) {
                 ff2theora_output(convert);
         }
         else{
-                if (info.frontend)
-                    fprintf(info.frontend, "{\"code\": \"badfile\", \"error\":\"input format not supported.\"}\n");
-                else if (output_json)
-                    fprintf(stdout, "{\"code\": \"badfile\", \"error\":\"input format not supported.\"}\n");
-                else
-                    fprintf(stderr,"\nUnable to decode input.\n");
-                return(1);
+            if (info.frontend)
+                json_format_info(info.frontend, NULL, inputfile_name);
+            else if (output_json)
+                json_format_info(stdout, NULL, inputfile_name);
+            else
+                fprintf(stderr,"\nUnable to decode input.\n");
+            return(1);
         }
         av_close_input_file(convert->context);
     }
     else{
-            if (info.frontend)
-                fprintf(info.frontend, "{\"code\": \"badfile\", \"error\":\"file does not exist or has unknown data format.\"}\n");
-            else if (output_json)
-                fprintf(stdout, "{\"code\": \"badfile\", \"error\":\"file does not exist or has unknown data format.\"}\n");
-            else
-                fprintf(stderr, "\nFile `%s' does not exist or has an unknown data format.\n", inputfile_name);
-            return(1);
+        if (info.frontend)
+            json_format_info(info.frontend, NULL, inputfile_name);
+        else if (output_json)
+            json_format_info(stdout, NULL, inputfile_name);
+        else
+            fprintf(stderr, "\nFile `%s' does not exist or has an unknown format.\n", inputfile_name);
+        return(1);
     }
     ff2theora_close(convert);
     } // 2pass loop

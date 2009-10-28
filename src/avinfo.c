@@ -402,49 +402,53 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
     unsigned long long filesize;
 
     fprintf(output, "{\n");
-    if (ic->duration != AV_NOPTS_VALUE) {
-        float secs;
-        secs = (float)ic->duration / AV_TIME_BASE;
-        json_add_key_value(output, "duration", &secs, JSON_FLOAT, 0, 1);
-    } else {
-        float t = -1;
-        json_add_key_value(output, "duration", &t, JSON_FLOAT, 0, 1);
-    }
-    if (ic->bit_rate) {
-        float t = (float)ic->bit_rate / 1000;
-        json_add_key_value(output, "bitrate", &t, JSON_FLOAT, 0, 1);
-    }
-
-    do_indent(output, 1);
-    fprintf(output, "\"video\": [");
-    if(ic->nb_programs) {
-        int j, k;
-        for(j=0; j<ic->nb_programs; j++) {
-            for(k=0; k<ic->programs[j]->nb_stream_indexes; k++)
-                json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, CODEC_TYPE_VIDEO);
-         }
-    } else {
-        for(i=0;i<ic->nb_streams;i++) {
-            json_stream_format(output, ic, i, 2, !i, CODEC_TYPE_VIDEO);
+    if(ic) {
+        if (ic->duration != AV_NOPTS_VALUE) {
+            float secs;
+            secs = (float)ic->duration / AV_TIME_BASE;
+            json_add_key_value(output, "duration", &secs, JSON_FLOAT, 0, 1);
+        } else {
+            float t = -1;
+            json_add_key_value(output, "duration", &t, JSON_FLOAT, 0, 1);
         }
-    }
-    fprintf(output, "],\n");
-
-    do_indent(output, 1);
-    fprintf(output, "\"audio\": [");
-    if(ic->nb_programs) {
-        int j, k;
-        for(j=0; j<ic->nb_programs; j++) {
-            for(k=0; k<ic->programs[j]->nb_stream_indexes; k++)
-                json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, CODEC_TYPE_AUDIO);
-         }
-    } else {
-        for(i=0;i<ic->nb_streams;i++) {
-            json_stream_format(output, ic, i, 2, !i, CODEC_TYPE_AUDIO);
+        if (ic->bit_rate) {
+            float t = (float)ic->bit_rate / 1000;
+            json_add_key_value(output, "bitrate", &t, JSON_FLOAT, 0, 1);
         }
-    }
-    fprintf(output, "],\n");
 
+        do_indent(output, 1);
+        fprintf(output, "\"video\": [");
+        if(ic->nb_programs) {
+            int j, k;
+            for(j=0; j<ic->nb_programs; j++) {
+                for(k=0; k<ic->programs[j]->nb_stream_indexes; k++)
+                    json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, CODEC_TYPE_VIDEO);
+             }
+        } else {
+            for(i=0;i<ic->nb_streams;i++) {
+                json_stream_format(output, ic, i, 2, !i, CODEC_TYPE_VIDEO);
+            }
+        }
+        fprintf(output, "],\n");
+
+        do_indent(output, 1);
+        fprintf(output, "\"audio\": [");
+        if(ic->nb_programs) {
+            int j, k;
+            for(j=0; j<ic->nb_programs; j++) {
+                for(k=0; k<ic->programs[j]->nb_stream_indexes; k++)
+                    json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, CODEC_TYPE_AUDIO);
+             }
+        } else {
+            for(i=0;i<ic->nb_streams;i++) {
+                json_stream_format(output, ic, i, 2, !i, CODEC_TYPE_AUDIO);
+            }
+        }
+        fprintf(output, "],\n");
+    } else {
+        json_add_key_value(output, "code", "badfile", JSON_STRING, 0, 1);
+        json_add_key_value(output, "error", "file does not exist or has unknown format.", JSON_STRING, 0, 1);
+    }
     json_oshash(output, url, 1);
     json_add_key_value(output, "path", (void *)url, JSON_STRING, 0, 1);
 

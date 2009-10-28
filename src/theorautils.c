@@ -256,7 +256,7 @@ void oggmux_init (oggmux_info *info) {
 
     th_comment_add_tag(&info->tc, "ENCODER", PACKAGE_STRING);
     vorbis_comment_add_tag(&info->vc, "ENCODER", PACKAGE_STRING);
-    if (strcmp(info->oshash, "0") > 0) {
+    if (strcmp(info->oshash, "0000000000000000") > 0) {
         th_comment_add_tag(&info->tc, "SOURCE_OSHASH", info->oshash);
         vorbis_comment_add_tag(&info->vc, "SOURCE_OSHASH", info->oshash);
     }
