@@ -55,10 +55,19 @@ typedef struct
 }
 oggmux_kate_stream;
 
+enum SeekableState {
+    MAYBE_SEEKABLE = -1,
+    NOT_SEEKABLE = 0,
+    SEEKABLE = 1,
+};
+
 typedef struct
 {
     /* the file the mixed ogg stream is written to */
     FILE *outfile;
+    /* Greather than zero if outfile is seekable.
+       Value one of SeekableState. */
+    int output_seekable;
 
     char oshash[32];
     int audio_only;

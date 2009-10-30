@@ -19,11 +19,35 @@
  *
  */
 
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+#if !defined(_LARGEFILE_SOURCE)
+#define _LARGEFILE_SOURCE
+#endif
+#if !defined(_LARGEFILE64_SOURCE)
+#define _LARGEFILE64_SOURCE
+#endif
+#if !defined(_FILE_OFFSET_BITS)
+#define _FILE_OFFSET_BITS 64
+#endif
+
+#if !defined(off64_t)
+#define off64_t off_t
+#endif
+
+#ifdef WIN32
+#define fseeko fseeko64
+#define ftello ftello64
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <assert.h>
 
 #include "theora/theoraenc.h"
 #include "vorbis/codec.h"
@@ -44,6 +68,7 @@ static double rint(double x)
 }
 
 void init_info(oggmux_info *info) {
+    info->output_seekable = MAYBE_SEEKABLE;
     info->with_skeleton = 1; /* skeleton is enabled by default    */
     info->frontend = NULL; /*frontend mode*/
     info->videotime =  0;
@@ -122,6 +147,45 @@ static void write64le(unsigned char *ptr,ogg_int64_t v)
     ptr[5]=(hi>>8)&0xff;
     ptr[6]=(hi>>16)&0xff;
     ptr[7]=(hi>>24)&0xff;
+}
+
+/* Write an ogg page to the output file. The first time this is called, we
+   determine the seekable-ness of the output stream, and store the result
+   in info->output_seekable. */
+static void
+write_page(oggmux_info* info, ogg_page* page)
+{
+    int x;
+    assert(page->header_len > 0);
+    x = fwrite(page->header, 1, page->header_len, info->outfile);
+    if (x != page->header_len) {
+        fprintf(stderr, "FAILURE: Failed to write page header to disk!\n");
+        exit(1);
+    }
+    x = fwrite(page->body, 1, page->body_len, info->outfile);
+    if (x != page->body_len) {
+        fprintf(stderr, "FAILURE: Failed to write page body to disk!\n");
+        exit(1);
+    }
+    if (info->output_seekable == MAYBE_SEEKABLE) {
+        /* This is our first page write. Determine if the output
+           is seekable. */
+        ogg_int64_t offset = ftello(info->outfile);
+        if (offset == -1 || fseeko(info->outfile, 0, SEEK_SET) < 0) {
+            info->output_seekable = NOT_SEEKABLE;
+        } else {
+            /* Output appears to be seekable, seek the write cursor back
+               to previous position. */
+            info->output_seekable = SEEKABLE;
+            assert(info->output_seekable > 0);
+            if (fseeko(info->outfile, offset, SEEK_SET) < 0) {
+                fprintf(stderr, "ERROR: failed to seek in seekable output file!?!\n");
+                exit (1);
+            }  
+        }
+    }
+    /* We should know the seekableness by now... */
+    assert(info->output_seekable != MAYBE_SEEKABLE);
 }
 
 void add_fishead_packet (oggmux_info *info) {
@@ -321,8 +385,7 @@ void oggmux_init (oggmux_info *info) {
             fprintf (stderr, "Internal Ogg library error.\n");
             exit (1);
         }
-        fwrite (og.header, 1, og.header_len, info->outfile);
-        fwrite (og.body, 1, og.body_len, info->outfile);
+        write_page (info, &og);
     }
 
     /* write the bitstream header packets with proper page interleave */
@@ -341,8 +404,7 @@ void oggmux_init (oggmux_info *info) {
                 fprintf(stderr, "Internal Ogg library error.\n");
                 exit(1);
             }
-            fwrite(og.header, 1, og.header_len, info->outfile);
-            fwrite(og.body, 1, og.body_len, info->outfile);
+            write_page (info, &og);
         }
 
         /* create the remaining theora headers */
@@ -370,8 +432,7 @@ void oggmux_init (oggmux_info *info) {
             fprintf (stderr, "Internal Ogg library error.\n");
             exit (1);
         }
-        fwrite (og.header, 1, og.header_len, info->outfile);
-        fwrite (og.body, 1, og.body_len, info->outfile);
+        write_page (info, &og);
 
         /* remaining vorbis header packets */
         ogg_stream_packetin (&info->vo, &header_comm);
@@ -400,8 +461,7 @@ void oggmux_init (oggmux_info *info) {
                 fprintf (stderr, "Internal Ogg library error.\n");
                 exit (1);
             }
-            fwrite (og.header, 1, og.header_len, info->outfile);
-            fwrite (og.body, 1, og.body_len, info->outfile);
+            write_page (info, &og);
         }
     }
 #endif
@@ -418,8 +478,7 @@ void oggmux_init (oggmux_info *info) {
                 }
             if (result == 0)
                 break;
-                fwrite (og.header, 1, og.header_len, info->outfile);
-            fwrite (og.body, 1, og.body_len, info->outfile);
+            write_page (info, &og);
         }
     }
 
@@ -435,8 +494,7 @@ void oggmux_init (oggmux_info *info) {
         }
         if (result == 0)
             break;
-        fwrite (og.header, 1, og.header_len, info->outfile);
-        fwrite (og.body, 1, og.body_len, info->outfile);
+        write_page (info, &og);
     }
     while (1 && !info->video_only && info->passno!=1) {
         int result = ogg_stream_flush (&info->vo, &og);
@@ -447,8 +505,7 @@ void oggmux_init (oggmux_info *info) {
         }
         if (result == 0)
             break;
-        fwrite (og.header, 1, og.header_len,info->outfile);
-        fwrite (og.body, 1, og.body_len, info->outfile);
+        write_page (info, &og);
     }
 #ifdef HAVE_KATE
     if (info->with_kate && info->passno!=1) {
@@ -464,8 +521,7 @@ void oggmux_init (oggmux_info *info) {
                 }
                 if (result == 0)
                     break;
-                fwrite (og.header, 1, og.header_len,info->outfile);
-                fwrite (og.body, 1, og.body_len, info->outfile);
+                write_page (info, &og);
             }
         }
     }
@@ -488,8 +544,7 @@ void oggmux_init (oggmux_info *info) {
             fprintf (stderr, "Internal Ogg library error.\n");
             exit (1);
         }
-        fwrite (og.header, 1, og.header_len,info->outfile);
-        fwrite (og.body, 1, og.body_len, info->outfile);
+        write_page (info, &og);
     }
     if (!info->audio_only) {
         th_info_clear(&info->ti);
