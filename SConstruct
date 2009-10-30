@@ -112,6 +112,22 @@ if not conf.CheckPKGConfig(pkgconfig_version):
    print 'pkg-config >= %s not found.' % pkgconfig_version 
    Exit(1)
 
+if not conf.CheckPKG("ogg >= 1.1"): 
+  print 'ogg >= 1.1 missing'
+  Exit(1) 
+
+if not conf.CheckPKG("vorbis"): 
+  print 'vorbis missing'
+  Exit(1) 
+
+if not conf.CheckPKG("vorbisenc"): 
+  print 'vorbisenc missing'
+  Exit(1) 
+
+if not conf.CheckPKG("theoraenc >= 1.1.0"): 
+  print 'theoraenc >= 1.1.0 missing'
+  Exit(1) 
+
 XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theoraenc >= 1.1.0"
 
 if not conf.CheckPKG(XIPH_LIBS): 
