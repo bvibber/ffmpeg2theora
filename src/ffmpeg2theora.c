@@ -86,6 +86,8 @@ enum {
     SPEEDLEVEL_FLAG,
     PP_FLAG,
     NOSKELETON,
+    SEEK_INDEX,
+    INDEX_INTERVAL,
     INFO_FLAG
 } F2T_FLAGS;
 
@@ -1204,6 +1206,7 @@ void ff2theora_output(ff2theora this) {
           }
         }
 #endif
+
         oggmux_init(&info);
         /*seek to start time*/
         if (this->start_time) {
@@ -1588,6 +1591,12 @@ void ff2theora_output(ff2theora this) {
                 audio_resample_close(this->audio_resample_ctx);
             avcodec_close(aenc);
         }
+
+        /* Write the index out to disk. */
+        if (info.passno != 1) {
+            write_seek_index (&info);
+        }
+
         oggmux_close(&info);
         if (ppContext)
             pp_free_context(ppContext);
@@ -1802,6 +1811,8 @@ void print_usage() {
         "General output options:\n"
         "  -o, --output           alternative output filename\n"
         "      --no-skeleton      disables ogg skeleton metadata output\n"
+        "      --seek-index       enables keyframe index in skeleton track\n"
+        "      --index-interval   set minimum distance between indexed keyframes (in ms, default: 2000)\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --preset           encode file with preset.\n"
@@ -1978,6 +1989,8 @@ int main(int argc, char **argv) {
         {"output",required_argument,NULL,'o'},
         {"skeleton",no_argument,NULL,'k'},
         {"no-skeleton",no_argument,&flag,NOSKELETON},
+        {"seek-index",no_argument,&flag,SEEK_INDEX},
+        {"index-interval",required_argument,&flag,INDEX_INTERVAL},
         {"format",required_argument,NULL,'f'},
         {"width",required_argument,NULL,'x'},
         {"height",required_argument,NULL,'y'},
@@ -2207,6 +2220,13 @@ int main(int argc, char **argv) {
                         case NOSKELETON:
                             info.with_skeleton=0;
                             break;
+                        case SEEK_INDEX:
+                            info.with_seek_index = 1;
+                            break;
+                        case INDEX_INTERVAL:
+                            info.index_interval = atoi(optarg);
+                            flag = -1;
+                            break;
                         case INFO_FLAG:
                             output_json = 1;
                             break;
@@ -2429,6 +2449,11 @@ int main(int argc, char **argv) {
                 print_usage();
                 exit(1);
         }
+    }
+
+    if (info.with_seek_index && !info.with_skeleton) {
+        fprintf(stderr, "ERROR: Cannot use --no-skeleton and --seek-index options together!\n");
+        exit(1);
     }
 
     if (output_json && !outputfile_set) {

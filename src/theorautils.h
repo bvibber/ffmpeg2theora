@@ -28,15 +28,17 @@
 #include "kate/kate.h"
 #endif
 #include "ogg/ogg.h"
+#include "index.h"
 
 //#define OGGMUX_DEBUG
 
-#define SKELETON_VERSION_MAJOR 3
-#define SKELETON_VERSION_MINOR 0
 #define FISHEAD_IDENTIFIER "fishead\0"
 #define FISBONE_IDENTIFIER "fisbone\0"
+#define INDEX_IDENTIFIER "index\0"
 #define FISBONE_SIZE 52
 #define FISBONE_MESSAGE_HEADER_OFFSET 44
+#define KEYPOINT_SIZE 20
+#define SKELETON_VERSION(major, minor) (((major)<<16)|(minor))
 
 typedef struct
 {
@@ -73,6 +75,9 @@ typedef struct
     int audio_only;
     int video_only;
     int with_skeleton;
+    int with_seek_index;
+    int index_interval;
+    int indexing_complete;
     FILE *frontend;
     /* vorbis settings */
     int sample_rate;
@@ -140,6 +145,9 @@ typedef struct
 
     int n_kate_streams;
     oggmux_kate_stream *kate_streams;
+
+    seek_index theora_index;
+    seek_index vorbis_index;
 }
 oggmux_info;
 
@@ -152,6 +160,8 @@ extern void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double 
 extern void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t);
 extern void oggmux_flush (oggmux_info *info, int e_o_s);
 extern void oggmux_close (oggmux_info *info);
+
+extern int write_seek_index (oggmux_info* info);
 
 
 #endif
