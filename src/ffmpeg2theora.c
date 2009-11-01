@@ -1593,7 +1593,7 @@ void ff2theora_output(ff2theora this) {
         }
 
         /* Write the index out to disk. */
-        if (info.passno != 1) {
+        if (info.passno != 1 && info.with_seek_index) {
             write_seek_index (&info);
         }
 
