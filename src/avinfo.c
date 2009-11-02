@@ -348,6 +348,67 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int ind
     }
 }
 
+static int utf8_validate (uint8_t *s, int n) {
+  int i;
+  int extra_bytes;
+  int mask;
+
+  i=0;
+  while (i<n) {
+    if (i < n-3 && (*(uint32_t *)(s+i) & 0x80808080) == 0) {
+      i+=4;
+      continue;
+    }
+    if (s[i] < 128) {
+      i++;
+      continue;
+    }
+    if ((s[i] & 0xe0) == 0xc0) {
+      extra_bytes = 1;
+      mask = 0x7f;
+    } else if ((s[i] & 0xf0) == 0xe0) {
+      extra_bytes = 2;
+      mask = 0x1f;
+    } else if ((s[i] & 0xf8) == 0xf0) {
+      extra_bytes = 3;
+      mask = 0x0f;
+    } else {
+      goto error;
+    }
+    if (i + extra_bytes >= n) goto error;
+    while(extra_bytes--) {
+      i++;
+      if ((s[i] & 0xc0) != 0x80) goto error;
+    }
+    i++;
+  }
+
+error:
+  return i == n;
+}
+
+void json_metadata(FILE *output, const AVFormatContext *av)
+{
+    int first = 1;
+    AVMetadataTag *tag = NULL;
+    while ((tag = av_metadata_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
+        char uc_key[16];
+        int i;
+        if (strlen(tag->value) && utf8_validate (tag->value, strlen(tag->value))) {
+            if (first) {
+                first = 0;
+                do_indent(output, 1);
+                fprintf(output, "\"metadata\": {\n");
+            }
+            json_add_key_value(output, tag->key, tag->value, JSON_STRING, 0, 2);
+        }
+    }
+    if (!first) {
+        do_indent(output, 1);
+        fprintf(output, "}\n");
+    }
+}
+
 /* 
  * os hash
  * based on public domain example from
@@ -445,6 +506,7 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
             }
         }
         fprintf(output, "],\n");
+        json_metadata(output, ic);
     } else {
         json_add_key_value(output, "code", "badfile", JSON_STRING, 0, 1);
         json_add_key_value(output, "error", "file does not exist or has unknown format.", JSON_STRING, 0, 1);
