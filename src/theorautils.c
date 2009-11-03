@@ -390,7 +390,7 @@ static int create_index_packet(int num_allocated_keypoints,
                                int num_used_keypoints)
 {
     size_t size = 14 + num_allocated_keypoints * KEYPOINT_SIZE;
-    memset (op, 0, sizeof(op));
+    memset (op, 0, sizeof(*op));
     op->packet = malloc(size);
     if (op->packet == NULL)
         return -1;
