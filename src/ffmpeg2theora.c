@@ -212,7 +212,7 @@ static ff2theora ff2theora_init() {
         this->kate_streams=NULL;
         this->ignore_non_utf8 = 0;
 
-        this->pix_fmt = PIX_FMT_YUV420P;
+        this->pix_fmt = PIX_FMT_YUVJ420P;
 
         // ffmpeg2theora --nosound -f dv -H 32000 -S 0 -v 8 -x 384 -y 288 -G 1.5 input.dv
         this->video_gamma  = 0.0;
