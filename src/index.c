@@ -127,11 +127,8 @@ int seek_index_record_sample(seek_index* index,
         index->end_time = end_time;
     }
 
-    if (!is_keyframe ||
-        start_time <= (index->prev_packet_time + index->packet_interval))
-    {
-        /* Sample is not a keyframe, or appears too close to the previous
-           keyframe packet, don't add it to the keyframe index. */
+    if (!is_keyframe) {
+        /* Sample is not a keyframe, don't add it to the index. */
         return 0;
     }
 

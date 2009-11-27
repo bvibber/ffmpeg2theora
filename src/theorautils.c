@@ -99,6 +99,8 @@ void init_info(oggmux_info *info) {
     info->with_kate = 0;
     info->n_kate_streams = 0;
     info->kate_streams = NULL;
+
+    info->prev_vorbis_window = -1;
 }
 
 void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
@@ -454,31 +456,31 @@ typedef struct {
 
 /* Overwrites pages on disk for a stream's index with actual index data. */
 static int
-write_index_pages (seek_index* index, oggmux_info *info, ogg_uint32_t serialno)
+write_index_pages (seek_index* index,
+                   oggmux_info *info,
+                   ogg_uint32_t serialno,
+                   int target_packet)
 {
     ogg_packet op;
     ogg_page og;
     int i;
+    int k = 0;
     int result;
     int num_keypoints;
     int packetno;
-    int packet_start_count = 0;
+    int last_packetno = 2; /* Take into account header packets... */
     keypoint* keypoints = 0;
     int pageno = 0;
+    int prev_keyframe_pageno = -INT_MAX;
+    ogg_int64_t prev_keyframe_start_time = -INT_MAX;
+    int packet_in_page = 0;
 
     /* Must have indexed keypoints. */
     assert(index->max_keypoints > 0 && index->packet_num > 0);
     /* Must have placeholder packet to rewrite. */
     assert(index->page_location > 0);
 
-
-    if (index->max_keypoints <= index->packet_num) {
-        fprintf(stderr, "WARNING: Recorded more keyframes than there's room "
-                "for in the index. We must have miscalculated index size. "
-                "Not writing index.\n");
-        return -1;
-    }
-    num_keypoints = index->packet_num;
+    num_keypoints = index->max_keypoints;
 
     /* Calculate and store the keypoints. */
     keypoints = (keypoint*)malloc(sizeof(keypoint) * num_keypoints);
@@ -487,23 +489,43 @@ write_index_pages (seek_index* index, oggmux_info *info, ogg_uint32_t serialno)
         return -1;
     }
     memset(keypoints, -1, sizeof(keypoint) * num_keypoints);
-    pageno = 0;
-    packet_start_count = 3; /* Take into account header packets... */
-    for (i=0; i<num_keypoints; i++) {
+
+    for (i=0; i < index->packet_num && k < num_keypoints; i++) {
         packetno = index->packets[i].packetno;
-        /* Inrement pageno until we find the page which contains the start of
+        /* Increment pageno until we find the page which contains the start of
          * the keyframe's packet. */
         while (pageno < index->pages_num &&
-               packet_start_count + index->pages[pageno].packet_start_num < packetno)
+               last_packetno + index->pages[pageno].packet_start_num < packetno)
         {
-            packet_start_count += index->pages[pageno].packet_start_num;
+            last_packetno += index->pages[pageno].packet_start_num;
             pageno++;
         }
         assert(pageno < index->pages_num);
-        keypoints[i].offset = index->pages[pageno].offset;
-        keypoints[i].checksum = index->pages[pageno].checksum;
-        keypoints[i].time = index->packets[i].start_time;
+    
+        if (prev_keyframe_pageno != pageno) {
+            /* First keyframe/sample in this page. */
+            packet_in_page = 1;
+            prev_keyframe_pageno = pageno;
+        } else {
+            packet_in_page++;
+        }
+
+        if (packet_in_page != target_packet ||
+            index->packets[i].start_time <= (prev_keyframe_start_time + index->packet_interval)) {
+            /* Either this isn't the keyframe we want to index on this page, or
+               the keyframe occurs too close to the previously indexed one, so
+               skip to the next one. */
+            continue;
+        }
+
+        /* Add to final keyframe index. */        
+        keypoints[k].offset = index->pages[pageno].offset;
+        keypoints[k].checksum = index->pages[pageno].checksum;
+        keypoints[k].time = index->packets[i].start_time;
+        k++;
+        prev_keyframe_start_time = index->packets[i].start_time;
     }
+    num_keypoints = k;
 
     if (create_index_packet(index->max_keypoints, &op, serialno, num_keypoints) == -1) {
         free(keypoints);
@@ -598,14 +620,16 @@ int write_seek_index (oggmux_info* info)
     if (!info->audio_only &&
         write_index_pages(&info->theora_index,
                           info,
-                          info->to.serialno) == -1)
+                          info->to.serialno,
+                          1) == -1)
     {
         return -1;
     }
     if (!info->video_only && 
         write_index_pages(&info->vorbis_index,
                           info,
-                          info->vo.serialno) == -1)
+                          info->vo.serialno,
+                          2) == -1)
     {
         return -1;
     }
@@ -939,11 +963,6 @@ void oggmux_init (oggmux_info *info) {
     }
 }
 
-static ogg_int64_t
-s_to_ms(double seconds) {
-    return (ogg_int64_t)(seconds * 1000.0);
-}
-
 /**
  * adds a video frame to the encoding sink
  * if e_o_s is 1 the end of the logical bitstream will be marked.
@@ -1009,9 +1028,11 @@ void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s) {
         if (info->with_seek_index &&
             info->passno != 1)
         {
-            ogg_int64_t duration = (info->ti.fps_denominator * 1000) / info->ti.fps_numerator;
-            ogg_int64_t end_time = s_to_ms(th_granule_time(info->td, op.granulepos));
-            ogg_int64_t start_time = end_time - duration;
+            ogg_int64_t frameno = th_granule_frame(info->td, op.granulepos);
+            ogg_int64_t start_time = (1000 * info->ti.fps_denominator * frameno) /
+                                     info->ti.fps_numerator;
+            ogg_int64_t end_time =   (1000 * info->ti.fps_denominator * (frameno + 1)) /
+                                     info->ti.fps_numerator;
             seek_index_record_sample(&info->theora_index,
                                      op.packetno,
                                      start_time,
@@ -1041,6 +1062,11 @@ void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s) {
     }
 }
 
+static ogg_int64_t
+vorbis_time(vorbis_dsp_state * dsp, ogg_int64_t granulepos) {
+    return 1000 * granulepos / dsp->vi->rate;
+}
+
 /**
  * adds audio samples to encoding sink
  * @param buffer pointer to buffer
@@ -1050,7 +1076,6 @@ void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s) {
  */
 void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int samples, int e_o_s) {
     ogg_packet op;
-    ogg_int64_t prev_granule = 0;
 
     int i,j, count = 0;
     float **vorbis_buffer;
@@ -1074,25 +1099,35 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
             vorbis_analysis_wrote (&info->vd, 0);
     }
 
-    /* The presentation time of a vorbis packet is the end-time of the previous
-       packet, i.e. of the previously encoded block. */
-    prev_granule = info->vb.granulepos;
     while (vorbis_analysis_blockout (&info->vd, &info->vb) == 1) {
-        ogg_int64_t start_time = s_to_ms(vorbis_granule_time(&info->vd,
-                                                             prev_granule));
-
         /* analysis, assume we want to use bitrate management */
         vorbis_analysis (&info->vb, NULL);
         vorbis_bitrate_addblock (&info->vb);
 
         /* weld packets into the bitstream */
-        while (vorbis_bitrate_flushpacket (&info->vd, &op)) {
+        if (vorbis_bitrate_flushpacket (&info->vd, &op)) {
+            assert(op.granulepos != -1);
+            
+            /* For indexing, we must accurately know the presentation time of
+               the first sample we can decode on any page. Vorbis packets
+               require data from their preceeding packet to decode. To
+               calculate the number of samples in this block, we need to take
+               into account the number of samples in the previous block. Once
+               we accurately know the samples in each packet, the presentation
+               time of a vorbis page is the presentation time of the second
+               packet in the page. */
+            int num_samples = (info->prev_vorbis_window == -1) ? 0 :
+                               info->prev_vorbis_window/4 + info->vb.pcmend / 4;
+            info->prev_vorbis_window = info->vb.pcmend;
+
+            ogg_int64_t start_granule = op.granulepos - num_samples;
+            ogg_int64_t start_time = vorbis_time (&info->vd, start_granule);
+            
             if (op.granulepos != -1 &&
                 info->with_seek_index &&
                 info->passno != 1)
             {
-                ogg_int64_t end_time = s_to_ms(vorbis_granule_time(&info->vd,
-                                                                   op.granulepos));
+                ogg_int64_t end_time = vorbis_time (&info->vd, op.granulepos);
                 seek_index_record_sample(&info->vorbis_index,
                                          op.packetno,
                                          start_time,
@@ -1102,7 +1137,9 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
             ogg_stream_packetin (&info->vo, &op);
             info->a_pkg++;
         }
-        prev_granule = info->vb.granulepos;
+        /* libvorbis should encode with 1:1 block:packet ratio. If not, our
+           vorbis sample length calculations will be wrong! */
+        assert(vorbis_bitrate_flushpacket (&info->vd, &op) == 0);
     }
 
 }
