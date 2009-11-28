@@ -178,6 +178,8 @@ if conf.CheckCHeader('iconv.h'):
     if conf.CheckLib('iconv'):
         env.Append(LIBS=['iconv'])
 
+if env['static']:
+    env.Append(LIBS=['m', 'dl'])
 
 env = conf.Finish()
 

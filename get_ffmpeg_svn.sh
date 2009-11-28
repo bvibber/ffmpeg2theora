@@ -1,13 +1,13 @@
 #!/bin/sh
 
-#optional, if you have those libs installed:
-#extra="--enable-version3 --enable-libopencore-amrnb --enable-libopencore-amrwb"
-
-#apt-get install liba52-dev libfaad-dev libgsm1-dev
-#extra="$extra --enable-libfaad --enable-libgsm"
-
 common="--enable-version3 --enable-gpl --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
 common="$common --disable-ffmpeg --disable-ffplay --disable-ffserver --disable-doc"
+
+#optional, if you have those libs installed:
+#extra="--enable-libopencore-amrnb --enable-libopencore-amrwb"
+
+#apt-get install liba52-dev libfaad-dev libgsm1-dev
+#extra="$extra--enable-libfaad --enable-libgsm"
 
 #linux
 options="$common --enable-pthreads $extra"
