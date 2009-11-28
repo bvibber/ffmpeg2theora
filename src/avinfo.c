@@ -389,7 +389,7 @@ error:
 
 void json_metadata(FILE *output, const AVFormatContext *av)
 {
-    int first = 1;
+    int first = 1, indent=2;
     AVMetadataTag *tag = NULL;
     while ((tag = av_metadata_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
         char uc_key[16];
@@ -399,13 +399,17 @@ void json_metadata(FILE *output, const AVFormatContext *av)
                 first = 0;
                 do_indent(output, 1);
                 fprintf(output, "\"metadata\": {\n");
+            } else {
+                do_indent(output, 2);
+                fprintf(output, ",");
+                indent=0;
             }
-            json_add_key_value(output, tag->key, tag->value, JSON_STRING, 0, 2);
+            json_add_key_value(output, tag->key, tag->value, JSON_STRING, 1, indent);
         }
     }
     if (!first) {
         do_indent(output, 1);
-        fprintf(output, "}\n");
+        fprintf(output, "},\n");
     }
 }
 
