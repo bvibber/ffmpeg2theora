@@ -4,6 +4,7 @@ svn
     - include metadata from source in --info json output
     - update GPL to version 3
     - update fmpeg
+    - update libkate
 
 0.25 2009-09-28
     - fix input from codecs where width/height is not encoded width/height
