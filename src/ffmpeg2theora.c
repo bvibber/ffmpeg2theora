@@ -767,13 +767,6 @@ void ff2theora_output(ff2theora this) {
             }
         }
 
-        if ((float)this->aspect_numerator/this->aspect_denominator < 1.09) {
-            this->aspect_numerator = 1;
-            this->aspect_denominator = 1;
-            frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
-                                (this->aspect_denominator*this->picture_height);
-        }
-
 
         if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->aspect_denominator && frame_aspect) {
             fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
