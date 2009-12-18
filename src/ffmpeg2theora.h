@@ -59,7 +59,9 @@ typedef struct ff2theora{
     ReSampleContext *audio_resample_ctx;
     ogg_int32_t aspect_numerator;
     ogg_int32_t aspect_denominator;
-    double frame_aspect;
+    int colorspace;
+    AVRational pixel_aspect;
+    AVRational frame_aspect;
     int max_x;
     int max_y;
 

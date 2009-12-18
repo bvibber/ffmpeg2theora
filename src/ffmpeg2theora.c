@@ -69,6 +69,7 @@ enum {
     CROPRIGHT_FLAG,
     CROPLEFT_FLAG,
     ASPECT_FLAG,
+    PIXEL_ASPECT_FLAG,
     MAXSIZE_FLAG,
     INPUTFPS_FLAG,
     AUDIOSTREAM_FLAG,
@@ -191,7 +192,11 @@ static ff2theora ff2theora_init() {
         this->sync = 1;
         this->aspect_numerator=0;
         this->aspect_denominator=0;
-        this->frame_aspect=0;
+        this->colorspace = TH_CS_UNSPECIFIED;
+        this->frame_aspect.num=0;
+        this->frame_aspect.den=1;
+        this->pixel_aspect.num=0;
+        this->pixel_aspect.den=0;
         this->max_x=-1;
         this->max_y=-1;
         this->deinterlace=0; // auto by default, if input is flaged as interlaced it will deinterlace.
@@ -595,19 +600,19 @@ void ff2theora_output(ff2theora this) {
         }
 
         //so frame_aspect is set on the commandline
-        if (this->frame_aspect != 0) {
+        if (this->frame_aspect.num != 0) {
             if (this->picture_height) {
-                this->aspect_numerator = 10000*this->frame_aspect*this->picture_height;
-                this->aspect_denominator = 10000*this->picture_width;
+                this->aspect_numerator = this->frame_aspect.num*this->picture_height;
+                this->aspect_denominator = this->frame_aspect.den*this->picture_width;
             }
             else{
-                this->aspect_numerator = 10000*this->frame_aspect*display_height;
-                this->aspect_denominator = 10000*display_width;
+                this->aspect_numerator = this->frame_aspect.num*display_height;
+                this->aspect_denominator = this->frame_aspect.den*display_width;
             }
             av_reduce(&this->aspect_numerator,&this->aspect_denominator,
                        this->aspect_numerator,this->aspect_denominator,
                        1024*1024);
-            frame_aspect=this->frame_aspect;
+            frame_aspect=av_q2d(this->frame_aspect);
         }
 
         if (this->preset == V2V_PRESET_PREVIEW) {
@@ -638,9 +643,11 @@ void ff2theora_output(ff2theora this) {
                 sample_aspect_ratio.den = 1;
                 sample_aspect_ratio.num = 1;
             }
-            if (this->frame_aspect == 0)
-                this->frame_aspect = (float)width/height;
-            if (this->frame_aspect <= 1.5) {
+            if (this->frame_aspect.num == 0) {
+                this->frame_aspect.num = width;
+                this->frame_aspect.den = height;
+            }
+            if (av_q2d(this->frame_aspect) <= 1.5) {
                 if (width > 640 || height > 480) {
                     //4:3 640 x 480
                     this->picture_width=640;
@@ -671,9 +678,11 @@ void ff2theora_output(ff2theora this) {
                 sample_aspect_ratio.den = 1;
                 sample_aspect_ratio.num = 1;
             }
-            if (this->frame_aspect == 0)
-                this->frame_aspect = (float)width/height;
-            if (this->frame_aspect <= 1.5) {
+            if (this->frame_aspect.num == 0) {
+                this->frame_aspect.num = width;
+                this->frame_aspect.den = height;
+            }
+            if (av_q2d(this->frame_aspect) <= 1.5) {
                 this->picture_width=128;
                 this->picture_height=96;
             }
@@ -721,15 +730,18 @@ void ff2theora_output(ff2theora this) {
                 sample_aspect_ratio.den = 1;
                 sample_aspect_ratio.num = 1;
             }
-            if (this->frame_aspect == 0)
-                this->frame_aspect = (float)width/height;
-            if (width > height && this->max_x/this->frame_aspect <= this->max_y) {
+            if (this->frame_aspect.num == 0) {
+                this->frame_aspect.num = width;
+                this->frame_aspect.den = height;
+            }
+            if (width > height &&
+                this->max_x/av_q2d(this->frame_aspect) <= this->max_y) {
                 this->picture_width = this->max_x;
-                this->picture_height = this->max_x / this->frame_aspect;
+                this->picture_height = this->max_x / av_q2d(this->frame_aspect);
                 this->picture_height = this->picture_height + this->picture_height%2;
             } else {
                 this->picture_height = this->max_y;
-                this->picture_width = this->max_y * this->frame_aspect;
+                this->picture_width = this->max_y * av_q2d(this->frame_aspect);
                 this->picture_width = this->picture_width + this->picture_width%2;
             }
         }
@@ -747,7 +759,7 @@ void ff2theora_output(ff2theora this) {
                 this->framerate_new = vstream_fps;
         }
 
-        if (sample_aspect_ratio.num!=0 && this->frame_aspect==0) {
+        if (sample_aspect_ratio.num!=0 && this->frame_aspect.num==0) {
             // just use the ratio from the input
             this->aspect_numerator=sample_aspect_ratio.num;
             this->aspect_denominator=sample_aspect_ratio.den;
@@ -766,8 +778,19 @@ void ff2theora_output(ff2theora this) {
                                 (this->aspect_denominator*display_height);
             }
         }
-
-
+        //pixel aspect ratio set, use that
+        if (this->pixel_aspect.num>0) {
+            this->aspect_numerator = this->pixel_aspect.num;
+            this->aspect_denominator = this->pixel_aspect.den;
+            if (this->picture_height) {
+                frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
+                                (this->aspect_denominator*this->picture_height);
+            }
+            else{
+                frame_aspect=(float)(this->aspect_numerator*display_width)/
+                                (this->aspect_denominator*display_height);
+            }
+        }
         if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->aspect_denominator && frame_aspect) {
             fprintf(stderr, "  Pixel Aspect Ratio: %.2f/1 ",(float)this->aspect_numerator/this->aspect_denominator);
             fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n", frame_aspect);
@@ -782,6 +805,11 @@ void ff2theora_output(ff2theora this) {
             if(!(info.twopass==3 && info.passno==2) && !info.frontend)
                 fprintf(stderr, "  Postprocessing: %s\n", this->pp_mode);
         }
+
+        if (venc->color_primaries == AVCOL_PRI_BT470M)
+            this->colorspace = TH_CS_ITU_REC_470M;
+        else if (venc->color_primaries == AVCOL_PRI_BT470BG)
+            this->colorspace = TH_CS_ITU_REC_470BG;
 
         if (!this->picture_width)
             this->picture_width = display_width;
@@ -1040,16 +1068,7 @@ void ff2theora_output(ff2theora this) {
             /* this is pixel aspect ratio */
             info.ti.aspect_numerator=this->aspect_numerator;
             info.ti.aspect_denominator=this->aspect_denominator;
-            /*
-            // FIXME: is all input material with fps==25 OC_CS_ITU_REC_470BG?
-            // guess not, commandline option to select colorspace would be the best.
-            if ((this->fps-25)<1)
-                info.ti.colorspace = TH_CS_ITU_REC_470BG;
-            else if (abs(this->fps-30)<1)
-                info.ti.colorspace = TH_CS_ITU_REC_470M;
-            else
-            */
-            info.ti.colorspace = TH_CS_UNSPECIFIED;
+            info.ti.aspect_denominator=this->colorspace;
 
             /*Account for the Ogg page overhead.
               This is 1 byte per 255 for lacing values, plus 26 bytes per 4096 bytes for
@@ -1621,32 +1640,6 @@ void ff2theora_close(ff2theora this) {
     }
 }
 
-double aspect_check(const char *arg)
-{
-    int x = 0, y = 0;
-    double ar = 0;
-    const char *p;
-
-    p = strchr(arg, ':');
-    if (!p) {
-        p = strchr(arg, '/');
-    }
-    if (p) {
-        x = strtol(arg, (char **)&arg, 10);
-        if (arg == p)
-            y = strtol(arg+1, (char **)&arg, 10);
-        if (x > 0 && y > 0)
-            ar = (double)x / (double)y;
-    } else
-        ar = strtod(arg, (char **)&arg);
-
-    if (!ar) {
-        fprintf(stderr, "Incorrect aspect ratio specification.\n");
-        exit(1);
-    }
-    return ar;
-}
-
 static void add_frame_hooker(const char *arg)
 {
 #ifdef HAVE_FRAMEHOOK
@@ -1667,39 +1660,39 @@ static void add_frame_hooker(const char *arg)
 #endif
 }
 
-AVRational get_framerate(const char* arg)
+AVRational get_rational(const char* arg)
 {
     const char *p;
-    AVRational framerate;
+    AVRational rational;
 
-    framerate.num = -1;
-    framerate.den = 1;
+    rational.num = -1;
+    rational.den = 1;
 
     p = strchr(arg, ':');
     if (!p) {
       p = strchr(arg, '/');
     }
     if (p) {
-        framerate.num = strtol(arg, (char **)&arg, 10);
+        rational.num = strtol(arg, (char **)&arg, 10);
         if (arg == p)
-            framerate.den = strtol(arg+1, (char **)&arg, 10);
-        if (framerate.num <= 0)
-            framerate.num = -1;
-        if (framerate.den <= 0)
-            framerate.den = 1;
+            rational.den = strtol(arg+1, (char **)&arg, 10);
+        if (rational.num <= 0)
+            rational.num = -1;
+        if (rational.den <= 0)
+            rational.den = 1;
     } else {
         p = strchr(arg, '.');
         if (!p) {
-            framerate.num = strtol(arg, (char **)&arg, 10);
-            framerate.den = 1;
+            rational.num = strtol(arg, (char **)&arg, 10);
+            rational.den = 1;
         } else {
-            av_reduce(&framerate.num, &framerate.den,
+            av_reduce(&rational.num, &rational.den,
                       strtod(arg, (char **)&arg) * 10000,
                       10000,
                       1024*1024);
         }
     }
-    return(framerate);
+    return(rational);
 }
 
 int crop_check(ff2theora this, char *name, const char *arg)
@@ -1846,6 +1839,8 @@ void print_usage() {
         "      --max_size         scale output frame to be within box of \n"
         "                         given size, height optional (%%d[x%%d], i.e. 640x480)\n"
         "      --aspect           define frame aspect ratio: i.e. 4:3 or 16:9\n"
+        "      --pixel-aspect     define pixel aspect ratio: i.e. 1:1 or 4:3,\n"
+        "                         overwrites frame aspect ratio\n"
         "  -F, --framerate        output framerate e.g 25:2 or 16\n"
         "      --croptop, --cropbottom, --cropleft, --cropright\n"
         "                         crop input by given pixels before resizing\n"
@@ -2016,6 +2011,7 @@ int main(int argc, char **argv) {
 #endif
         {"framerate",required_argument,NULL,'F'},
         {"aspect",required_argument,&flag,ASPECT_FLAG},
+        {"pixel-aspect",required_argument,&flag,PIXEL_ASPECT_FLAG},
         {"preset",required_argument,NULL,'p'},
         {"nice",required_argument,NULL,'N'},
         {"croptop",required_argument,&flag,CROPTOP_FLAG},
@@ -2187,7 +2183,21 @@ int main(int argc, char **argv) {
                             flag = -1;
                             break;
                         case ASPECT_FLAG:
-                            convert->frame_aspect = aspect_check(optarg);
+                            convert->frame_aspect = get_rational(optarg);
+                            if(convert->frame_aspect.num == -1) {
+                                fprintf(stderr,
+                                   "Incorrect aspect ratio specification.\n");
+                                exit(1);
+                            }
+                            flag = -1;
+                            break;
+                        case PIXEL_ASPECT_FLAG:
+                            convert->pixel_aspect = get_rational(optarg);
+                            if(convert->pixel_aspect.num == -1) {
+                                fprintf(stderr,
+                                   "Incorrect pixel aspect ratio specification.\n");
+                                exit(1);
+                            }
                             flag = -1;
                             break;
                         case MAXSIZE_FLAG:
@@ -2197,7 +2207,7 @@ int main(int argc, char **argv) {
                             flag = -1;
                             break;
                         case INPUTFPS_FLAG:
-                            convert->force_input_fps = get_framerate(optarg);
+                            convert->force_input_fps = get_rational(optarg);
                             flag = -1;
                             break;
                         case AUDIOSTREAM_FLAG:
@@ -2367,7 +2377,7 @@ int main(int argc, char **argv) {
                 convert->sample_rate=atoi(optarg);
                 break;
             case 'F':
-                convert->framerate_new = get_framerate(optarg);
+                convert->framerate_new = get_rational(optarg);
                 break;
             case 'c':
                 convert->channels=atoi(optarg);
