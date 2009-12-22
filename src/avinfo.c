@@ -100,7 +100,6 @@ char *replace_str_all(char *str, char *orig, char *rep) {
   const char buffer[4096];
   char *p, *p_str = str, *p_buffer = (char *)buffer;
   int len = strlen(str);
-
   strncpy(p_buffer, str, len);
   while (p = strstr(p_str, orig)) {
     strncpy(p_buffer, p_str, p-p_str);
@@ -110,7 +109,8 @@ char *replace_str_all(char *str, char *orig, char *rep) {
     p_str = p + strlen(orig);
     p_buffer += strlen(rep);
   }
-  p = (char *)buffer;
+  p = malloc(len+1);
+  strncpy(p, buffer, len);
   p[len] = '\0';
   return p;
 }
@@ -139,6 +139,7 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
             p = replace_str_all(p, "\\", "\\\\");
             p = replace_str_all(p, "\"", "\\\"");
             fprintf(output, "\"%s\": \"%s\"", key, p);
+            free(p);
             break;
         case JSON_INT:
             fprintf(output, "\"%s\": %d", key, *(int *)value);
