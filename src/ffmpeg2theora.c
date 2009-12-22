@@ -599,22 +599,6 @@ void ff2theora_output(ff2theora this) {
                       1024*1024);
         }
 
-        //so frame_aspect is set on the commandline
-        if (this->frame_aspect.num != 0) {
-            if (this->picture_height) {
-                this->aspect_numerator = this->frame_aspect.num*this->picture_height;
-                this->aspect_denominator = this->frame_aspect.den*this->picture_width;
-            }
-            else{
-                this->aspect_numerator = this->frame_aspect.num*display_height;
-                this->aspect_denominator = this->frame_aspect.den*display_width;
-            }
-            av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-                       this->aspect_numerator,this->aspect_denominator,
-                       1024*1024);
-            frame_aspect=av_q2d(this->frame_aspect);
-        }
-
         if (this->preset == V2V_PRESET_PREVIEW) {
             if (abs(this->fps-30)<1 && (display_width!=NTSC_HALF_WIDTH || display_height!=NTSC_HALF_HEIGHT) ) {
                 this->picture_width=NTSC_HALF_WIDTH;
@@ -669,6 +653,8 @@ void ff2theora_output(ff2theora this) {
                     this->picture_height=height;
                 }
             }
+            this->frame_aspect.num = this->picture_width;
+            this->frame_aspect.den = this->picture_height;
         }
         else if (this->preset == V2V_PRESET_PADMASTREAM) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
@@ -722,6 +708,23 @@ void ff2theora_output(ff2theora this) {
                 }
             }
         }
+        //so frame_aspect is set on the commandline
+
+        if (this->frame_aspect.num != 0) {
+            if (this->picture_height) {
+                this->aspect_numerator = this->frame_aspect.num*this->picture_height;
+                this->aspect_denominator = this->frame_aspect.den*this->picture_width;
+            }
+            else{
+                this->aspect_numerator = this->frame_aspect.num*display_height;
+                this->aspect_denominator = this->frame_aspect.den*display_width;
+            }
+            av_reduce(&this->aspect_numerator,&this->aspect_denominator,
+                       this->aspect_numerator,this->aspect_denominator,
+                       1024*1024);
+            frame_aspect=av_q2d(this->frame_aspect);
+        }
+
         if (this->max_x > 0) {
             int width = display_width-this->frame_leftBand-this->frame_rightBand;
             int height = display_height-this->frame_topBand-this->frame_bottomBand;
@@ -778,6 +781,7 @@ void ff2theora_output(ff2theora this) {
                                 (this->aspect_denominator*display_height);
             }
         }
+
         //pixel aspect ratio set, use that
         if (this->pixel_aspect.num>0) {
             this->aspect_numerator = this->pixel_aspect.num;
