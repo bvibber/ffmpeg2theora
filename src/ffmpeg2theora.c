@@ -763,6 +763,7 @@ void ff2theora_output(ff2theora this) {
         }
 
         if (sample_aspect_ratio.num!=0 && this->frame_aspect.num==0) {
+
             // just use the ratio from the input
             this->aspect_numerator=sample_aspect_ratio.num;
             this->aspect_denominator=sample_aspect_ratio.den;
@@ -1070,8 +1071,13 @@ void ff2theora_output(ff2theora this) {
             info.ti.fps_numerator = this->framerate.num;
             info.ti.fps_denominator = this->framerate.den;
             /* this is pixel aspect ratio */
-            info.ti.aspect_numerator=this->aspect_numerator;
-            info.ti.aspect_denominator=this->aspect_denominator;
+            if(this->aspect_numerator==1 && this->aspect_denominator ==1) {
+                this->aspect_numerator = 0;
+                this->aspect_denominator = 0;
+            }
+            info.ti.aspect_numerator = this->aspect_numerator;
+            info.ti.aspect_denominator = this->aspect_denominator;
+
             info.ti.aspect_denominator=this->colorspace;
 
             /*Account for the Ogg page overhead.
