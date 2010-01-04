@@ -706,6 +706,8 @@ void ff2theora_output(ff2theora this) {
                     this->picture_height=height;
                 }
             }
+            this->frame_aspect.num = this->picture_width;
+            this->frame_aspect.den = this->picture_height;
         }
         //so frame_aspect is set on the commandline
 
