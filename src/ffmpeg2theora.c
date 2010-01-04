@@ -1412,7 +1412,17 @@ void ff2theora_output(ff2theora this) {
                     if (!first) {
                         if (got_picture || video_eos) {
                             prepare_ycbcr_buffer(this, ycbcr, output_buffered);
-                            th_encode_ctl(info.td,TH_ENCCTL_SET_DUP_COUNT,&dups,sizeof(int));
+                            if(dups>0) {
+                                int _dups = dups;
+                                /*
+                                //this only works if dups is < keyint,
+                                //see http://theora.org/doc/libtheora-1.1/theoraenc_8h.html#a8bb9b05471c42a09f8684a2583b8a1df
+                                th_encode_ctl(info.td,TH_ENCCTL_SET_DUP_COUNT,&_dups,sizeof(int));
+                                */
+                                while(_dups--) {
+                                    oggmux_add_video(&info, ycbcr, video_eos);
+                                }
+                            }
                             oggmux_add_video(&info, ycbcr, video_eos);
                             if(video_eos) {
                                 video_done = 1;
