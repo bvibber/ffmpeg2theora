@@ -673,6 +673,8 @@ void ff2theora_output(ff2theora this) {
                 this->picture_width=128;
                 this->picture_height=72;
             }
+            this->frame_aspect.num = this->picture_width;
+            this->frame_aspect.den = this->picture_height;
         }
         else if (this->preset == V2V_PRESET_VIDEOBIN) {
             int width=display_width-this->frame_leftBand-this->frame_rightBand;
