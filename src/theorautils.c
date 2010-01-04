@@ -47,6 +47,7 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <math.h>
+#include <limits.h>
 
 #include "theora/theoraenc.h"
 #include "vorbis/codec.h"
@@ -971,7 +972,7 @@ void oggmux_init (oggmux_info *info) {
  */
 void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s) {
     ogg_packet op;
-    int r, ret;
+    int ret;
 
     if(info->passno==2){
         for(;;){
@@ -1213,7 +1214,6 @@ static double get_remaining(oggmux_info *info, double timebase) {
 
 static double estimated_size(oggmux_info *info, double timebase) {
   double projected_size = 0;
-  double to_encode, time_so_far;
 
   if (info->duration != -1 && timebase > 0) {
     projected_size = ((info->audio_bytesout + info->video_bytesout)  /  timebase) * info->duration / 1024 / 1024;

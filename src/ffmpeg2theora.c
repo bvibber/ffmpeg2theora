@@ -307,7 +307,6 @@ static void lut_apply(unsigned char *lut, unsigned char *src, unsigned char *dst
 }
 
 static void prepare_ycbcr_buffer(ff2theora this, th_ycbcr_buffer ycbcr, AVFrame *frame) {
-    int i;
     /* pysical pages */
     ycbcr[0].width = this->frame_width;
     ycbcr[0].height = this->frame_height;
@@ -429,7 +428,6 @@ static char *get_raw_text_from_ssa(const char *ssa)
 static const float get_ssa_time(const char *p)
 {
     int hour, min, sec, hsec;
-    int r;
 
     if(sscanf(p, "%d:%d:%d%*c%d", &hour, &min, &sec, &hsec) != 4)
         return 0;
@@ -441,7 +439,6 @@ static const float get_ssa_time(const char *p)
 
 static const float get_duration_from_ssa(const char *ssa)
 {
-  int n;
   float d = 2.0f;
   double start, end;
   const char *ptr=ssa;
@@ -1013,7 +1010,6 @@ void ff2theora_output(ff2theora this) {
         int no_samples;
 
         double framerate_add = 0;
-        double framerate_tmpcount = 0;
 
         if (this->video_index >= 0)
             info.audio_only=0;
@@ -1301,7 +1297,7 @@ void ff2theora_output(ff2theora this) {
 
             if ((video_eos && !video_done) || (ret >= 0 && pkt.stream_index == this->video_index)) {
                 if (avpkt.size == 0 && !first && !video_eos) {
-                    fprintf (stderr, "no frame available\n");
+                    //fprintf (stderr, "no frame available\n");
                 }
                 while(video_eos || avpkt.size > 0) {
                     int dups = 0;
@@ -2522,11 +2518,12 @@ int main(int argc, char **argv) {
         if (convert->video_quality == -1)
             convert->video_quality = 0;
     } else {
-        if (convert->video_quality == -1)
+        if (convert->video_quality == -1) {
             if (convert->video_bitrate > 0)
                 convert->video_quality = 0;
             else
                 convert->video_quality = rint(6*6.3); // default quality 5
+        }
     }
     if (convert->buf_delay>0 && convert->video_bitrate == 0) {
         fprintf(stderr, "Buffer delay can only be used with target bitrate (-V).\n");

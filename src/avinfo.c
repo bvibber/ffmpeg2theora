@@ -130,7 +130,6 @@ static void do_indent(FILE *output, int indent) {
 
 void json_add_key_value(FILE *output, char *key, void *value, int type, int last, int indent) {
     char *p;
-    int i;
     
     do_indent(output, indent);
     switch(type) {
@@ -298,13 +297,9 @@ void json_codec_info(FILE *output, AVCodecContext *enc, int indent) {
 
 static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int indent, int first, int type_filter) {
     static int _first = 1;
-    char buf[1024];
     char buf1[32];
-    int flags = ic->iformat->flags;
 
     AVStream *st = ic->streams[i];
-    int g = av_gcd(st->time_base.num, st->time_base.den);
-    AVMetadataTag *lang = av_metadata_get(st->metadata, "language", NULL, 0);
 
     if (first)
         _first = 1;
@@ -347,7 +342,7 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int ind
     }
 }
 
-static int utf8_validate (uint8_t *s, int n) {
+static int utf8_validate (char *s, int n) {
   int i;
   int extra_bytes;
   int mask;
@@ -391,8 +386,6 @@ void json_metadata(FILE *output, const AVFormatContext *av)
     int first = 1, indent=2;
     AVMetadataTag *tag = NULL;
     while ((tag = av_metadata_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
-        char uc_key[16];
-        int i;
         if (strlen(tag->value) && utf8_validate (tag->value, strlen(tag->value))) {
             if (first) {
                 first = 0;
