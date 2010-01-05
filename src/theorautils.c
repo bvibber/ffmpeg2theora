@@ -681,11 +681,13 @@ void oggmux_init (oggmux_info *info) {
     srand (time (NULL));
     ogg_stream_init (&info->vo, rand ());
 
-    th_comment_add_tag(&info->tc, "ENCODER", PACKAGE_STRING);
-    vorbis_comment_add_tag(&info->vc, "ENCODER", PACKAGE_STRING);
-    if (strcmp(info->oshash, "0000000000000000") > 0) {
-        th_comment_add_tag(&info->tc, "SOURCE_OSHASH", info->oshash);
-        vorbis_comment_add_tag(&info->vc, "SOURCE_OSHASH", info->oshash);
+    if (info->passno!=1) {
+        th_comment_add_tag(&info->tc, "ENCODER", PACKAGE_STRING);
+        vorbis_comment_add_tag(&info->vc, "ENCODER", PACKAGE_STRING);
+        if (strcmp(info->oshash, "0000000000000000") > 0) {
+            th_comment_add_tag(&info->tc, "SOURCE_OSHASH", info->oshash);
+            vorbis_comment_add_tag(&info->vc, "SOURCE_OSHASH", info->oshash);
+        }
     }
 
     if (!info->audio_only) {
@@ -1575,12 +1577,14 @@ void oggmux_close (oggmux_info *info) {
     ogg_stream_clear (&info->vo);
     vorbis_block_clear (&info->vb);
     vorbis_dsp_clear (&info->vd);
-    vorbis_comment_clear (&info->vc);
     vorbis_info_clear (&info->vi);
 
     ogg_stream_clear (&info->to);
     th_encode_free (info->td);
-    th_comment_clear (&info->tc);
+    if (info->passno!=1) {
+        vorbis_comment_clear (&info->vc);
+        th_comment_clear (&info->tc);
+    }
 
 #ifdef HAVE_KATE
     if (info->with_kate && info->passno!=1) {
