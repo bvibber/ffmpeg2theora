@@ -248,7 +248,7 @@ void add_fishead_packet (oggmux_info *info,
             packet_size = 64;
             break;
         case SKELETON_VERSION(3,1):
-            packet_size = 88;
+            packet_size = 104;
             break;
         default:
             fprintf (stderr, "ERROR: Unknown skeleton version");
@@ -274,8 +274,10 @@ void add_fishead_packet (oggmux_info *info,
     /* Index start/end time, if unknown or non-indexed, will be -1. */
     if (version >= SKELETON_VERSION(3,1)) {
         write64le(op.packet+64, index_start_time(info));
-        write64le(op.packet+72, index_end_time(info));
-        write64le(op.packet+80, output_file_length(info));
+        write64le(op.packet+72, (ogg_int64_t)1000);
+        write64le(op.packet+80, index_end_time(info));
+        write64le(op.packet+88, (ogg_int64_t)1000);
+        write64le(op.packet+96, output_file_length(info));
     }
     op.b_o_s = 1; /* its the first packet of the stream */
     op.e_o_s = 0; /* its not the last packet of the stream */
@@ -390,7 +392,7 @@ static int create_index_packet(int num_allocated_keypoints,
                                ogg_uint32_t serialno,
                                int num_used_keypoints)
 {
-    size_t size = 14 + num_allocated_keypoints * KEYPOINT_SIZE;
+    size_t size = 22 + num_allocated_keypoints * KEYPOINT_SIZE;
     memset (op, 0, sizeof(*op));
     op->packet = malloc(size);
     if (op->packet == NULL)
@@ -408,6 +410,9 @@ static int create_index_packet(int num_allocated_keypoints,
 
     /* Write number of valid keypoints in index into packet. */
     write32le(op->packet+10, num_used_keypoints);
+
+    /* Write timestamp denominator, times are in milliseconds, so 1000. */
+    write64le(op->packet+14, (ogg_int64_t)1000);
 
     return 0;
 }
@@ -533,7 +538,7 @@ write_index_pages (seek_index* index,
    
     /* Write keypoint data into packet. */
     for (i=0; i<num_keypoints; i++) {
-        unsigned char* p = op.packet + 14 + i * KEYPOINT_SIZE;
+        unsigned char* p = op.packet + 22 + i * KEYPOINT_SIZE;
         keypoint* k = &keypoints[i];
         write64le(p, k->offset);
         write32le(p+8, k->checksum);
