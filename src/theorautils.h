@@ -149,6 +149,7 @@ typedef struct
     seek_index vorbis_index;
     int prev_vorbis_window; /* Window size of previous vorbis block. Used to
                                calculate duration of vorbis packets. */
+    ogg_int64_t content_offset;
 }
 oggmux_info;
 

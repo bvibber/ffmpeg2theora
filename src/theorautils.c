@@ -100,6 +100,7 @@ void init_info(oggmux_info *info) {
     info->kate_streams = NULL;
 
     info->prev_vorbis_window = -1;
+    info->content_offset = 0;
 }
 
 void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
@@ -240,18 +241,18 @@ void add_fishead_packet (oggmux_info *info,
     size_t packet_size = 0;
     ogg_uint32_t version = SKELETON_VERSION(ver_maj, ver_min);
 
-    assert(version >= SKELETON_VERSION(3,0) &&
-           version <= SKELETON_VERSION(3,1));
+    assert(version >= SKELETON_VERSION(3,0) ||
+           version <= SKELETON_VERSION(3,2));
 
     switch (version) {
         case SKELETON_VERSION(3,0):
             packet_size = 64;
             break;
-        case SKELETON_VERSION(3,1):
-            packet_size = 104;
+        case SKELETON_VERSION(3,2):
+            packet_size = 112;
             break;
         default:
-            fprintf (stderr, "ERROR: Unknown skeleton version");
+            fprintf (stderr, "ERROR: Unknown skeleton version\n");
             exit (1);
     };
 
@@ -272,12 +273,13 @@ void add_fishead_packet (oggmux_info *info,
     write32le(op.packet+44, 0); /* UTC time, set to zero for now */
 
     /* Index start/end time, if unknown or non-indexed, will be -1. */
-    if (version >= SKELETON_VERSION(3,1)) {
+    if (version >= SKELETON_VERSION(3,2)) {
         write64le(op.packet+64, index_start_time(info));
         write64le(op.packet+72, (ogg_int64_t)1000);
         write64le(op.packet+80, index_end_time(info));
         write64le(op.packet+88, (ogg_int64_t)1000);
         write64le(op.packet+96, output_file_length(info));
+        write64le(op.packet+104, info->content_offset);
     }
     op.b_o_s = 1; /* its the first packet of the stream */
     op.e_o_s = 0; /* its not the last packet of the stream */
@@ -390,9 +392,9 @@ static int keypoints_per_index(seek_index* index, double duration)
 static int create_index_packet(int num_allocated_keypoints,
                                ogg_packet* op,
                                ogg_uint32_t serialno,
-                               int num_used_keypoints)
+                               ogg_int64_t num_used_keypoints)
 {
-    size_t size = 22 + num_allocated_keypoints * KEYPOINT_SIZE;
+    size_t size = 26 + num_allocated_keypoints * KEYPOINT_SIZE;
     memset (op, 0, sizeof(*op));
     op->packet = malloc(size);
     if (op->packet == NULL)
@@ -409,10 +411,10 @@ static int create_index_packet(int num_allocated_keypoints,
     write32le(op->packet+6, serialno);
 
     /* Write number of valid keypoints in index into packet. */
-    write32le(op->packet+10, num_used_keypoints);
+    write64le(op->packet+10, num_used_keypoints);
 
     /* Write timestamp denominator, times are in milliseconds, so 1000. */
-    write64le(op->packet+14, (ogg_int64_t)1000);
+    write64le(op->packet+18, (ogg_int64_t)1000);
 
     return 0;
 }
@@ -538,7 +540,7 @@ write_index_pages (seek_index* index,
    
     /* Write keypoint data into packet. */
     for (i=0; i<num_keypoints; i++) {
-        unsigned char* p = op.packet + 22 + i * KEYPOINT_SIZE;
+        unsigned char* p = op.packet + 26 + i * KEYPOINT_SIZE;
         keypoint* k = &keypoints[i];
         write64le(p, k->offset);
         write32le(p+8, k->checksum);
@@ -594,7 +596,7 @@ int write_seek_index (oggmux_info* info)
     ogg_stream_clear(&info->so);
     ogg_stream_init(&info->so, serialno);
 
-    add_fishead_packet (info, 3, 1);
+    add_fishead_packet (info, 3, 2);
     if (ogg_stream_flush(&info->so, &og) != 1) {
         fprintf (stderr, "Internal Ogg library error.\n");
         exit (1);
@@ -794,7 +796,7 @@ void oggmux_init (oggmux_info *info) {
             }
             ogg_stream_clear (&info->so);
             ogg_stream_init (&info->so, rand());
-            add_fishead_packet (info, 3, 1);
+            add_fishead_packet (info, 3, 2);
             if (ogg_stream_pageout (&info->so, &og) != 1) {
                 fprintf (stderr, "Internal Ogg library error.\n");
                 exit (1);
@@ -966,6 +968,10 @@ void oggmux_init (oggmux_info *info) {
             exit (1);
         }
         write_page (info, &og);
+        
+        /* Record the offset of the next page; it's the first non-header, or
+         * content page. */
+        info->content_offset = ftello(info->outfile);
     }
 }
 
