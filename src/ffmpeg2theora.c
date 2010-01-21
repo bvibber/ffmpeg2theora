@@ -1071,14 +1071,14 @@ void ff2theora_output(ff2theora this) {
             info.ti.fps_numerator = this->framerate.num;
             info.ti.fps_denominator = this->framerate.den;
             /* this is pixel aspect ratio */
-            if(this->aspect_numerator==1 && this->aspect_denominator ==1) {
+            if(this->aspect_numerator==1 && this->aspect_denominator==1) {
                 this->aspect_numerator = 0;
                 this->aspect_denominator = 0;
             }
             info.ti.aspect_numerator = this->aspect_numerator;
             info.ti.aspect_denominator = this->aspect_denominator;
 
-            info.ti.aspect_denominator=this->colorspace;
+            info.ti.colorspace = this->colorspace;
 
             /*Account for the Ogg page overhead.
               This is 1 byte per 255 for lacing values, plus 26 bytes per 4096 bytes for
