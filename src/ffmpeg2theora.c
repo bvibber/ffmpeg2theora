@@ -1217,10 +1217,16 @@ void ff2theora_output(ff2theora this) {
                         ki->gps_denominator = this->framerate_new.den;
                     }
                     else {
-                        AVStream *stream = this->context->streams[ks->stream_index];
-                        if (stream->time_base.num > 0) {
-                            ki->gps_numerator = stream->time_base.den;
-                            ki->gps_denominator = stream->time_base.num;
+                        if (ks->stream_index >= 0) {
+                            AVStream *stream = this->context->streams[ks->stream_index];
+                            if (stream->time_base.num > 0) {
+                                ki->gps_numerator = stream->time_base.den;
+                                ki->gps_denominator = stream->time_base.num;
+                            }
+                            else {
+                                ki->gps_numerator = vstream_fps.num;
+                                ki->gps_denominator = vstream_fps.den;
+                            }
                         }
                         else {
                             ki->gps_numerator = vstream_fps.num;
