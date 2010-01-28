@@ -1381,7 +1381,7 @@ static void print_stats(oggmux_info *info, double timebase) {
                 remaining_seconds = (long) remaining % 60;
                 remaining_minutes = ((long) remaining / 60) % 60;
                 remaining_hours = (long) remaining / 3600;
-                fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d               ",
+                fprintf (stderr,"\r  %d:%02d:%02d.%02d audio: %dkbps video: %dkbps, time elapsed: %02d:%02d:%02d           ",
                     hours, minutes, seconds, hundredths,
                     info->akbps, info->vkbps,
                     remaining_hours, remaining_minutes, remaining_seconds

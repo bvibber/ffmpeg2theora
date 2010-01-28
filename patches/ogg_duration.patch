@@ -12,7 +12,7 @@ Index: libavformat/oggdec.c
 +        if (ogg->streams[i].granule != -1 && ogg->streams[i].granule != 0 && 
 +            idx == i) {
 +            s->streams[idx]->duration -=
-+                ogg_gptopts (s, idx, ogg->streams[idx].granule);
++                ogg_gptopts (s, idx, ogg->streams[idx].granule, NULL);
 +            break;
 +        }
 +    }
