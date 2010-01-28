@@ -41,9 +41,6 @@ typedef struct {
     /* Byte offset of the start of the page. */
     ogg_int64_t offset;
 
-    /* Checksum of this page. */
-    ogg_uint32_t checksum;
-
     /* Number of packets that start on this page. */
     int packet_start_num;
 }
@@ -85,6 +82,9 @@ typedef struct {
 
     /* The end time of the last sample in the stream, in ms. */
     ogg_int64_t end_time;
+    
+    /* The size we'll reserve for the index packet on disk. */
+    unsigned int packet_size;
 }
 seek_index;
 
@@ -107,7 +107,6 @@ int seek_index_record_sample(seek_index* index,
 /* Returns 0 on success, -1 on failure. */
 int seek_index_record_page(seek_index* index,
                            ogg_int64_t offset,
-                           ogg_uint32_t checksum,
                            int packet_start_num);
 
 /* Sets maximum number of keypoints we'll allowe in an index. This sets

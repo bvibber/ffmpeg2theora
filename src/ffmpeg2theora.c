@@ -87,6 +87,8 @@ enum {
     NOSKELETON,
     SEEK_INDEX,
     INDEX_INTERVAL,
+    THEORA_INDEX_RESERVE,
+    VORBIS_INDEX_RESERVE,
     INFO_FLAG
 } F2T_FLAGS;
 
@@ -1827,7 +1829,6 @@ void print_usage() {
         "  -o, --output           alternative output filename\n"
         "      --no-skeleton      disables ogg skeleton metadata output\n"
         "      --seek-index       enables keyframe index in skeleton track\n"
-        "      --index-interval   set minimum distance between indexed keyframes (in ms, default: 2000)\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --preset           encode file with preset.\n"
@@ -1950,6 +1951,12 @@ void print_usage() {
         "      --nometadata       disables metadata from input\n"
         "      --no-oshash        do not include oshash of source file(SOURCE_OSHASH)\n"
         "\n"
+        "Keyframe indexing options:\n"
+        "      --index-interval <n>         set minimum distance between indexed keyframes\n"
+        "                                   to <n> ms (default: 2000)\n"
+        "      --theora-index-reserve <n>   reserve <n> bytes for theora keyframe index\n"
+        "      --vorbis-index-reserve <n>   reserve <n> bytes for vorbis keyframe indes\n"
+        "\n"
         "Other options:\n"
 #ifndef _WIN32
         "      --nice n           set niceness to n\n"
@@ -2008,6 +2015,8 @@ int main(int argc, char **argv) {
         {"no-skeleton",no_argument,&flag,NOSKELETON},
         {"seek-index",no_argument,&flag,SEEK_INDEX},
         {"index-interval",required_argument,&flag,INDEX_INTERVAL},
+        {"theora-index-reserve",required_argument,&flag,THEORA_INDEX_RESERVE},
+        {"vorbis-index-reserve",required_argument,&flag,VORBIS_INDEX_RESERVE},
         {"format",required_argument,NULL,'f'},
         {"width",required_argument,NULL,'x'},
         {"height",required_argument,NULL,'y'},
@@ -2257,6 +2266,14 @@ int main(int argc, char **argv) {
                             break;
                         case INDEX_INTERVAL:
                             info.index_interval = atoi(optarg);
+                            flag = -1;
+                            break;
+                        case THEORA_INDEX_RESERVE:
+                            info.theora_index_reserve = atoi(optarg);
+                            flag = -1;
+                            break;
+                        case VORBIS_INDEX_RESERVE:
+                            info.vorbis_index_reserve = atoi(optarg);
                             flag = -1;
                             break;
                         case INFO_FLAG:

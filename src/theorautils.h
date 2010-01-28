@@ -76,6 +76,8 @@ typedef struct
     int with_skeleton;
     int with_seek_index;
     int index_interval;
+    int theora_index_reserve;
+    int vorbis_index_reserve;
     int indexing_complete;
     FILE *frontend;
     /* vorbis settings */
@@ -149,6 +151,7 @@ typedef struct
     seek_index vorbis_index;
     int prev_vorbis_window; /* Window size of previous vorbis block. Used to
                                calculate duration of vorbis packets. */
+    /* The offset of the first non header page in bytes. */
     ogg_int64_t content_offset;
 }
 oggmux_info;

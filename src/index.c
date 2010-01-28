@@ -46,6 +46,7 @@ void seek_index_init(seek_index* index, int packet_interval)
     index->packet_interval = packet_interval;
     index->start_time = INT64_MAX;
     index->end_time = INT64_MIN;
+    index->packet_size = -1;
 }
 
 void seek_index_clear(seek_index* index)
@@ -152,7 +153,6 @@ int seek_index_record_sample(seek_index* index,
  */
 int seek_index_record_page(seek_index* index,
                            ogg_int64_t offset,
-                           ogg_uint32_t checksum,
                            int packet_start_num)
 {
     keyframe_page* page;
@@ -166,7 +166,6 @@ int seek_index_record_page(seek_index* index,
     }
     page = &index->pages[index->pages_num];
     page->offset = offset;
-    page->checksum = checksum;
     page->packet_start_num = packet_start_num;
     index->pages_num++;
     return 0;

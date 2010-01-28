@@ -64,6 +64,8 @@ void init_info(oggmux_info *info) {
     info->with_skeleton = 1; /* skeleton is enabled by default    */
     info->with_seek_index = 0; /* keyframe index disabled by default. */
     info->index_interval = 2000;
+    info->theora_index_reserve = -1;
+    info->vorbis_index_reserve = -1;
     info->indexing_complete = 0;
     info->frontend = NULL; /*frontend mode*/
     info->videotime =  0;
@@ -242,13 +244,13 @@ void add_fishead_packet (oggmux_info *info,
     ogg_uint32_t version = SKELETON_VERSION(ver_maj, ver_min);
 
     assert(version >= SKELETON_VERSION(3,0) ||
-           version <= SKELETON_VERSION(3,2));
+           version <= SKELETON_VERSION(3,3));
 
     switch (version) {
         case SKELETON_VERSION(3,0):
             packet_size = 64;
             break;
-        case SKELETON_VERSION(3,2):
+        case SKELETON_VERSION(3,3):
             packet_size = 112;
             break;
         default:
@@ -389,12 +391,13 @@ static int keypoints_per_index(seek_index* index, double duration)
     return !keypoints_per_second ? 0 : ((int)ceil(duration / keypoints_per_second) + 2);
 }
 
-static int create_index_packet(int num_allocated_keypoints,
+/* Creates a new index packet, with |bytes| space set aside for index. */ 
+static int create_index_packet(size_t bytes,
                                ogg_packet* op,
                                ogg_uint32_t serialno,
                                ogg_int64_t num_used_keypoints)
 {
-    size_t size = 26 + num_allocated_keypoints * KEYPOINT_SIZE;
+    size_t size = 26 + bytes;
     memset (op, 0, sizeof(*op));
     op->packet = malloc(size);
     if (op->packet == NULL)
@@ -428,9 +431,16 @@ static int write_index_placeholder_for_stream (oggmux_info *info,
 {
     ogg_packet op;
     ogg_page og;
-    int num_keypoints = keypoints_per_index(&info->theora_index,
+    int num_keypoints = keypoints_per_index(index,
                                             info->duration);
-    if (create_index_packet(num_keypoints, &op, serialno, 0) == -1) {
+    if (index->packet_size == -1) {
+        index->packet_size = (int)(num_keypoints * 5.1);
+    }
+    if (create_index_packet(index->packet_size,
+                            &op,
+                            serialno,
+                            0) == -1)
+    {
         return -1;
     }
 
@@ -454,15 +464,54 @@ static int write_index_placeholder_for_stream (oggmux_info *info,
     return 0;
 }
 
+/* Counts number of bytes required to encode n with variable byte encoding. */
+static int bytes_required(ogg_int64_t n) {
+    int bits = 0;
+    int bytes = 0;
+    assert(n >= 0);
+    /* Determine number of bits required. */
+    while (n) {
+        n = n >> 1;
+        bits++;
+    }
+    /* 7 bits per byte, plus 1 if we spill over onto the next byte. */
+    bytes = bits / 7;
+    return bytes + (((bits % 7) != 0 || bits == 0) ? 1 : 0);
+}
+
+static unsigned char*
+write_vl_int(unsigned char* p, const unsigned char* limit, ogg_int64_t n)
+{
+    ogg_int64_t k = n;
+    unsigned char* x = p;
+    assert(n >= 0);
+    do {
+        if (p >= limit) {
+            return p;
+        }
+        unsigned char b = (unsigned char)(k & 0x7f);
+        k >>= 7;
+        if (k == 0) {
+            // Last byte, add terminating bit.
+            b |= 0x80;
+        }
+        *p = b;
+        p++;
+    } while (k && p < limit);
+    assert(x + bytes_required(n) == p);
+
+    return p;
+}
+
 typedef struct {
     ogg_int64_t offset;
-    ogg_uint32_t checksum;
     ogg_int64_t time;
 } keypoint;
 
 /* Overwrites pages on disk for a stream's index with actual index data. */
 static int
 write_index_pages (seek_index* index,
+                   const char* name,
                    oggmux_info *info,
                    ogg_uint32_t serialno,
                    int target_packet)
@@ -480,6 +529,12 @@ write_index_pages (seek_index* index,
     int prev_keyframe_pageno = -INT_MAX;
     ogg_int64_t prev_keyframe_start_time = -INT_MAX;
     int packet_in_page = 0;
+    unsigned char* p = 0;
+    ogg_int64_t prev_offset = 0;
+    ogg_int64_t prev_time = 0;
+    const unsigned char* limit = 0;
+    int index_bytes = 0;  
+    int keypoints_cutoff = 0;
 
     /* Must have indexed keypoints. */
     assert(index->max_keypoints > 0 && index->packet_num > 0);
@@ -496,6 +551,8 @@ write_index_pages (seek_index* index,
     }
     memset(keypoints, -1, sizeof(keypoint) * num_keypoints);
 
+    prev_offset = 0;
+    prev_time = 0;
     for (i=0; i < index->packet_num && k < num_keypoints; i++) {
         packetno = index->packets[i].packetno;
         /* Increment pageno until we find the page which contains the start of
@@ -526,25 +583,58 @@ write_index_pages (seek_index* index,
 
         /* Add to final keyframe index. */        
         keypoints[k].offset = index->pages[pageno].offset;
-        keypoints[k].checksum = index->pages[pageno].checksum;
         keypoints[k].time = index->packets[i].start_time;
+        
+        /* Count how many bytes is required to encode this keypoint. */
+        index_bytes += bytes_required(keypoints[k].offset - prev_offset);
+        prev_offset = keypoints[k].offset;
+        index_bytes += bytes_required(keypoints[k].time - prev_time);
+        prev_time = keypoints[k].time;
+
         k++;
+
+        if (index_bytes < index->packet_size) {
+            keypoints_cutoff = k;
+        }
+
         prev_keyframe_start_time = index->packets[i].start_time;
     }
-    num_keypoints = k;
+    if (index_bytes > index->packet_size) {
+        printf("WARNING: Underestimated space for %s keyframe index, dropped %d keyframes, "
+               "only part of the file may be indexed. Rerun with --%s-index-reserve %d to "
+               "ensure a complete index, or use OggIndex to re-index.\n",
+               name, (k - keypoints_cutoff), name, index_bytes);
+    } else if (index_bytes < index->packet_size) {
+        printf("Allocated %d bytes for %s keyframe index, %d are unused. "
+               "Rerun with '--%s-index-reserve %d' to encode with the optimal sized %s index,"
+               " or use OggIndex to re-index.\n",
+               index->packet_size, name, (index->packet_size - index_bytes),
+               name, index_bytes, name);
+    }
+    num_keypoints = keypoints_cutoff;
 
-    if (create_index_packet(index->max_keypoints, &op, serialno, num_keypoints) == -1) {
+    if (create_index_packet(index->packet_size,
+                            &op,
+                            serialno,
+                            num_keypoints) == -1)
+    {
         free(keypoints);
         return -1;
     }
    
     /* Write keypoint data into packet. */
+    p = op.packet + 26;
+    limit = op.packet + op.bytes;
+    prev_offset = 0;
+    prev_time = 0;
     for (i=0; i<num_keypoints; i++) {
-        unsigned char* p = op.packet + 26 + i * KEYPOINT_SIZE;
         keypoint* k = &keypoints[i];
-        write64le(p, k->offset);
-        write32le(p+8, k->checksum);
-        write64le(p+12, k->time);
+        ogg_int64_t offset_diff = k->offset - prev_offset;
+        ogg_int64_t time_diff = k->time - prev_time;
+        p = write_vl_int(p, limit, offset_diff);
+        p = write_vl_int(p, limit, time_diff);
+        prev_offset = k->offset;
+        prev_time = k->time;
     }
     free(keypoints);
 
@@ -596,7 +686,7 @@ int write_seek_index (oggmux_info* info)
     ogg_stream_clear(&info->so);
     ogg_stream_init(&info->so, serialno);
 
-    add_fishead_packet (info, 3, 2);
+    add_fishead_packet (info, 3, 3);
     if (ogg_stream_flush(&info->so, &og) != 1) {
         fprintf (stderr, "Internal Ogg library error.\n");
         exit (1);
@@ -623,8 +713,11 @@ int write_seek_index (oggmux_info* info)
             break;
     }
 
+    /* Write a new line, so that when we print out indexing stats, it's on a new line. */
+    printf("\n");
     if (!info->audio_only &&
         write_index_pages(&info->theora_index,
+                          "theora",
                           info,
                           info->to.serialno,
                           1) == -1)
@@ -633,6 +726,7 @@ int write_seek_index (oggmux_info* info)
     }
     if (!info->video_only && 
         write_index_pages(&info->vorbis_index,
+                          "vorbis",
                           info,
                           info->vo.serialno,
                           2) == -1)
@@ -655,12 +749,18 @@ int write_seek_index (oggmux_info* info)
    after encode when we add the index. */
 static int write_placeholder_index_pages (oggmux_info *info)
 {
+    if (info->theora_index_reserve != -1) {
+        info->theora_index.packet_size = info->theora_index_reserve;
+    }
     if (!info->audio_only &&
         write_index_placeholder_for_stream(info,
                                            &info->theora_index,
                                            info->to.serialno) == -1)
     {
         return -1;
+    }
+    if (info->vorbis_index_reserve != -1) {
+        info->vorbis_index.packet_size = info->vorbis_index_reserve;
     }
     if (!info->video_only &&
         write_index_placeholder_for_stream(info,
@@ -796,7 +896,7 @@ void oggmux_init (oggmux_info *info) {
             }
             ogg_stream_clear (&info->so);
             ogg_stream_init (&info->so, rand());
-            add_fishead_packet (info, 3, 2);
+            add_fishead_packet (info, 3, 3);
             if (ogg_stream_pageout (&info->so, &og) != 1) {
                 fprintf (stderr, "Internal Ogg library error.\n");
                 exit (1);
@@ -1336,7 +1436,6 @@ static void write_audio_page(oggmux_info *info)
 
     ret = seek_index_record_page(&info->vorbis_index,
                                  page_offset,
-                                 checksum,
                                  packet_start_num);
     assert(ret == 0);
 #ifdef OGGMUX_DEBUG
@@ -1371,7 +1470,6 @@ static void write_video_page(oggmux_info *info)
 
     ret = seek_index_record_page(&info->theora_index,
                                  page_offset,
-                                 checksum,
                                  packet_start_num);
     assert(ret == 0);
 #ifdef OGGMUX_DEBUG
