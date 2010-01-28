@@ -2126,7 +2126,6 @@ int main(int argc, char **argv) {
 #ifdef WIN32
                             srand (time (NULL));
                             sprintf(_tmp_2pass, "%s\\f2t_%06d.log", getenv("TEMP"), rand());
-                            fprintf(stderr, "%s\n", _tmp_2pass);
                             info.twopass_file = fopen(_tmp_2pass,"wb+");
 #else
                             info.twopass_file = tmpfile();
