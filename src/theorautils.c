@@ -30,8 +30,10 @@
 #define _FILE_OFFSET_BITS 64
 #endif
 
+#ifndef WIN32
 #if !defined(off64_t)
 #define off64_t off_t
+#endif
 #endif
 
 #ifdef WIN32

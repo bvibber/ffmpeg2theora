@@ -2089,6 +2089,8 @@ int main(int argc, char **argv) {
     };
 
     char pidfile_name[255] = { '\0' };
+    char _tmp_2pass[1024] = { '\0' };
+
     FILE *fpid = NULL;
 
     ff2theora convert = ff2theora_init();
@@ -2121,7 +2123,14 @@ int main(int argc, char **argv) {
                             break;
                         case TWOPASS_FLAG:
                             info.twopass = 3;
+#ifdef WIN32
+                            srand (time (NULL));
+                            sprintf(_tmp_2pass, "%s\\f2t_%06d.log", getenv("TEMP"), rand());
+                            fprintf(stderr, "%s\n", _tmp_2pass);
+                            info.twopass_file = fopen(_tmp_2pass,"wb+");
+#else
                             info.twopass_file = tmpfile();
+#endif
                             if(!info.twopass_file){
                                 fprintf(stderr,"Unable to open temporary file for twopass data\n");
                                 exit(1);
@@ -2719,5 +2728,9 @@ int main(int argc, char **argv) {
         fprintf(info.frontend, "{\"result\": \"ok\"}\n");
     if (info.frontend && info.frontend != stderr)
         fclose(info.frontend);
+#ifdef WIN32
+    if (info.twopass==3)
+        unlink(_tmp_2pass);
+#endif
     return(0);
 }

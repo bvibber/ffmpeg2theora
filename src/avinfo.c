@@ -43,8 +43,10 @@
 
 #include "libavformat/avformat.h"
 
+#ifndef WIN32
 #if !defined(off64_t)
 #define off64_t off_t
+#endif
 #endif
 
 #ifdef WIN32
