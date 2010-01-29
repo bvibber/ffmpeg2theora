@@ -2124,9 +2124,15 @@ int main(int argc, char **argv) {
                         case TWOPASS_FLAG:
                             info.twopass = 3;
 #ifdef WIN32
-                            srand (time (NULL));
-                            sprintf(_tmp_2pass, "%s\\f2t_%06d.log", getenv("TEMP"), rand());
-                            info.twopass_file = fopen(_tmp_2pass,"wb+");
+                            {
+                              char *tmp;
+                              srand (time (NULL));
+                              tmp = getenv("TEMP");
+                              if (!tmp) tmp = getenv("TMP");
+                              if (!tmp) tmp = ".";
+                              snprintf(_tmp_2pass, sizeof(_tmp_2pass), "%s\\f2t_%06d.log", tmp, rand());
+                              info.twopass_file = fopen(_tmp_2pass,"wb+");
+                            }
 #else
                             info.twopass_file = tmpfile();
 #endif
