@@ -1208,19 +1208,19 @@ void ff2theora_output(ff2theora this) {
                 }
                 kate_info_set_language(ki, ks->subtitles_language);
                 kate_info_set_category(ki, ks->subtitles_category[0]?ks->subtitles_category:"SUB");
-                if (this->force_input_fps.num > 0) {
-                    ki->gps_numerator = this->force_input_fps.num;    /* fps= numerator/denominator */
-                    ki->gps_denominator = this->force_input_fps.den;
-                }
-                else {
-                    if (this->framerate_new.num > 0) {
-                        // new framerate is interger only right now,
-                        // so denominator is always 1
-                        ki->gps_numerator = this->framerate_new.num;
-                        ki->gps_denominator = this->framerate_new.den;
+                if (ks->stream_index >= 0) {
+                    if (this->force_input_fps.num > 0) {
+                        ki->gps_numerator = this->force_input_fps.num;    /* fps= numerator/denominator */
+                        ki->gps_denominator = this->force_input_fps.den;
                     }
                     else {
-                        if (ks->stream_index >= 0) {
+                        if (this->framerate_new.num > 0) {
+                            // new framerate is interger only right now,
+                            // so denominator is always 1
+                            ki->gps_numerator = this->framerate_new.num;
+                            ki->gps_denominator = this->framerate_new.den;
+                        }
+                        else {
                             AVStream *stream = this->context->streams[ks->stream_index];
                             if (stream->time_base.num > 0) {
                                 ki->gps_numerator = stream->time_base.den;
@@ -1231,11 +1231,12 @@ void ff2theora_output(ff2theora this) {
                                 ki->gps_denominator = vstream_fps.den;
                             }
                         }
-                        else {
-                            ki->gps_numerator = vstream_fps.num;
-                            ki->gps_denominator = vstream_fps.den;
-                        }
                     }
+                }
+                else {
+                    // SRT files have millisecond timing
+                    ki->gps_numerator = 1000;
+                    ki->gps_denominator = 1;
                 }
                 ki->granule_shift = 32;
             }
