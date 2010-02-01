@@ -89,6 +89,7 @@ enum {
     INDEX_INTERVAL,
     THEORA_INDEX_RESERVE,
     VORBIS_INDEX_RESERVE,
+    KATE_INDEX_RESERVE,
     INFO_FLAG
 } F2T_FLAGS;
 
@@ -1955,7 +1956,8 @@ void print_usage() {
         "      --index-interval <n>         set minimum distance between indexed keyframes\n"
         "                                   to <n> ms (default: 2000)\n"
         "      --theora-index-reserve <n>   reserve <n> bytes for theora keyframe index\n"
-        "      --vorbis-index-reserve <n>   reserve <n> bytes for vorbis keyframe indes\n"
+        "      --vorbis-index-reserve <n>   reserve <n> bytes for vorbis keyframe index\n"
+        "      --kate-index-reserve <n>     reserve <n> bytes for kate keyframe index\n"
         "\n"
         "Other options:\n"
 #ifndef _WIN32
@@ -2017,6 +2019,7 @@ int main(int argc, char **argv) {
         {"index-interval",required_argument,&flag,INDEX_INTERVAL},
         {"theora-index-reserve",required_argument,&flag,THEORA_INDEX_RESERVE},
         {"vorbis-index-reserve",required_argument,&flag,VORBIS_INDEX_RESERVE},
+        {"kate-index-reserve",required_argument,&flag,KATE_INDEX_RESERVE},
         {"format",required_argument,NULL,'f'},
         {"width",required_argument,NULL,'x'},
         {"height",required_argument,NULL,'y'},
@@ -2288,6 +2291,10 @@ int main(int argc, char **argv) {
                             break;
                         case VORBIS_INDEX_RESERVE:
                             info.vorbis_index_reserve = atoi(optarg);
+                            flag = -1;
+                            break;
+                        case KATE_INDEX_RESERVE:
+                            info.kate_index_reserve = atoi(optarg);
                             flag = -1;
                             break;
                         case INFO_FLAG:

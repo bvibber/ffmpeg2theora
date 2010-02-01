@@ -53,6 +53,8 @@ typedef struct
     int katepage_len;
     int katepage_buffer_length;
     double katetime;
+    seek_index index;
+    ogg_int64_t last_end_time;
 }
 oggmux_kate_stream;
 
@@ -78,6 +80,7 @@ typedef struct
     int index_interval;
     int theora_index_reserve;
     int vorbis_index_reserve;
+    int kate_index_reserve;
     int indexing_complete;
     FILE *frontend;
     /* vorbis settings */

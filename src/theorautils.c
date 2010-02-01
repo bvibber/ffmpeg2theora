@@ -68,6 +68,7 @@ void init_info(oggmux_info *info) {
     info->index_interval = 2000;
     info->theora_index_reserve = -1;
     info->vorbis_index_reserve = -1;
+    info->kate_index_reserve = -1;
     info->indexing_complete = 0;
     info->frontend = NULL; /*frontend mode*/
     info->videotime =  0;
@@ -121,6 +122,7 @@ void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
         ks->katepage_buffer_length = 0;
         ks->katepage = NULL;
         ks->katetime = 0;
+        ks->last_end_time = -1;
     }
 }
 
@@ -203,18 +205,37 @@ write_page(oggmux_info* info, ogg_page* page)
 
 static ogg_int64_t index_start_time(oggmux_info* info)
 {
+    ogg_int64_t start_time;
+    int n;
+
     if (!info->with_seek_index || !info->indexing_complete) {
         return -1;
     }
-    return MIN(info->theora_index.start_time, info->vorbis_index.start_time);
+
+    start_time = MIN(info->theora_index.start_time, info->vorbis_index.start_time);
+    for (n=0; n<info->n_kate_streams; ++n) {
+        oggmux_kate_stream *ks=info->kate_streams+n;
+        if (ks->index.start_time < start_time)
+            start_time = ks->index.start_time;
+    }
+    return start_time;
 }
 
 static ogg_int64_t index_end_time(oggmux_info* info)
 {
+    ogg_int64_t end_time;
+    int n;
+
     if (!info->with_seek_index || !info->indexing_complete) {
         return -1;
     }
-    return MAX(info->theora_index.end_time, info->vorbis_index.end_time);
+    end_time = MAX(info->theora_index.end_time, info->vorbis_index.end_time);
+    for (n=0; n<info->n_kate_streams; ++n) {
+        oggmux_kate_stream *ks=info->kate_streams+n;
+        if (ks->index.end_time > end_time)
+            end_time = ks->index.end_time;
+    }
+    return end_time;
 }
 
 static ogg_int64_t output_file_length(oggmux_info* info)
@@ -516,7 +537,8 @@ write_index_pages (seek_index* index,
                    const char* name,
                    oggmux_info *info,
                    ogg_uint32_t serialno,
-                   int target_packet)
+                   int target_packet,
+                   int num_headers)
 {
     ogg_packet op;
     ogg_page og;
@@ -525,7 +547,7 @@ write_index_pages (seek_index* index,
     int result;
     int num_keypoints;
     int packetno;
-    int last_packetno = 2; /* Take into account header packets... */
+    int last_packetno = num_headers-1; /* Take into account header packets... */
     keypoint* keypoints = 0;
     int pageno = 0;
     int prev_keyframe_pageno = -INT_MAX;
@@ -722,7 +744,8 @@ int write_seek_index (oggmux_info* info)
                           "theora",
                           info,
                           info->to.serialno,
-                          1) == -1)
+                          1,
+                          3) == -1)
     {
         return -1;
     }
@@ -731,14 +754,22 @@ int write_seek_index (oggmux_info* info)
                           "vorbis",
                           info,
                           info->vo.serialno,
-                          2) == -1)
+                          2,
+                          3) == -1)
     {
         return -1;
     }
 
 #ifdef HAVE_KATE
     if (info->with_kate) {
-        /* TODO: Add indexing for Kate. */
+        int n;
+        for (n=0; n<info->n_kate_streams; ++n) {
+            oggmux_kate_stream *ks=info->kate_streams+n;
+            if (write_index_pages(&ks->index, "kate", info, ks->ko.serialno, 1, ks->ki.num_headers) == -1)
+            {
+                return -1;
+            }
+        }
     }
 #endif
 
@@ -774,7 +805,19 @@ static int write_placeholder_index_pages (oggmux_info *info)
 
 #ifdef HAVE_KATE
     if (info->with_kate) {
-        /* TODO: Add indexing for Kate. */
+        int n;
+        for (n=0; n<info->n_kate_streams; ++n) {
+            oggmux_kate_stream *ks=info->kate_streams+n;
+            if (info->kate_index_reserve != -1) {
+                ks->index.packet_size = info->kate_index_reserve;
+            }
+            if (write_index_placeholder_for_stream(info,
+                                                   &ks->index,
+                                                   ks->ko.serialno) == -1)
+            {
+                return -1;
+            }
+        }
     }
 #endif
 
@@ -847,6 +890,8 @@ void oggmux_init (oggmux_info *info) {
                 exit(1);
             }
             kate_comment_add_tag (&ks->kc, "ENCODER",PACKAGE_STRING);
+
+            seek_index_init(&ks->index, info->index_interval);
         }
 #endif
     }
@@ -1258,6 +1303,15 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
 
 }
 
+static void oggmux_record_kate_index(oggmux_info *info, oggmux_kate_stream *ks, const ogg_packet *op, ogg_int64_t start_time, ogg_int64_t end_time)
+{
+    if (ks->last_end_time >= 0)
+        start_time = ks->last_end_time;
+
+    seek_index_record_sample(&ks->index, op->packetno, start_time, end_time, 1);
+    ks->last_end_time = end_time;
+}
+
 /**
  * adds a subtitles text to the encoding sink
  * if e_o_s is 1 the end of the logical bitstream will be marked.
@@ -1275,13 +1329,15 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
     int ret;
     ret = kate_ogg_encode_text(&ks->k, t0, t1, text, len, &op);
     if (ret>=0) {
+        if (info->with_seek_index && info->passno != 1) {
+            ogg_int64_t start_time = (int)(t0 * 1000.0f + 0.5f);
+            ogg_int64_t end_time = (int)(t1 * 1000.0f + 0.5f);
+            oggmux_record_kate_index(info, ks, &op, start_time, end_time);
+        }
+
         ogg_stream_packetin (&ks->ko, &op);
         ogg_packet_clear (&op);
         info->k_pkg++;
-
-#ifdef HAVE_KATE
-        /* TODO: Add indexing for Kate. */
-#endif
     }
     else {
         fprintf(stderr, "Failed to encode kate data packet (%f --> %f, [%s]): %d\n",
@@ -1303,6 +1359,11 @@ void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t) {
     int ret;
     ret = kate_ogg_encode_finish(&ks->k, t, &op);
     if (ret>=0) {
+        if (info->with_seek_index && info->passno != 1) {
+            ogg_int64_t start_time = floorf(t * 1000.0f + 0.5f);
+            ogg_int64_t end_time = start_time;
+            oggmux_record_kate_index(info, ks, &op, start_time, end_time);
+        }
         ogg_stream_packetin (&ks->ko, &op);
         ogg_packet_clear (&op);
         info->k_pkg++;
@@ -1490,6 +1551,8 @@ static void write_kate_page(oggmux_info *info, int idx)
 {
     int ret;
     oggmux_kate_stream *ks=info->kate_streams+idx;
+    ogg_int64_t page_offset = ftello(info->outfile);
+    int packet_start_num = ogg_page_start_packets(ks->katepage);
 
     ret = fwrite(ks->katepage, 1, ks->katepage_len, info->outfile);
     if (ret < ks->katepage_len) {
@@ -1500,6 +1563,12 @@ static void write_kate_page(oggmux_info *info, int idx)
     }
     ks->katepage_valid = 0;
     info->k_pkg -= ogg_page_packets((ogg_page *)&ks->katepage);
+
+    ret = seek_index_record_page(&ks->index,
+                                 page_offset,
+                                 packet_start_num);
+    assert(ret == 0);
+
 #ifdef OGGMUX_DEBUG
     info->k_page++;
     fprintf(stderr,"\nkate page %d (%d pkgs) | pkg remaining %d\n",info->k_page,ogg_page_packets((ogg_page *)&ks->katepage),info->k_pkg);
