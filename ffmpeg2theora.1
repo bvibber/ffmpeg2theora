@@ -42,9 +42,6 @@ Disables Ogg Skeleton metadata output.
 .B  \-\-seek-index
 Enables keyframe index in skeleton track.
 .TP
-.B  \-\-index-interval
-Set minimum distance between indexed keyframes (in ms, default: 2000)
-.TP
 .B \-s, \-\-starttime
 Start encoding at this time (in seconds).
 .TP
@@ -266,6 +263,21 @@ disables metadata from input
 .TP
 .B \-\-no\-oshash
 do not include oshash of source file(SOURCE_OSHASH)
+
+.SS  Keyframe indexing options:
+.TP
+.B  \-\-index-interval <n>
+set minimum distance between indexed keyframes
+to <n> ms (default: 2000)
+.TP
+.B  \-\-theora\-index\-reserve <n>
+reserve <n> bytes for theora keyframe index
+.TP
+.B  \-\-vorbis\-index\-reserve <n>
+reserve <n> bytes for vorbis keyframe index
+.TP
+.B  \-\-kate\-index\-reserve <n>
+reserve <n> bytes for kate keyframe index
 
 .SS Other options:
 .TP
