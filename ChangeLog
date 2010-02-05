@@ -1,3 +1,6 @@
+svn
+
+
 0.26 2010-02-05
     - use a/v sync from input container
       this should fix many issues that came up with variable framerate inputs
