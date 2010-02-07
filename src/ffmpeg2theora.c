@@ -766,24 +766,26 @@ void ff2theora_output(ff2theora this) {
                 this->framerate_new = vstream_fps;
         }
 
-        if (sample_aspect_ratio.num!=0 && this->frame_aspect.num==0) {
+        if (info.twopass!=3 || info.passno==1) {
+            if (sample_aspect_ratio.num!=0 && this->frame_aspect.num==0) {
 
-            // just use the ratio from the input
-            this->aspect_numerator=sample_aspect_ratio.num;
-            this->aspect_denominator=sample_aspect_ratio.den;
-            // or we use ratio for the output
-            if (this->picture_height) {
-                int width=display_width-this->frame_leftBand-this->frame_rightBand;
-                int height=display_height-this->frame_topBand-this->frame_bottomBand;
-                av_reduce(&this->aspect_numerator,&this->aspect_denominator,
-                vstream->sample_aspect_ratio.num*width*this->picture_height,
-                vstream->sample_aspect_ratio.den*height*this->picture_width,10000);
-                frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
-                                (this->aspect_denominator*this->picture_height);
-            }
-            else{
-                frame_aspect=(float)(this->aspect_numerator*display_width)/
-                                (this->aspect_denominator*display_height);
+                // just use the ratio from the input
+                this->aspect_numerator=sample_aspect_ratio.num;
+                this->aspect_denominator=sample_aspect_ratio.den;
+                // or we use ratio for the output
+                if (this->picture_height) {
+                    int width=display_width-this->frame_leftBand-this->frame_rightBand;
+                    int height=display_height-this->frame_topBand-this->frame_bottomBand;
+                    av_reduce(&this->aspect_numerator,&this->aspect_denominator,
+                    vstream->sample_aspect_ratio.num*width*this->picture_height,
+                    vstream->sample_aspect_ratio.den*height*this->picture_width,10000);
+                    frame_aspect=(float)(this->aspect_numerator*this->picture_width)/
+                                    (this->aspect_denominator*this->picture_height);
+                }
+                else{
+                    frame_aspect=(float)(this->aspect_numerator*display_width)/
+                                    (this->aspect_denominator*display_height);
+                }
             }
         }
 
