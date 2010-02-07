@@ -1988,6 +1988,7 @@ void print_usage() {
         "  Live streaming from V4L Device:\n"
         "    ffmpeg2theora /dev/video0 -f video4linux --inputfps 15 -x 160 -y 128 -o - \\\n"
         "     | oggfwd icast2server 8000 password /theora.ogv\n"
+        "     (you might have to use video4linux2 depending on your hardware)\n"
         "\n"
         "  Live encoding from a DV camcorder (needs a fast machine):\n"
         "    dvgrab - | ffmpeg2theora -f dv -x 352 -y 288 -o output.ogv -\n"
