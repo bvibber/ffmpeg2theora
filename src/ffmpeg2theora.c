@@ -559,16 +559,6 @@ void ff2theora_output(ff2theora this) {
         fprintf(stderr, "ticks per frame: %i\n", venc->ticks_per_frame);
         fprintf(stderr, "FPS used: %f\n", fps);
 #endif
-        if (this->picture_width && !this->picture_height) {
-            this->picture_height = this->picture_width / ((double)display_width/display_height);
-            this->picture_height = this->picture_height - this->picture_height%2;
-        }
-        if (this->picture_height && !this->picture_width) {
-            this->picture_width = this->picture_height * ((double)display_width/display_height);
-            this->picture_width = this->picture_width - this->picture_width%2;
-        }
-
-
         if (this->picture_height==0 &&
             (this->frame_leftBand || this->frame_rightBand || this->frame_topBand || this->frame_bottomBand) ) {
             this->picture_height=display_height-
@@ -728,8 +718,10 @@ void ff2theora_output(ff2theora this) {
                        1024*1024);
             frame_aspect=av_q2d(this->frame_aspect);
         }
+        if ((this->picture_width && !this->picture_height) ||
+            (this->picture_height && !this->picture_width) ||
+            this->max_x > 0) {
 
-        if (this->max_x > 0) {
             int width = display_width-this->frame_leftBand-this->frame_rightBand;
             int height = display_height-this->frame_topBand-this->frame_bottomBand;
             if (sample_aspect_ratio.den!=0 && sample_aspect_ratio.num!=0) {
@@ -741,15 +733,27 @@ void ff2theora_output(ff2theora this) {
                 this->frame_aspect.num = width;
                 this->frame_aspect.den = height;
             }
-            if (width > height &&
-                this->max_x/av_q2d(this->frame_aspect) <= this->max_y) {
-                this->picture_width = this->max_x;
-                this->picture_height = this->max_x / av_q2d(this->frame_aspect);
+
+            if (this->picture_width && !this->picture_height) {
+                this->picture_height = this->picture_width / av_q2d(this->frame_aspect);
                 this->picture_height = this->picture_height + this->picture_height%2;
-            } else {
-                this->picture_height = this->max_y;
-                this->picture_width = this->max_y * av_q2d(this->frame_aspect);
+            }
+            else if (this->picture_height && !this->picture_width) {
+                this->picture_width = this->picture_height * av_q2d(this->frame_aspect);
                 this->picture_width = this->picture_width + this->picture_width%2;
+            }
+
+            if (this->max_x > 0) {
+                if (width > height &&
+                    this->max_x/av_q2d(this->frame_aspect) <= this->max_y) {
+                    this->picture_width = this->max_x;
+                    this->picture_height = this->max_x / av_q2d(this->frame_aspect);
+                    this->picture_height = this->picture_height + this->picture_height%2;
+                } else {
+                    this->picture_height = this->max_y;
+                    this->picture_width = this->max_y * av_q2d(this->frame_aspect);
+                    this->picture_width = this->picture_width + this->picture_width%2;
+                }
             }
         }
 
