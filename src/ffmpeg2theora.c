@@ -1079,11 +1079,7 @@ void ff2theora_output(ff2theora this) {
             }
             info.ti.fps_numerator = this->framerate.num;
             info.ti.fps_denominator = this->framerate.den;
-            /* this is pixel aspect ratio */
-            if(this->aspect_numerator==1 && this->aspect_denominator==1) {
-                this->aspect_numerator = 0;
-                this->aspect_denominator = 0;
-            }
+
             info.ti.aspect_numerator = this->aspect_numerator;
             info.ti.aspect_denominator = this->aspect_denominator;
 

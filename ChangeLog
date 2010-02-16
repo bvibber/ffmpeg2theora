@@ -1,5 +1,5 @@
 svn
-
+    - aspect ratio fix in twopass mode
 
 0.26 2010-02-05
     - use a/v sync from input container
