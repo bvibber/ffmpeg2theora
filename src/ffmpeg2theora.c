@@ -1969,6 +1969,7 @@ void print_usage() {
         "  -P, --pid fname        write the process' id to a file\n"
         "  -h, --help             this message\n"
         "      --info             output json info about input file, use -o to save json to file\n"
+        "      --frontend         print status information in json, one json dict per line\n"
         "\n"
         "\n"
         "Examples:\n"
