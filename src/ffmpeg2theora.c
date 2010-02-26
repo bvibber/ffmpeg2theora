@@ -2492,6 +2492,7 @@ int main(int argc, char **argv) {
                     convert->preset=V2V_PRESET_PADMA;
                     convert->video_quality = rint(6*6.3);
                     convert->audio_quality = 3.00;
+                    convert->channels = 2;
                     info.speed_level = 0;
                 }
                 else if (!strcmp(optarg,"padma-stream")) {
@@ -2501,6 +2502,7 @@ int main(int argc, char **argv) {
                     convert->video_quality = 0;
                     convert->audio_quality = -1.00;
                     convert->sample_rate=44100;
+                    convert->channels = 1;
                     convert->keyint = 16;
                     info.speed_level = 0;
                 }
