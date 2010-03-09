@@ -20,6 +20,7 @@
 #define _F2T_THEORAUTILS_H_
 
 #include <stdint.h>
+#include <time.h>
 #include "theora/theoraenc.h"
 #include "vorbis/codec.h"
 #include "vorbis/vorbisenc.h"
