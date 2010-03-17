@@ -2537,7 +2537,7 @@ int main(int argc, char **argv) {
         snprintf(outputfile_name, sizeof(outputfile_name), "-");
         outputfile_set = 1;
     }
-    while(optind<argc) {
+    if(optind<argc) {
         /* assume that anything following the options must be a filename */
         snprintf(inputfile_name,sizeof(inputfile_name),"%s",argv[optind]);
         if (!strcmp(inputfile_name,"-")) {
@@ -2558,6 +2558,9 @@ int main(int argc, char **argv) {
             outputfile_set=1;
         }
         optind++;
+    }
+    if(optind<argc) {
+        fprintf(stderr, "WARNING: Only one input file supported, others will be ignored\n");
     }
 
     //FIXME: is using_stdin still neded? is it needed as global variable?
