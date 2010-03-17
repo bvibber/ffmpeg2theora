@@ -2544,16 +2544,17 @@ int main(int argc, char **argv) {
             snprintf(inputfile_name,sizeof(inputfile_name),"pipe:");
         }
         if (outputfile_set!=1) {
-            /* reserve 4 bytes in the buffer for the `.ogv' extension */
-            snprintf(outputfile_name, sizeof(outputfile_name) - 4, "%s", argv[optind]);
+            /* reserve 4 bytes in the buffer for the `.og[va]' extension */
+            const char *ext = convert->disable_video?".oga":".ogv";
+            snprintf(outputfile_name, sizeof(outputfile_name) - strlen(ext), "%s", argv[optind]);
             if ((str_ptr = strrchr(outputfile_name, '.'))) {
-                sprintf(str_ptr, ".ogv");
+                sprintf(str_ptr, ext);
                 if (!strcmp(inputfile_name, outputfile_name)) {
-                    snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", inputfile_name);
+                    snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", inputfile_name, ext);
                 }
             }
             else {
-                snprintf(outputfile_name, sizeof(outputfile_name), "%s.ogv", outputfile_name);
+                snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", outputfile_name, ext);
             }
             outputfile_set=1;
         }
