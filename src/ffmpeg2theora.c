@@ -547,7 +547,7 @@ void ff2theora_output(ff2theora this) {
             vstream_fps = vstream->r_frame_rate;
         }
         this->fps = fps = av_q2d(vstream_fps);
-            
+
         if (vcodec == NULL || avcodec_open (venc, vcodec) < 0) {
             this->video_index = -1;
         }
@@ -1286,7 +1286,7 @@ void ff2theora_output(ff2theora this) {
             ret = av_read_frame(this->context, &pkt);
             avpkt.size = pkt.size;
             avpkt.data = pkt.data;
-            
+
             if (ret<0) {
                 if (!info.video_only)
                     audio_eos = 1;
@@ -1341,7 +1341,7 @@ void ff2theora_output(ff2theora this) {
                                 double ivtime = (pkt.dts - this->pts_offset) * av_q2d(vstream->time_base);
                                 double ovtime = (this->frame_count - this->pts_offset_frame) / av_q2d(this->framerate);
                                 double delta = ivtime - ovtime;
-                              
+
                                 /* it should be larger than half a frame to
                                  avoid excessive dropping and duplicating */
 
@@ -1528,7 +1528,7 @@ void ff2theora_output(ff2theora this) {
                     duration = 2.0f;
                   else
                     duration = pkt.duration * av_q2d(stream->time_base);
-                  
+
                   // SSA has control stuff in there, extract raw text
                   if (enc->codec_id == CODEC_ID_SSA) {
                     char *dupe = malloc(utf8len+1); // not zero terminated, so make it so
@@ -2654,7 +2654,7 @@ int main(int argc, char **argv) {
                     has_skeleton |= info.with_skeleton;
 
                     /* deduce the preferred extension to use */
-                    const char *ext = 
+                    const char *ext =
                       has_video ? ".ogv" :
                       has_audio ? has_kate || has_skeleton ? ".oga" : ".ogg" :
                       ".ogx";
