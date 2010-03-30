@@ -2006,6 +2006,7 @@ int main(int argc, char **argv) {
     char inputfile_name[1024];
     char *str_ptr;
     int output_json = 0;
+    int output_filename_needs_building=0;
 
     static int flag = -1;
     static int metadata_flag = -1;
@@ -2544,18 +2545,10 @@ int main(int argc, char **argv) {
             snprintf(inputfile_name,sizeof(inputfile_name),"pipe:");
         }
         if (outputfile_set!=1) {
-            /* reserve 4 bytes in the buffer for the `.og[va]' extension */
-            const char *ext = convert->disable_video?".oga":".ogv";
-            snprintf(outputfile_name, sizeof(outputfile_name) - strlen(ext), "%s", argv[optind]);
-            if ((str_ptr = strrchr(outputfile_name, '.'))) {
-                sprintf(str_ptr, ext);
-                if (!strcmp(inputfile_name, outputfile_name)) {
-                    snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", inputfile_name, ext);
-                }
-            }
-            else {
-                snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", outputfile_name, ext);
-            }
+            /* we'll create an output filename based on the input name, but not now, only
+               when we know what types of streams we'll ouput, as the extension we'll add
+               depends on these */
+            output_filename_needs_building = 1;
             outputfile_set=1;
         }
         optind++;
@@ -2640,13 +2633,52 @@ int main(int argc, char **argv) {
     }
     if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0) {
         if (av_find_stream_info(convert->context) >= 0) {
-            if(!convert->disable_oshash) {
+
+                if (output_filename_needs_building) {
+                    int i;
+                    /* work out the stream types the output will hold */
+                    int has_video = 0, has_audio = 0, has_kate = 0, has_skeleton = 0;
+                    for (i = 0; i < convert->context->nb_streams; i++) {
+                        AVCodecContext *enc = convert->context->streams[i]->codec;
+                        switch (enc->codec_type) {
+                            case CODEC_TYPE_VIDEO: has_video = 1; break;
+                            case CODEC_TYPE_AUDIO: has_audio = 1; break;
+                            case CODEC_TYPE_SUBTITLE: if (is_supported_subtitle_stream(convert, i)) has_kate = 1; break;
+                            default: break;
+                        }
+                    }
+                    has_video &= !convert->disable_video;
+                    has_audio &= !convert->disable_audio;
+                    has_kate &= !convert->disable_subtitles;
+                    has_kate |= convert->n_kate_streams>0; /* may be added via command line */
+                    has_skeleton |= info.with_skeleton;
+
+                    /* deduce the preferred extension to use */
+                    const char *ext = 
+                      has_video ? ".ogv" :
+                      has_audio ? has_kate || has_skeleton ? ".oga" : ".ogg" :
+                      ".ogx";
+
+                    /* reserve 4 bytes in the buffer for the `.og[va]' extension */
+                    snprintf(outputfile_name, sizeof(outputfile_name) - strlen(ext), "%s",inputfile_name);
+                    if ((str_ptr = strrchr(outputfile_name, '.'))) {
+                        sprintf(str_ptr, ext);
+                        if (!strcmp(inputfile_name, outputfile_name)) {
+                            snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", inputfile_name, ext);
+                        }
+                    }
+                    else {
+                        snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", outputfile_name, ext);
+                    }
+                }
+
+                if(!convert->disable_oshash) {
 #ifdef WIN32
-                sprintf(info.oshash,"%016I64x", gen_oshash(inputfile_name));
+                    sprintf(info.oshash,"%016I64x", gen_oshash(inputfile_name));
 #else
-                sprintf(info.oshash,"%016qx", gen_oshash(inputfile_name));
+                    sprintf(info.oshash,"%016qx", gen_oshash(inputfile_name));
 #endif
-            }
+                }
 #ifdef WIN32
                 if (!strcmp(outputfile_name,"-") || !strcmp(outputfile_name,"/dev/stdout")) {
                     _setmode(_fileno(stdout), _O_BINARY);
@@ -2714,6 +2746,7 @@ int main(int argc, char **argv) {
                     if (convert->end_time)
                         info.duration = convert->end_time - convert->start_time;
                 }
+
                 ff2theora_output(convert);
         }
         else{
