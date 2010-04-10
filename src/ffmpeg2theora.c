@@ -842,7 +842,7 @@ void ff2theora_output(ff2theora this) {
         this->frame_y_offset = this->frame_height-this->picture_height>>1&~1;
 
         //Bicubic  (best for upscaling),
-        if(display_width - (this->frame_leftBand + this->frame_rightBand) < this->picture_width |
+        if(display_width - (this->frame_leftBand + this->frame_rightBand) < this->picture_width ||
            display_height - (this->frame_topBand + this->frame_bottomBand) < this->picture_height) {
            sws_flags = SWS_BICUBIC;
         } else {        //Bilinear (best for downscaling),
