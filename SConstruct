@@ -136,7 +136,7 @@ if not conf.CheckPKG(XIPH_LIBS):
   Exit(1) 
 ParsePKGConfig(env, XIPH_LIBS)
 
-FFMPEG_LIBS="libavcodec libavformat libavdevice libpostproc libswscale"
+FFMPEG_LIBS="libavcodec >= 52.30.0 libavformat libavdevice libpostproc libswscale"
 if os.path.exists("./ffmpeg"):
   os.environ['PKG_CONFIG_PATH'] = "./ffmpeg/libavutil:./ffmpeg/libavformat:./ffmpeg/libavcodec:./ffmpeg/libavdevice:./ffmpeg/libswscale:./ffmpeg/libpostproc:" + os.environ.get('PKG_CONFIG_PATH', '')
 if not conf.CheckPKG(FFMPEG_LIBS): 
