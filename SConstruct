@@ -138,19 +138,20 @@ if not conf.CheckPKG(XIPH_LIBS):
   Exit(1) 
 ParsePKGConfig(env, XIPH_LIBS)
 
-FFMPEG_LIBS="libavcodec >= 52.30.0 libavformat libavdevice libpostproc libswscale"
+FFMPEG_LIBS=["libavcodec >= 52.30.0", "libavformat", "libavdevice", "libpostproc", "libswscale"]
 if os.path.exists("./ffmpeg"):
   os.environ['PKG_CONFIG_PATH'] = "./ffmpeg/libavutil:./ffmpeg/libavformat:./ffmpeg/libavcodec:./ffmpeg/libavdevice:./ffmpeg/libswscale:./ffmpeg/libpostproc:" + os.environ.get('PKG_CONFIG_PATH', '')
-if not conf.CheckPKG(FFMPEG_LIBS): 
+if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
   print """
       Could not find %s.
       You can install it via
        sudo apt-get install %s
       or update PKG_CONFIG_PATH to point to ffmpeg's source folder
       or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
-  """ %(FFMPEG_LIBS, " ".join(["%s-dev"%l for l in FFMPEG_LIBS.split()]))
+  """ %(" ".join(FFMPEG_LIBS), " ".join(["%s-dev"%l.split()[0] for l in FFMPEG_LIBS]))
   Exit(1) 
-for lib in FFMPEG_LIBS.split():
+
+for lib in FFMPEG_LIBS:
     ParsePKGConfig(env, lib)
 
 if conf.CheckCHeader('libavformat/framehook.h'):
