@@ -73,6 +73,8 @@ if env['debug'] and env['CC'] == 'gcc':
 if GetOption("help"):
     Return()
 
+env.PrependENVPath ('PATH', os.environ['PATH'])
+
 def ParsePKGConfig(env, name): 
   if os.environ.get('PKG_CONFIG_PATH', ''):
     action = 'PKG_CONFIG_PATH=%s pkg-config %s "%s"' % (os.environ['PKG_CONFIG_PATH'], pkg_flags, name)
