@@ -458,6 +458,30 @@ static const float get_duration_from_ssa(const char *ssa)
   return end-start;
 }
 
+static void extra_info_from_ssa(AVPacket *pkt, const char **utf8, size_t *utf8len, char **allocated_utf8, float *duration)
+{
+  char *dupe;
+
+  *allocated_utf8 = NULL;
+  dupe = malloc(pkt->size+1); // not zero terminated, so make it so
+  if (dupe) {
+    memcpy(dupe, pkt->data, pkt->size);
+    dupe[pkt->size] = 0;
+    *duration = get_duration_from_ssa(dupe);
+    *allocated_utf8 = get_raw_text_from_ssa(dupe);
+    if (*allocated_utf8) {
+      if (*allocated_utf8 == dupe) {
+        *allocated_utf8 = NULL;
+      }
+      else {
+        *utf8 = *allocated_utf8;
+        *utf8len = strlen(*utf8);
+      }
+    }
+    free(dupe);
+  }
+}
+
 static const char *find_language_for_subtitle_stream(const AVStream *s)
 {
   const char *lang=find_iso639_1(s->language);
@@ -1516,69 +1540,82 @@ void ff2theora_output(ff2theora this) {
               AVStream *stream=this->context->streams[pkt.stream_index];
               AVCodecContext *enc = stream->codec;
               if (enc) {
-                if (enc->codec_id == CODEC_ID_TEXT || enc->codec_id == CODEC_ID_SSA || enc->codec_id==CODEC_ID_MOV_TEXT) {
-                  char *allocated_utf8 = NULL;
-                  const char *utf8 = pkt.data;
-                  size_t utf8len = pkt.size;
-                  float t = pkt.pts * av_q2d(stream->time_base) - this->start_time;
-                  // my test case has 0 duration, how clever of that. I assume it's that old 'ends whenever the next
-                  // one starts' hack, but it means I don't know in advance what duration it has. Great!
-                  float duration;
-                  if (pkt.duration <= 0)
-                    duration = 2.0f;
-                  else
-                    duration = pkt.duration * av_q2d(stream->time_base);
+                char *allocated_utf8 = NULL;
+                const char *utf8 = NULL;
+                size_t utf8len = 0;
+                float t;
+                AVSubtitle sub;
+                int got_sub=0;
 
+                /* work out timing */
+                t = (float)pkt.pts * stream->time_base.num / stream->time_base.den - this->start_time;
+                // my test case has 0 duration, how clever of that. I assume it's that old 'ends whenever the next
+                // one starts' hack, but it means I don't know in advance what duration it has. Great!
+                float duration;
+                if (pkt.duration <= 0) {
+                  duration = 2.0f;
+                }
+                else {
+                  duration  = (float)pkt.duration * stream->time_base.num / stream->time_base.den;
+                }
+
+                /* generic decoding */
+                if (enc->codec && avcodec_decode_subtitle2(enc,&sub,&got_sub,&pkt) >= 0) {
+                  if (got_sub) {
+                    if (sub.rects[0]->ass) {
+                      extra_info_from_ssa(&pkt,&utf8,&utf8len,&allocated_utf8,&duration);
+                    }
+                    else if (sub.rects[0]->text) {
+                      utf8 = sub.rects[0]->text;
+                      utf8len = strlen(utf8);
+                    }
+                  }
+                }
+                else if (enc->codec_id == CODEC_ID_TEXT) {
+                  utf8 = pkt.data;
+                  utf8len = pkt.size;
+                }
+                else if (enc->codec_id == CODEC_ID_SSA) {
                   // SSA has control stuff in there, extract raw text
-                  if (enc->codec_id == CODEC_ID_SSA) {
-                    char *dupe = malloc(utf8len+1); // not zero terminated, so make it so
-                    if (dupe) {
-                      memcpy(dupe, utf8, utf8len);
-                      dupe[utf8len] = 0;
-                      duration = get_duration_from_ssa(dupe);
-                      allocated_utf8 = get_raw_text_from_ssa(dupe);
-                      if (allocated_utf8) {
-                        if (allocated_utf8 == dupe) {
-                          allocated_utf8 = NULL;
-                        }
-                        else {
-                          utf8 = allocated_utf8;
-                          utf8len = strlen(utf8);
-                        }
-                      }
-                      free(dupe);
+                  extra_info_from_ssa(&pkt,&utf8,&utf8len,&allocated_utf8,&duration);
+                }
+                else if (enc->codec_id == CODEC_ID_MOV_TEXT) {
+                  utf8 = pkt.data;
+                  utf8len = pkt.size;
+                  if (utf8len >= 2) {
+                    const unsigned char *data = (const unsigned char*)pkt.data;
+                    unsigned int text_len = (data[0] << 8) | data[1];
+                    utf8 += 2;
+                    utf8len -= 2;
+                    if (text_len < utf8len) {
+                      utf8len = text_len;
                     }
-                    else {
-                      utf8 = NULL;
-                      utf8len = 0;
-                    }
+                    if (utf8len == 0) utf8 = NULL;
                   }
-                  else if (enc->codec_id == CODEC_ID_MOV_TEXT) {
-                    if (utf8len >= 2) {
-                      const unsigned char *data = (const unsigned char*)pkt.data;
-                      unsigned int text_len = (data[0] << 8) | data[1];
-                      utf8 += 2;
-                      utf8len -= 2;
-                      if (text_len < utf8len) {
-                        utf8len = text_len;
-                      }
-                      if (utf8len == 0) utf8 = NULL;
-                    }
-                    else {
-                      utf8 = NULL;
-                      utf8len = 0;
-                    }
+                  else {
+                    utf8 = NULL;
+                    utf8len = 0;
                   }
-                  if (t < 0 && t + duration > 0) {
-                    duration += t;
-                    t = 0;
-                  }
-                  if (utf8 && t >= 0)
-                    add_subtitle_for_stream(this->kate_streams, this->n_kate_streams, pkt.stream_index, t, duration, utf8, utf8len, info.frontend);
-                  if (allocated_utf8) free(allocated_utf8);
                 }
                 else {
                   /* TODO: other types */
+                }
+
+                /* clip timings after any possible SSA extraction */
+                if (t < 0 && t + duration > 0) {
+                  duration += t;
+                  t = 0;
+                }
+
+                /* we have text and timing now, adjust for start time, encode, and cleanup */
+                if (utf8 && t >= 0)
+                  add_subtitle_for_stream(this->kate_streams, this->n_kate_streams, pkt.stream_index, t, duration, utf8, utf8len, info.frontend);
+
+                if (allocated_utf8) free(allocated_utf8);
+                if (got_sub) {
+#if 0
+                  avcodec_free_subtitle(enc,&sub);
+#endif
                 }
               }
             }
