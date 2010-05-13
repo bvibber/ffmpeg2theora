@@ -10,9 +10,9 @@ Index: libavformat/oggdec.c
 +    url_fseek (s->pb, 0, SEEK_SET);
 +    while (!ogg_read_page (s, &i)){
 +        if (ogg->streams[i].granule != -1 && ogg->streams[i].granule != 0 && 
-+            idx == i) {
-+            s->streams[idx]->duration -=
-+                ogg_gptopts (s, idx, ogg->streams[idx].granule, NULL);
++            ogg->streams[i].codec) {
++            s->streams[i]->duration -=
++                ogg_gptopts (s, i, ogg->streams[i].granule, NULL);
 +            break;
 +        }
 +    }
