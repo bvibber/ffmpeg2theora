@@ -2705,7 +2705,7 @@ int main(int argc, char **argv) {
                         }
                     }
                     else {
-                        snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", outputfile_name, ext);
+                        snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", inputfile_name, ext);
                     }
                 }
 
