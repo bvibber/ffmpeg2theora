@@ -1,13 +1,16 @@
 #!/bin/sh
 
 common="--enable-version3 --enable-gpl --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
-common="$common --disable-ffmpeg --disable-ffplay --disable-ffserver --disable-doc"
+common="$common --disable-ffmpeg --disable-ffplay --disable-ffserver --disable-ffprobe --disable-doc"
 
 #optional, if you have those libs installed:
 #extra="--enable-libopencore-amrnb --enable-libopencore-amrwb"
 
 #apt-get install liba52-dev libfaad-dev libgsm1-dev
 #extra="$extra--enable-libfaad --enable-libgsm"
+
+#optional, if you have libvpx installed:
+#extra="--enable-libvpx"
 
 #linux
 options="$common --enable-pthreads $extra"
@@ -19,8 +22,11 @@ uname | grep MINGW && options="$common --enable-memalign-hack --enable-mingw32 -
 . ./ffmpegrev
 
 #Get ffmpeg from svn
-svn -r $FFMPEG_REVISION co $FFMPEG_SVN $FFMPEG_CO_DIR
-svn update -r $FFMPEG_EXTERNALS_REVISION $FFMPEG_CO_DIR/libswscale
+#svn -r $FFMPEG_REVISION co $FFMPEG_SVN $FFMPEG_CO_DIR
+#svn update -r $FFMPEG_EXTERNALS_REVISION $FFMPEG_CO_DIR/libswscale
+
+#Get ffmpeg from svn 0.6 branch
+svn co $FFMPEG_SVN $FFMPEG_CO_DIR
 
 apply_patches() {
   cd ffmpeg
