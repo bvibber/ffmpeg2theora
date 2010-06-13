@@ -95,6 +95,9 @@ char const *fix_codec_name(char const *codec_name) {
     else if (!strcmp(codec_name, "0x0000")) {
         codec_name = "mu-law";
     }
+    else if (!strcmp(codec_name, "libvpx")) {
+        codec_name = "vp8";
+    }
    return codec_name;
 }
 
