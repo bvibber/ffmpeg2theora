@@ -1,5 +1,10 @@
-svn
+0.27 soon
     - aspect ratio fix in twopass mode
+    - update to fmpeg 0.6 branch
+    - update documentation
+    - use ogv/oga/ogx depending on input if no output name is specified
+    - Skeleton 4.0 support(including index), can be disabled with
+                                          --skeleton-3 or --no-skeleton
 
 0.26 2010-02-05
     - use a/v sync from input container

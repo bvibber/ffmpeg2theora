@@ -77,7 +77,7 @@ typedef struct
     int audio_only;
     int video_only;
     int with_skeleton;
-    int with_seek_index;
+    int skeleton_3;
     int index_interval;
     int theora_index_reserve;
     int vorbis_index_reserve;

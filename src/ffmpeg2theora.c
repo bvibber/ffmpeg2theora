@@ -85,7 +85,7 @@ enum {
     SPEEDLEVEL_FLAG,
     PP_FLAG,
     NOSKELETON,
-    SEEK_INDEX,
+    SKELETON_3,
     INDEX_INTERVAL,
     THEORA_INDEX_RESERVE,
     VORBIS_INDEX_RESERVE,
@@ -1677,7 +1677,7 @@ void ff2theora_output(ff2theora this) {
         }
 
         /* Write the index out to disk. */
-        if (info.passno != 1 && info.with_seek_index) {
+        if (info.passno != 1 && !info.skeleton_3 && info.with_skeleton) {
             write_seek_index (&info);
         }
 
@@ -1869,7 +1869,7 @@ void print_usage() {
         "General output options:\n"
         "  -o, --output           alternative output filename\n"
         "      --no-skeleton      disables ogg skeleton metadata output\n"
-        "      --seek-index       enables keyframe index in skeleton track\n"
+        "      --skeleton-3       outputs Skeleton Version 3, without keyframe indexes\n"
         "  -s, --starttime        start encoding at this time (in sec.)\n"
         "  -e, --endtime          end encoding at this time (in sec.)\n"
         "  -p, --preset           encode file with preset.\n"
@@ -2058,7 +2058,7 @@ int main(int argc, char **argv) {
         {"output",required_argument,NULL,'o'},
         {"skeleton",no_argument,NULL,'k'},
         {"no-skeleton",no_argument,&flag,NOSKELETON},
-        {"seek-index",no_argument,&flag,SEEK_INDEX},
+        {"skeleton-3",no_argument,&flag,SKELETON_3},
         {"index-interval",required_argument,&flag,INDEX_INTERVAL},
         {"theora-index-reserve",required_argument,&flag,THEORA_INDEX_RESERVE},
         {"vorbis-index-reserve",required_argument,&flag,VORBIS_INDEX_RESERVE},
@@ -2321,8 +2321,8 @@ int main(int argc, char **argv) {
                         case NOSKELETON:
                             info.with_skeleton=0;
                             break;
-                        case SEEK_INDEX:
-                            info.with_seek_index = 1;
+                        case SKELETON_3:
+                            info.skeleton_3 = 1;
                             break;
                         case INDEX_INTERVAL:
                             info.index_interval = atoi(optarg);
@@ -2566,7 +2566,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (info.with_seek_index && !info.with_skeleton) {
+    if (info.skeleton_3 && !info.with_skeleton) {
         fprintf(stderr, "ERROR: Cannot use --no-skeleton and --seek-index options together!\n");
         exit(1);
     }

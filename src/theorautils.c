@@ -64,7 +64,7 @@
 void init_info(oggmux_info *info) {
     info->output_seekable = MAYBE_SEEKABLE;
     info->with_skeleton = 1; /* skeleton is enabled by default    */
-    info->with_seek_index = 0; /* keyframe index disabled by default. */
+    info->skeleton_3 = 0; /* by default, output skeleton 4 with keyframe indexes. */
     info->index_interval = 2000;
     info->theora_index_reserve = -1;
     info->vorbis_index_reserve = -1;
@@ -124,14 +124,6 @@ void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
         ks->katetime = 0;
         ks->last_end_time = -1;
     }
-}
-
-static ogg_uint32_t read_uint32(unsigned const char* p) {
-  ogg_uint32_t i = p[0] +
-                  (p[1] << 8) + 
-                  (p[2] << 16) +
-                  (p[3] << 24);
-  return i;  
 }
 
 static void write16le(unsigned char *ptr,ogg_uint16_t v)
@@ -200,48 +192,10 @@ write_page(oggmux_info* info, ogg_page* page)
     assert(info->output_seekable != MAYBE_SEEKABLE);
 }
 
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-
-static ogg_int64_t index_start_time(oggmux_info* info)
-{
-    ogg_int64_t start_time;
-    int n;
-
-    if (!info->with_seek_index || !info->indexing_complete) {
-        return -1;
-    }
-
-    start_time = MIN(info->theora_index.start_time, info->vorbis_index.start_time);
-    for (n=0; n<info->n_kate_streams; ++n) {
-        oggmux_kate_stream *ks=info->kate_streams+n;
-        if (ks->index.start_time < start_time)
-            start_time = ks->index.start_time;
-    }
-    return start_time;
-}
-
-static ogg_int64_t index_end_time(oggmux_info* info)
-{
-    ogg_int64_t end_time;
-    int n;
-
-    if (!info->with_seek_index || !info->indexing_complete) {
-        return -1;
-    }
-    end_time = MAX(info->theora_index.end_time, info->vorbis_index.end_time);
-    for (n=0; n<info->n_kate_streams; ++n) {
-        oggmux_kate_stream *ks=info->kate_streams+n;
-        if (ks->index.end_time > end_time)
-            end_time = ks->index.end_time;
-    }
-    return end_time;
-}
-
 static ogg_int64_t output_file_length(oggmux_info* info)
 {
     ogg_int64_t offset, length;
-    if (!info->with_seek_index || !info->indexing_complete) {
+    if (info->skeleton_3 || !info->indexing_complete) {
         return -1;
     }
     offset = ftello(info->outfile);
@@ -267,19 +221,9 @@ void add_fishead_packet (oggmux_info *info,
     ogg_uint32_t version = SKELETON_VERSION(ver_maj, ver_min);
 
     assert(version >= SKELETON_VERSION(3,0) ||
-           version <= SKELETON_VERSION(3,3));
+           version == SKELETON_VERSION(4,0));
 
-    switch (version) {
-        case SKELETON_VERSION(3,0):
-            packet_size = 64;
-            break;
-        case SKELETON_VERSION(3,3):
-            packet_size = 112;
-            break;
-        default:
-            fprintf (stderr, "ERROR: Unknown skeleton version\n");
-            exit (1);
-    };
+    packet_size = (version == SKELETON_VERSION(4,0)) ? 80 : 64;
 
     memset (&op, 0, sizeof (op));
 
@@ -298,13 +242,9 @@ void add_fishead_packet (oggmux_info *info,
     write32le(op.packet+44, 0); /* UTC time, set to zero for now */
 
     /* Index start/end time, if unknown or non-indexed, will be -1. */
-    if (version >= SKELETON_VERSION(3,2)) {
-        write64le(op.packet+64, index_start_time(info));
-        write64le(op.packet+72, (ogg_int64_t)1000);
-        write64le(op.packet+80, index_end_time(info));
-        write64le(op.packet+88, (ogg_int64_t)1000);
-        write64le(op.packet+96, output_file_length(info));
-        write64le(op.packet+104, info->content_offset);
+    if (version == SKELETON_VERSION(4,0)) {
+        write64le(op.packet+64, output_file_length(info));
+        write64le(op.packet+72, info->content_offset);
     }
     op.b_o_s = 1; /* its the first packet of the stream */
     op.e_o_s = 0; /* its not the last packet of the stream */
@@ -314,18 +254,32 @@ void add_fishead_packet (oggmux_info *info,
     _ogg_free (op.packet);
 }
 
+const char* theora_message_headers = "Content-Type: video/theora\r\n"
+                                     "Role: video/main\r\n"
+                                     "Name: video_1\r\n";
+
+const char* vorbis_message_headers = "Content-Type: audio/vorbis\r\n"
+                                     "Role: audio/main\r\n"
+                                     "Name: audio_1\r\n";
+#ifdef HAVE_KATE
+const char* kate_message_headers =   "Content-Type: application/x-kate\r\n\r\n"
+                                     "Role: text/subtitle\r\n";
+                                     /* Dynamically add name header... */
+#endif
+
 /*
  * Adds the fishead packets in the skeleton output stream along with the e_o_s packet
  */
 void add_fisbone_packet (oggmux_info *info) {
     ogg_packet op;
-
+    size_t packet_size = 0;
     if (!info->audio_only) {
         memset (&op, 0, sizeof (op));
-        op.packet = _ogg_calloc (80, sizeof(unsigned char));
+        packet_size = FISBONE_SIZE + strlen(theora_message_headers);
+        op.packet = _ogg_calloc (packet_size, sizeof(unsigned char));
         if (op.packet == NULL) return;
 
-        memset (op.packet, 0, 80);
+        memset (op.packet, 0, packet_size);
         /* it will be the fisbone packet for the theora video */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
         write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
@@ -337,11 +291,12 @@ void add_fisbone_packet (oggmux_info *info) {
         write64le(op.packet+36, 0); /* start granule */
         write32le(op.packet+44, 0); /* preroll, for theora its 0 */
         *(op.packet+48) = info->ti.keyframe_granule_shift; /* granule shift */
-        memcpy(op.packet+FISBONE_SIZE, "Content-Type: video/theora\r\n", 28); /* message header field, Content-Type */
+        /* message header fields */
+        memcpy(op.packet+FISBONE_SIZE, theora_message_headers, strlen(theora_message_headers));
 
         op.b_o_s = 0;
         op.e_o_s = 0;
-        op.bytes = 80; /* size of the packet in bytes */
+        op.bytes = packet_size; /* size of the packet in bytes */
 
         ogg_stream_packetin (&info->so, &op);
         _ogg_free (op.packet);
@@ -349,10 +304,11 @@ void add_fisbone_packet (oggmux_info *info) {
 
     if (!info->video_only) {
         memset (&op, 0, sizeof (op));
-        op.packet = _ogg_calloc (80, sizeof(unsigned char));
+        packet_size = FISBONE_SIZE + strlen(vorbis_message_headers);
+        op.packet = _ogg_calloc (packet_size, sizeof(unsigned char));
         if (op.packet == NULL) return;
 
-        memset (op.packet, 0, 80);
+        memset (op.packet, 0, packet_size);
         /* it will be the fisbone packet for the vorbis audio */
         memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
         write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
@@ -364,12 +320,13 @@ void add_fisbone_packet (oggmux_info *info) {
         write64le(op.packet+36, 0); /* start granule */
         write32le(op.packet+44, 2); /* preroll, for vorbis its 2 */
         *(op.packet+48) = 0; /* granule shift, always 0 for vorbis */
-        memcpy (op.packet+FISBONE_SIZE, "Content-Type: audio/vorbis\r\n", 28);
+        memcpy(op.packet+FISBONE_SIZE, vorbis_message_headers, strlen(vorbis_message_headers));
+
         /* Important: Check the case of Content-Type for correctness */
 
         op.b_o_s = 0;
         op.e_o_s = 0;
-        op.bytes = 80;
+        op.bytes = packet_size;
 
         ogg_stream_packetin (&info->so, &op);
         _ogg_free (op.packet);
@@ -378,31 +335,39 @@ void add_fisbone_packet (oggmux_info *info) {
 #ifdef HAVE_KATE
     if (info->with_kate) {
         int n;
+        char name[32];
         for (n=0; n<info->n_kate_streams; ++n) {
+            size_t packet_size = 0;
+            int message_headers_len = strlen(kate_message_headers);
+            int name_len = 0;
             oggmux_kate_stream *ks=info->kate_streams+n;
-        memset (&op, 0, sizeof (op));
-        op.packet = _ogg_calloc (86, sizeof(unsigned char));
-        memset (op.packet, 0, 86);
+            memset (&op, 0, sizeof (op));
+            sprintf(name, "Name: %d\r\n", (n+1));
+            name_len = strlen(name);
+            packet_size = FISBONE_SIZE + message_headers_len + name_len;
+            op.packet = _ogg_calloc (packet_size, sizeof(unsigned char));
+            memset (op.packet, 0, packet_size);
             /* it will be the fisbone packet for the kate stream */
-        memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
+            memcpy (op.packet, FISBONE_IDENTIFIER, 8); /* identifier */
             write32le(op.packet+8, FISBONE_MESSAGE_HEADER_OFFSET); /* offset of the message header fields */
-        write32le(op.packet+12, ks->ko.serialno); /* serialno of the vorbis stream */
+            write32le(op.packet+12, ks->ko.serialno); /* serialno of the vorbis stream */
             write32le(op.packet+16, ks->ki.num_headers); /* number of header packet */
-        /* granulerate, temporal resolution of the bitstream in Hz */
-        write64le(op.packet+20, ks->ki.gps_numerator); /* granulerate numerator */
+            /* granulerate, temporal resolution of the bitstream in Hz */
+            write64le(op.packet+20, ks->ki.gps_numerator); /* granulerate numerator */
             write64le(op.packet+28, ks->ki.gps_denominator); /* granulerate denominator */
-        write64le(op.packet+36, 0); /* start granule */
+            write64le(op.packet+36, 0); /* start granule */
             write32le(op.packet+44, 0); /* preroll, for kate it's 0 */
-        *(op.packet+48) = ks->ki.granule_shift; /* granule shift */
-            memcpy (op.packet+FISBONE_SIZE, "Content-Type: application/x-kate\r\n", 34);
-        /* Important: Check the case of Content-Type for correctness */
+            *(op.packet+48) = ks->ki.granule_shift; /* granule shift */
+            memcpy (op.packet+FISBONE_SIZE, kate_message_headers, message_headers_len);
+            memcpy (op.packet+FISBONE_SIZE+message_headers_len, name, name_len);
+            /* Important: Check the case of Content-Type for correctness */
 
-        op.b_o_s = 0;
-        op.e_o_s = 0;
-        op.bytes = 86;
+            op.b_o_s = 0;
+            op.e_o_s = 0;
+            op.bytes = packet_size;
 
             ogg_stream_packetin (&info->so, &op);
-        _ogg_free (op.packet);
+            _ogg_free (op.packet);
         }
     }
 #endif
@@ -420,7 +385,7 @@ static int create_index_packet(size_t bytes,
                                ogg_uint32_t serialno,
                                ogg_int64_t num_used_keypoints)
 {
-    size_t size = 26 + bytes;
+    size_t size = 42 + bytes;
     memset (op, 0, sizeof(*op));
     op->packet = malloc(size);
     if (op->packet == NULL)
@@ -441,6 +406,12 @@ static int create_index_packet(size_t bytes,
 
     /* Write timestamp denominator, times are in milliseconds, so 1000. */
     write64le(op->packet+18, (ogg_int64_t)1000);
+
+    /* Write first sample time numerator. */
+    write64le(op->packet+26, (ogg_int64_t)0);
+
+    /* Write last sample time numerator. */
+    write64le(op->packet+34, (ogg_int64_t)0);
 
     return 0;
 }
@@ -628,11 +599,16 @@ write_index_pages (seek_index* index,
                "only part of the file may be indexed. Rerun with --%s-index-reserve %d to "
                "ensure a complete index, or use OggIndex to re-index.\n",
                name, (k - keypoints_cutoff), name, index_bytes);
-    } else if (index_bytes < index->packet_size) {
+    } else if (index_bytes < index->packet_size &&
+               index->packet_size - index_bytes > 10000)
+    {
+        /* We over estimated the index size by 10,000 bytes or more. */
         printf("Allocated %d bytes for %s keyframe index, %d are unused. "
+               "Index contains %d keyframes. "
                "Rerun with '--%s-index-reserve %d' to encode with the optimal sized %s index,"
                " or use OggIndex to re-index.\n",
                index->packet_size, name, (index->packet_size - index_bytes),
+               keypoints_cutoff,
                name, index_bytes, name);
     }
     num_keypoints = keypoints_cutoff;
@@ -645,9 +621,15 @@ write_index_pages (seek_index* index,
         free(keypoints);
         return -1;
     }
+
+    /* Write first sample time numerator. */
+    write64le(op.packet+26, index->start_time);
+
+    /* Write last sample time numerator. */
+    write64le(op.packet+34, index->end_time);
    
     /* Write keypoint data into packet. */
-    p = op.packet + 26;
+    p = op.packet + 42;
     limit = op.packet + op.bytes;
     prev_offset = 0;
     prev_time = 0;
@@ -697,8 +679,8 @@ int write_seek_index (oggmux_info* info)
     ogg_uint32_t serialno;
     ogg_page og;
 
-    /* If the index is disabled, we shouldn't be doing this! */
-    assert(info->with_seek_index);
+    /* We shouldn't write indexes for skeleton 3, it's a skeleton 4 feature. */
+    assert(!info->skeleton_3);
 
     /* Mark that we're done indexing. This causes the header packets' fields
        to be filled with valid, non-unknown values. */
@@ -710,7 +692,7 @@ int write_seek_index (oggmux_info* info)
     ogg_stream_clear(&info->so);
     ogg_stream_init(&info->so, serialno);
 
-    add_fishead_packet (info, 3, 3);
+    add_fishead_packet (info, 4, 0);
     if (ogg_stream_flush(&info->so, &og) != 1) {
         fprintf (stderr, "Internal Ogg library error.\n");
         exit (1);
@@ -897,26 +879,24 @@ void oggmux_init (oggmux_info *info) {
     }
     /* kate init done */
 
-    if (info->with_seek_index &&
+    if (!info->skeleton_3 &&
         info->duration == -1)
     {
         /* We've not got a duration, we can't index the keyframes. */
-        fprintf(stderr, "WARNING: Can't get duration of media, not indexing.\n");
-        info->with_seek_index = 0;
+        fprintf(stderr, "WARNING: Can't get duration of media, not indexing, writing Skeleton 3 track.\n");
+        info->skeleton_3 = 1;
     }
-    /* We must only index keyframes when the skeleton track is also present. */
-    assert (!info->with_seek_index || info->with_skeleton);
 
     /* first packet should be skeleton fishead packet, if skeleton is used */
 
     if (info->with_skeleton && info->passno!=1) {
         /* Sometimes the output file is not seekable. We can't write the seek
            index if the output is not seekable. So write a Skeleton3.0 header
-           packet, which will in turn determines if the file is seekable. If it
+           packet, which will in turn determine if the file is seekable. If it
            is, we can safely construct an index, so then overwrite the header
-           page with a Skeleton3.1 header page. */
-        int with_seek_index = info->with_seek_index;
-        info->with_seek_index = 0;
+           page with a Skeleton4.0 header page. */
+        int skeleton_3 = info->skeleton_3;
+        info->skeleton_3 = 1;
         ogg_stream_init (&info->so, rand());
         add_fishead_packet (info, 3, 0);
         if (ogg_stream_pageout (&info->so, &og) != 1) {
@@ -926,24 +906,23 @@ void oggmux_init (oggmux_info *info) {
         write_page (info, &og);
         assert(info->output_seekable != MAYBE_SEEKABLE);
 
-        if (info->output_seekable == NOT_SEEKABLE && with_seek_index) {
+        if (info->output_seekable == NOT_SEEKABLE && !skeleton_3) {
             fprintf(stderr, "WARNING: Can't write keyframe-seek-index into "
-                            "non-seekable output stream!\n");
+                            "non-seekable output stream! Writing Skeleton3 track.\n");
         }
 
-        info->with_seek_index = with_seek_index &&
-                                info->output_seekable == SEEKABLE;
+        info->skeleton_3 = skeleton_3 || info->output_seekable == NOT_SEEKABLE;
 
-        if (info->with_seek_index) {
+        if (!info->skeleton_3) {
             /* Output is seekable and we're indexing. Overwrite the
-               Skeleton3.0 BOS page with a Skeleton3.1 BOS page. */
+               Skeleton3.0 BOS page with a Skeleton4.0 BOS page. */
             if (fseeko (info->outfile, 0, SEEK_SET) < 0) {
                 fprintf (stderr, "ERROR: failed to seek in seekable output file!?!\n");
                 exit (1);
             }
             ogg_stream_clear (&info->so);
             ogg_stream_init (&info->so, rand());
-            add_fishead_packet (info, 3, 3);
+            add_fishead_packet (info, 4, 0);
             if (ogg_stream_pageout (&info->so, &og) != 1) {
                 fprintf (stderr, "Internal Ogg library error.\n");
                 exit (1);
@@ -1094,7 +1073,7 @@ void oggmux_init (oggmux_info *info) {
     if (info->with_skeleton && info->passno!=1) {
         int result;
 
-        if (info->with_seek_index) {
+        if (!info->skeleton_3) {
             /* Add placeholder packets to reserve space for the index
              * at the start of file. */
             write_placeholder_index_pages (info);
@@ -1184,7 +1163,7 @@ void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s) {
     }
 
     while (th_encode_packetout (info->td, e_o_s, &op) > 0) {
-        if (info->with_seek_index &&
+        if (!info->skeleton_3 &&
             info->passno != 1)
         {
             ogg_int64_t frameno = th_granule_frame(info->td, op.granulepos);
@@ -1283,7 +1262,7 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
             ogg_int64_t start_time = vorbis_time (&info->vd, start_granule);
             
             if (op.granulepos != -1 &&
-                info->with_seek_index &&
+                !info->skeleton_3 &&
                 info->passno != 1)
             {
                 ogg_int64_t end_time = vorbis_time (&info->vd, op.granulepos);
@@ -1329,7 +1308,7 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
     int ret;
     ret = kate_ogg_encode_text(&ks->k, t0, t1, text, len, &op);
     if (ret>=0) {
-        if (info->with_seek_index && info->passno != 1) {
+        if (!info->skeleton_3 && info->passno != 1) {
             ogg_int64_t start_time = (int)(t0 * 1000.0f + 0.5f);
             ogg_int64_t end_time = (int)(t1 * 1000.0f + 0.5f);
             oggmux_record_kate_index(info, ks, &op, start_time, end_time);
@@ -1359,7 +1338,7 @@ void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t) {
     int ret;
     ret = kate_ogg_encode_finish(&ks->k, t, &op);
     if (ret>=0) {
-        if (info->with_seek_index && info->passno != 1) {
+        if (!info->skeleton_3 && info->passno != 1) {
             ogg_int64_t start_time = floorf(t * 1000.0f + 0.5f);
             ogg_int64_t end_time = start_time;
             oggmux_record_kate_index(info, ks, &op, start_time, end_time);
@@ -1485,7 +1464,6 @@ static void write_audio_page(oggmux_info *info)
     ogg_int64_t page_offset = ftello(info->outfile);
     int packets = ogg_page_packets((ogg_page *)&info->audiopage);
     int packet_start_num = ogg_page_start_packets(info->audiopage);
-    ogg_uint32_t checksum = read_uint32(info->audiopage + 22);
 
     ret = fwrite(info->audiopage, 1, info->audiopage_len, info->outfile);
     if (ret < info->audiopage_len) {
@@ -1519,7 +1497,6 @@ static void write_video_page(oggmux_info *info)
     ogg_int64_t page_offset = ftello(info->outfile);
     int packets = ogg_page_packets((ogg_page *)&info->videopage);
     int packet_start_num = ogg_page_start_packets(info->videopage);
-    ogg_uint32_t checksum = read_uint32(info->videopage + 22);
 
     ret = fwrite(info->videopage, 1, info->videopage_len, info->outfile);
     if (ret < info->videopage_len) {
