@@ -165,8 +165,11 @@ extern void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams);
 extern void oggmux_init (oggmux_info *info);
 extern void oggmux_add_video (oggmux_info *info, th_ycbcr_buffer ycbcr, int e_o_s);
 extern void oggmux_add_audio (oggmux_info *info, int16_t * readbuffer, int bytesread, int samplesread,int e_o_s);
+#ifdef HAVE_KATE
 extern void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len);
+extern void oggmux_add_kate_image (oggmux_info *info, int idx, double t0, double t1, const kate_region *kr, const kate_palette *kp, const kate_bitmap *kb);
 extern void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t);
+#endif
 extern void oggmux_flush (oggmux_info *info, int e_o_s);
 extern void oggmux_close (oggmux_info *info);
 

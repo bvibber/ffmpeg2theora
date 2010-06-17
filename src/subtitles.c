@@ -530,6 +530,75 @@ int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int id
   return 0;
 }
 
+int add_image_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int idx, float t, float duration, const AVSubtitleRect *sr, int org_width, int org_height, FILE *frontend)
+{
+#ifdef HAVE_KATE
+  int n, c, ret;
+  ff2theora_subtitle *subtitle;
+
+  if (sr->nb_colors <= 0 || sr->nb_colors > 256) {
+    warn(frontend, NULL, 0, "Unsupported number of colors in image subtitle: %d", sr->nb_colors);
+    return -1;
+  }
+
+  for (n=0; n<nstreams; ++n) {
+    ff2theora_kate_stream *ks=streams+n;
+    if (idx == ks->stream_index) {
+      ks->subtitles = (ff2theora_subtitle*)realloc(ks->subtitles, (ks->num_subtitles+1)*sizeof(ff2theora_subtitle));
+      if (!ks->subtitles) {
+        warn(frontend, NULL, 0, "Out of memory");
+        return -1;
+      }
+      subtitle = &ks->subtitles[ks->num_subtitles];
+
+      kate_region_init(&subtitle->kr);
+      subtitle->kr.metric = kate_millionths;
+      subtitle->kr.x = 1000000 * sr->x / org_width;
+      subtitle->kr.y = 1000000 * sr->y / org_height;
+      subtitle->kr.w = 1000000 * sr->w / org_width;
+      subtitle->kr.h = 1000000 * sr->h / org_height;
+
+      kate_palette_init(&subtitle->kp);
+      subtitle->kp.ncolors = sr->nb_colors;
+      subtitle->kp.colors = malloc(sizeof(kate_color) * subtitle->kp.ncolors);
+      if (!subtitle->kp.colors) {
+        warn(frontend, NULL, 0, "Out of memory");
+        return -1;
+      }
+      const uint32_t *pal = (const uint32_t*)sr->pict.data[1];
+      for (c=0; c<subtitle->kp.ncolors; ++c) {
+        subtitle->kp.colors[c].a = (pal[c]>>24)&0xff;
+        subtitle->kp.colors[c].r = (pal[c]>>16)&0xff;
+        subtitle->kp.colors[c].g = (pal[c]>>8)&0xff;
+        subtitle->kp.colors[c].b = pal[c]&0xff;
+      }
+
+      kate_bitmap_init(&subtitle->kb);
+      subtitle->kb.type = kate_bitmap_type_paletted;
+      subtitle->kb.width = sr->w;
+      subtitle->kb.height = sr->h;
+      subtitle->kb.bpp = 0;
+      while ((1<<subtitle->kb.bpp) < sr->nb_colors) ++subtitle->kb.bpp;
+      subtitle->kb.pixels = malloc(sr->w*sr->h);
+      if (!subtitle->kb.pixels) {
+        free(subtitle->kp.colors);
+        warn(frontend, NULL, 0, "Out of memory");
+        return -1;
+      }
+
+      /* Not quite sure if the AVPicture line data is supposed to always be packed */
+      memcpy(subtitle->kb.pixels,sr->pict.data[0],sr->w*sr->h);
+
+      subtitle->text = NULL;
+      subtitle->t0 = t;
+      subtitle->t1 = t+duration;
+      ks->num_subtitles++;
+    }
+  }
+#endif
+  return 0;
+}
+
 void free_subtitles(ff2theora this)
 {
     size_t i,n;

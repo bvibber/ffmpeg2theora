@@ -1,5 +1,5 @@
 .\"                                      Hey, EMACS: -*- nroff -*-
-.TH FFMPEG2THEORA 1 "July 31, 2009"
+.TH FFMPEG2THEORA 1 "May 14, 2010"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -229,6 +229,14 @@ converting a non UTF-8 file to UTF-8.
 .TP
 .B \-\-nosubtitles
 Disables subtitles from input.
+Note that subtitles explicitely loaded from external files will still
+be used.
+.TP
+.B \-\-subtitle-types
+Selects which subtitle types to include from the input file.
+Allowed types are: none, all, text, spu (spu being the image based
+subtitles found on DVD).
+By default, only text based subtitles will be included.
 Note that subtitles explicitely loaded from external files will still
 be used.
 .SS Metadata options:

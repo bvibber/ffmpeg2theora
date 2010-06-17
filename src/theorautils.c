@@ -1291,6 +1291,8 @@ static void oggmux_record_kate_index(oggmux_info *info, oggmux_kate_stream *ks, 
     ks->last_end_time = end_time;
 }
 
+#ifdef HAVE_KATE
+
 /**
  * adds a subtitles text to the encoding sink
  * if e_o_s is 1 the end of the logical bitstream will be marked.
@@ -1302,7 +1304,6 @@ static void oggmux_record_kate_index(oggmux_info *info, oggmux_kate_stream *ks, 
  * @param len the number of bytes in the text
  */
 void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len) {
-#ifdef HAVE_KATE
     ogg_packet op;
     oggmux_kate_stream *ks=info->kate_streams+idx;
     int ret;
@@ -1322,7 +1323,42 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
         fprintf(stderr, "Failed to encode kate data packet (%f --> %f, [%s]): %d\n",
             t0, t1, text, ret);
     }
-#endif
+}
+
+/**
+ * adds a subtitles image to the encoding sink
+ * if e_o_s is 1 the end of the logical bitstream will be marked.
+ * @param info oggmux_info
+ * @param idx which kate stream to output to
+ * @param t0 the show time of the text
+ * @param t1 the hide time of the text
+ * @param kr the region in which to display the subtitle
+ * @param kp the palette to use for the image
+ * @param kb the image itself
+ */
+void oggmux_add_kate_image (oggmux_info *info, int idx, double t0, double t1, const kate_region *kr, const kate_palette *kp, const kate_bitmap *kb) {
+    ogg_packet op;
+    oggmux_kate_stream *ks=info->kate_streams+idx;
+    int ret;
+    ret = kate_encode_set_region(&ks->k, kr);
+    if (ret >= 0) ret = kate_encode_set_palette(&ks->k, kp);
+    if (ret >= 0) ret = kate_encode_set_bitmap(&ks->k, kb);
+    if (ret >= 0) ret = kate_ogg_encode_text(&ks->k, t0, t1, "", 0, &op);
+    if (ret>=0) {
+        if (!info->skeleton_3 && info->passno != 1) {
+            ogg_int64_t start_time = (int)(t0 * 1000.0f + 0.5f);
+            ogg_int64_t end_time = (int)(t1 * 1000.0f + 0.5f);
+            oggmux_record_kate_index(info, ks, &op, start_time, end_time);
+        }
+
+        ogg_stream_packetin (&ks->ko, &op);
+        ogg_packet_clear (&op);
+        info->k_pkg++;
+    }
+    else {
+        fprintf(stderr, "Failed to encode kate data packet (%f --> %f, image): %d\n",
+            t0, t1, ret);
+    }
 }
 
 /**
@@ -1332,7 +1368,6 @@ void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, con
  * @param t the time of the end packet
  */
 void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t) {
-#ifdef HAVE_KATE
     ogg_packet op;
     oggmux_kate_stream *ks=info->kate_streams+idx;
     int ret;
@@ -1350,8 +1385,9 @@ void oggmux_add_kate_end_packet (oggmux_info *info, int idx, double t) {
     else {
         fprintf(stderr, "Failed to encode kate end packet at %f: %d\n", t, ret);
     }
-#endif
 }
+
+#endif
 
 static double get_remaining(oggmux_info *info, double timebase) {
   double remaining = 0;

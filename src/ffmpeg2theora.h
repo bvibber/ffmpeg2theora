@@ -8,6 +8,11 @@ typedef struct ff2theora_subtitle{
     size_t len;
     double t0;
     double t1;
+#ifdef HAVE_KATE
+    kate_region kr;
+    kate_palette kp;
+    kate_bitmap kb;
+#endif
 } ff2theora_subtitle;
 
 typedef struct ff2theora_kate_stream{
@@ -46,7 +51,7 @@ typedef struct ff2theora{
     int audio_bitrate;
     int preset;
 
-    int disable_subtitles;
+    int included_subtitles;
     int disable_metadata;
     int disable_oshash;
 

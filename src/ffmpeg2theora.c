@@ -61,6 +61,7 @@ enum {
     NOAUDIO_FLAG,
     NOVIDEO_FLAG,
     NOSUBTITLES_FLAG,
+    SUBTITLETYPES_FLAG,
     NOMETADATA_FLAG,
     NOOSHASH_FLAG,
     NOUPSCALING_FLAG,
@@ -113,6 +114,8 @@ enum {
 #define NTSC_FULL_WIDTH 720
 #define NTSC_FULL_HEIGHT 480
 
+#define INCSUB_TEXT 1
+#define INCSUB_SPU 2
 
 oggmux_info info;
 
@@ -167,7 +170,7 @@ static ff2theora ff2theora_init() {
     if (this != NULL) {
         this->disable_audio=0;
         this->disable_video=0;
-        this->disable_subtitles=0;
+        this->included_subtitles=INCSUB_TEXT;
         this->disable_metadata=0;
         this->disable_oshash=0;
         this->no_upscaling=0;
@@ -335,7 +338,7 @@ static void prepare_ycbcr_buffer(ff2theora this, th_ycbcr_buffer ycbcr, AVFrame 
     }
 }
 
-static int is_supported_subtitle_stream(ff2theora this, int idx)
+static const char *find_category_for_subtitle_stream (ff2theora this, int idx, int included_subtitles)
 {
   AVCodecContext *enc = this->context->streams[idx]->codec;
   if (enc->codec_type != CODEC_TYPE_SUBTITLE) return 0;
@@ -343,11 +346,24 @@ static int is_supported_subtitle_stream(ff2theora this, int idx)
     case CODEC_ID_TEXT:
     case CODEC_ID_SSA:
     case CODEC_ID_MOV_TEXT:
-      return 1;
+      if (included_subtitles & INCSUB_TEXT)
+        return "SUB";
+      else
+        return NULL;
+    case CODEC_ID_DVD_SUBTITLE:
+      if (included_subtitles & INCSUB_SPU)
+        return "K-SPU";
+      else
+        return NULL;
     default:
-      return 0;
+      return NULL;
   }
-  return 0;
+  return NULL;
+}
+
+static int is_supported_subtitle_stream(ff2theora this, int idx, int included_subtitles)
+{
+  return find_category_for_subtitle_stream(this, idx, included_subtitles) != NULL;
 }
 
 static char *get_raw_text_from_ssa(const char *ssa)
@@ -960,20 +976,22 @@ void ff2theora_output(ff2theora this) {
         subtitles_enabled[i] = 0;
         subtitles_opened[i] = 0;
 #ifdef HAVE_KATE
-        if (!this->disable_subtitles) {
+        if (this->included_subtitles) {
           AVStream *stream = this->context->streams[i];
           AVCodecContext *enc = stream->codec;
+          const char *category;
           if (enc->codec_type == CODEC_TYPE_SUBTITLE) {
             AVCodec *codec = avcodec_find_decoder (enc->codec_id);
             if (codec && avcodec_open (enc, codec) >= 0) {
               subtitles_opened[i] = 1;
             }
-            if (is_supported_subtitle_stream(this, i)) {
+            category = find_category_for_subtitle_stream(this, i, this->included_subtitles);
+            if (category) {
               subtitles_enabled[i] = 1;
-              add_subtitles_stream(this, i, find_language_for_subtitle_stream(stream), NULL);
+              add_subtitles_stream(this, i, find_language_for_subtitle_stream(stream), category);
             }
             else if(!info.frontend) {
-              fprintf(stderr,"Subtitle stream %d codec not supported, ignored\n", i);
+              fprintf(stderr,"Subtitle stream %d, ignored\n", i);
             }
           }
         }
@@ -990,7 +1008,7 @@ void ff2theora_output(ff2theora this) {
             printf("Muxing Kate stream %d from input stream %d\n",
                 i,ks->stream_index);
 #endif
-            if (!this->disable_subtitles) {
+            if (this->included_subtitles) {
               info.with_kate=1;
             }
         }
@@ -1265,6 +1283,8 @@ void ff2theora_output(ff2theora this) {
                     ki->gps_denominator = 1;
                 }
                 ki->granule_shift = 32;
+                ki->original_canvas_width = display_width;
+                ki->original_canvas_height = display_height;
             }
           }
         }
@@ -1536,7 +1556,7 @@ void ff2theora_output(ff2theora this) {
             }
 
             if (info.passno!=1)
-            if (!this->disable_subtitles && subtitles_enabled[pkt.stream_index] && is_supported_subtitle_stream(this, pkt.stream_index)) {
+            if (this->included_subtitles && subtitles_enabled[pkt.stream_index] && is_supported_subtitle_stream(this, pkt.stream_index, this->included_subtitles)) {
               AVStream *stream=this->context->streams[pkt.stream_index];
               AVCodecContext *enc = stream->codec;
               if (enc) {
@@ -1546,9 +1566,11 @@ void ff2theora_output(ff2theora this) {
                 float t;
                 AVSubtitle sub;
                 int got_sub=0;
+                int64_t stream_start_time;
 
                 /* work out timing */
-                t = (float)pkt.pts * stream->time_base.num / stream->time_base.den - this->start_time;
+                stream_start_time = stream->start_time == AV_NOPTS_VALUE ? 0 : stream->start_time;
+                t = (float)(pkt.pts - stream_start_time) * stream->time_base.num / stream->time_base.den - this->start_time;
                 // my test case has 0 duration, how clever of that. I assume it's that old 'ends whenever the next
                 // one starts' hack, but it means I don't know in advance what duration it has. Great!
                 float duration;
@@ -1562,12 +1584,39 @@ void ff2theora_output(ff2theora this) {
                 /* generic decoding */
                 if (enc->codec && avcodec_decode_subtitle2(enc,&sub,&got_sub,&pkt) >= 0) {
                   if (got_sub) {
-                    if (sub.rects[0]->ass) {
-                      extra_info_from_ssa(&pkt,&utf8,&utf8len,&allocated_utf8,&duration);
-                    }
-                    else if (sub.rects[0]->text) {
-                      utf8 = sub.rects[0]->text;
-                      utf8len = strlen(utf8);
+                    for (i=0; i<sub.num_rects; i++) {
+                      const AVSubtitleRect *rect = sub.rects[i];
+                      if (!rect) continue;
+
+                      switch (rect->type) {
+                        case SUBTITLE_TEXT:
+                            if (!utf8) {
+                              if (rect->text) {
+                                utf8 = rect->text;
+                                utf8len = strlen(utf8);
+                              }
+                            }
+                            break;
+                        case SUBTITLE_ASS:
+                          /* text subtitles, only one for now */
+                          if (!utf8) {
+                            if (rect->ass) {
+                              extra_info_from_ssa(&pkt,&utf8,&utf8len,&allocated_utf8,&duration);
+                            }
+                            else if (rect->text) {
+                              utf8 = rect->text;
+                              utf8len = strlen(utf8);
+                            }
+                          }
+                          break;
+                        case SUBTITLE_BITMAP:
+                          /* image subtitles */
+                          add_image_subtitle_for_stream(this->kate_streams, this->n_kate_streams, pkt.stream_index, t, duration, rect, display_width, display_height, info.frontend);
+                          break;
+
+                        default:
+                          break;
+                      }
                     }
                   }
                 }
@@ -1633,7 +1682,14 @@ void ff2theora_output(ff2theora this) {
                            be held till the right time. If we don't do that, we can insert late and
                            oggz-validate moans */
                         while (ks->subtitles_count < ks->num_subtitles && sub->t0-1.0 <= avtime+this->start_time) {
-                            oggmux_add_kate_text(&info, i, sub->t0, sub->t1, sub->text, sub->len);
+#ifdef HAVE_KATE
+                            if (sub->text) {
+                              oggmux_add_kate_text(&info, i, sub->t0, sub->t1, sub->text, sub->len);
+                            }
+                            else {
+                              oggmux_add_kate_image(&info, i, sub->t0, sub->t1, &sub->kr, &sub->kp, &sub->kb);
+                            }
+#endif
                             ks->subtitles_count++;
                             ++sub;
                         }
@@ -1648,6 +1704,7 @@ void ff2theora_output(ff2theora this) {
         } while (ret >= 0 && !(audio_done && video_done));
 
         if (info.passno != 1) {
+#ifdef HAVE_KATE
           for (i=0; i<this->n_kate_streams; ++i) {
             ff2theora_kate_stream *ks = this->kate_streams+i;
             if (ks->num_subtitles > 0) {
@@ -1656,8 +1713,9 @@ void ff2theora_output(ff2theora this) {
                 oggmux_flush (&info, video_eos + audio_eos);
             }
           }
+#endif
 
-          if (!this->disable_subtitles) {
+          if (this->included_subtitles) {
             for (i = 0; i < this->context->nb_streams; i++) {
               if (subtitles_opened[i]) {
                 AVCodecContext *enc = this->context->streams[i]->codec;
@@ -1978,6 +2036,9 @@ void print_usage() {
         "      --subtitles-category category    set subtitles category (default \"subtitles\")\n"
         "      --subtitles-ignore-non-utf8      ignores any non UTF-8 sequence in UTF-8 text\n"
         "      --nosubtitles                    disables subtitles from input\n"
+        "                                       (equivalent to --subtitles=none)\n"
+        "      --subtitle-types=[all,text,spu,none]   select what subtitle types to include from the\n"
+        "                                             input video (default text)\n"
         "\n"
 #endif
         "Metadata options:\n"
@@ -2089,6 +2150,7 @@ int main(int argc, char **argv) {
         {"noaudio",0,&flag,NOAUDIO_FLAG},
         {"novideo",0,&flag,NOVIDEO_FLAG},
         {"nosubtitles",0,&flag,NOSUBTITLES_FLAG},
+        {"subtitle-types",required_argument,&flag,SUBTITLETYPES_FLAG},
         {"nometadata",0,&flag,NOMETADATA_FLAG},
         {"no-oshash",0,&flag,NOOSHASH_FLAG},
         {"no-upscaling",0,&flag,NOUPSCALING_FLAG},
@@ -2233,7 +2295,27 @@ int main(int argc, char **argv) {
                             flag = -1;
                             break;
                         case NOSUBTITLES_FLAG:
-                            convert->disable_subtitles = 1;
+                            convert->included_subtitles = 0;
+                            flag = -1;
+                            break;
+                        case SUBTITLETYPES_FLAG:
+                            if (!strcmp(optarg, "all")) {
+                              convert->included_subtitles = INCSUB_TEXT | INCSUB_SPU;
+                            }
+                            else if (!strcmp(optarg, "none")) {
+                              convert->included_subtitles = 0;
+                            }
+                            else if (!strcmp(optarg, "text")) {
+                              convert->included_subtitles = INCSUB_TEXT;
+                            }
+                            else if (!strcmp(optarg, "spu")) {
+                              convert->included_subtitles = INCSUB_SPU;
+                            }
+                            else {
+                              fprintf(stderr,
+                                 "Subtitles to include must be all, none, text, or spu.\n");
+                              exit(1);
+                            }
                             flag = -1;
                             break;
                         case NOMETADATA_FLAG:
@@ -2680,13 +2762,13 @@ int main(int argc, char **argv) {
                         switch (enc->codec_type) {
                             case CODEC_TYPE_VIDEO: has_video = 1; break;
                             case CODEC_TYPE_AUDIO: has_audio = 1; break;
-                            case CODEC_TYPE_SUBTITLE: if (is_supported_subtitle_stream(convert, i)) has_kate = 1; break;
+                            case CODEC_TYPE_SUBTITLE: if (is_supported_subtitle_stream(convert, i, convert->included_subtitles)) has_kate = 1; break;
                             default: break;
                         }
                     }
                     has_video &= !convert->disable_video;
                     has_audio &= !convert->disable_audio;
-                    has_kate &= !convert->disable_subtitles;
+                    has_kate &= !!convert->included_subtitles;
                     has_kate |= convert->n_kate_streams>0; /* may be added via command line */
                     has_skeleton |= info.with_skeleton;
 
@@ -2755,7 +2837,7 @@ int main(int argc, char **argv) {
                 if (convert->disable_video) {
                     fprintf(stderr, "  [video disabled].\n");
                 }
-                if (convert->disable_subtitles) {
+                if (!convert->included_subtitles) {
                     fprintf(stderr, "  [subtitles disabled].\n");
                 }
                 if (convert->disable_metadata) {
