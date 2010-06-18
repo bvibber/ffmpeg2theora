@@ -1,10 +1,10 @@
-0.27 soon
-    - aspect ratio fix in twopass mode
-    - update to fmpeg 0.6 branch
-    - update documentation
+0.27 2010-06-18
+    - Use Skeleton 4.0 by default (including index),
+      can be disabled with --skeleton-3 or --no-skeleton
+    - update to FFmpeg 0.6 branch
     - use ogv/oga/ogx depending on input if no output name is specified
-    - Skeleton 4.0 support(including index), can be disabled with
-                                          --skeleton-3 or --no-skeleton
+    - aspect ratio fix in twopass mode
+    - update documentation
 
 0.26 2010-02-05
     - use a/v sync from input container
