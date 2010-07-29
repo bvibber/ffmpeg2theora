@@ -1293,7 +1293,11 @@ void ff2theora_output(ff2theora this) {
         oggmux_init(&info);
         /*seek to start time*/
         if (this->start_time) {
-            av_seek_frame( this->context, -1, (int64_t)AV_TIME_BASE*this->start_time, 1);
+            int64_t timestamp = this->start_time * AV_TIME_BASE;
+            /* add the stream start time */
+            if (this->context->start_time != AV_NOPTS_VALUE)
+                timestamp += this->context->start_time;
+            av_seek_frame( this->context, -1, timestamp, AVSEEK_FLAG_BACKWARD);
             /* discard subtitles by their end time, so we still have those that start before the start time,
              but end after it */
             if (info.passno != 1) {
