@@ -183,7 +183,10 @@ if conf.CheckCHeader('iconv.h'):
     if conf.CheckLib('iconv'):
         env.Append(LIBS=['iconv'])
 
-if env['static']:
+if env['crossmingw']:
+    env.Append(CCFLAGS=['-Wl,-subsystem,windows'])
+    env.Append(LIBS=['m'])
+elif env['static']:
     env.Append(LIBS=['m', 'dl'])
 
 env = conf.Finish()
