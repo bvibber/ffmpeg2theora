@@ -1445,12 +1445,21 @@ static void print_stats(oggmux_info *info, double timebase) {
     else if (timebase - last > 0.5 || timebase < last || !remaining) {
         last = timebase;
         if (info->frontend) {
+#ifdef WIN32
+            fprintf(info->frontend, "{\"duration\": %f, \"position\": %.02f, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02f}\n",
+                info->duration,
+                timebase,
+                info->akbps, info->vkbps,
+                remaining
+            );
+#else
             fprintf(info->frontend, "{\"duration\": %lf, \"position\": %.02lf, \"audio_kbps\":  %d, \"video_kbps\": %d, \"remaining\": %.02lf}\n",
                 info->duration,
                 timebase,
                 info->akbps, info->vkbps,
                 remaining
             );
+#endif
             fflush (info->frontend);
         }
         else if (timebase > 0) {
