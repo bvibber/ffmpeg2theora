@@ -6,8 +6,8 @@ common="$common --disable-ffmpeg --disable-ffplay --disable-ffserver --disable-f
 #optional, if you have those libs installed:
 #extra="--enable-libopencore-amrnb --enable-libopencore-amrwb"
 
-#apt-get install liba52-dev libfaad-dev libgsm1-dev
-#extra="$extra--enable-libfaad --enable-libgsm"
+#apt-get install liba52-dev libgsm1-dev
+#extra="$extra  --enable-libgsm"
 
 #optional, if you have libvpx installed:
 #extra="--enable-libvpx"
