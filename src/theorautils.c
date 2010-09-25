@@ -1215,7 +1215,7 @@ vorbis_time(vorbis_dsp_state * dsp, ogg_int64_t granulepos) {
 void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int samples, int e_o_s) {
     ogg_packet op;
 
-    int i,j, count = 0;
+    int i, j, k, count = 0;
     float **vorbis_buffer;
 
     if (bytes <= 0 && samples <= 0) {
@@ -1228,7 +1228,20 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
         /* uninterleave samples */
         for (i = 0; i < samples; i++) {
             for (j=0;j<info->channels;j++) {
-                vorbis_buffer[j][i] = buffer[count++] / 32768.f;
+                k = j;
+                /* 5.1 input: [fl, fr, c, lfe, rl, rr] */
+                if(info->channels == 6) {
+                    switch(j) {
+                        case 0: k = 0; break;
+                        case 1: k = 2; break;
+                        case 2: k = 1; break;
+                        case 3: k = 5; break;
+                        case 4: k = 3; break;
+                        case 5: k = 4; break;
+                        default: k = j;
+                    }
+                }
+                vorbis_buffer[k][i] = buffer[count++] / 32768.f;
             }
         }
         vorbis_analysis_wrote (&info->vd, samples);
