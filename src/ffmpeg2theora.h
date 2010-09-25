@@ -75,6 +75,7 @@ typedef struct ff2theora{
     int video_bitrate;
     ogg_uint32_t keyint;
     char pp_mode[255];
+    int resize_method;
 
     AVRational force_input_fps;
     int sync;

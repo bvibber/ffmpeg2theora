@@ -85,6 +85,7 @@ enum {
     FRONTENDFILE_FLAG,
     SPEEDLEVEL_FLAG,
     PP_FLAG,
+    RESIZE_METHOD_FLAG,
     NOSKELETON,
     SKELETON_3,
     INDEX_INTERVAL,
@@ -233,6 +234,8 @@ static ff2theora ff2theora_init() {
         this->uv_lut_used = 0;
         this->sws_colorspace_ctx = NULL;
         this->sws_scale_ctx = NULL;
+
+        this->resize_method = -1;
     }
     return this;
 }
@@ -518,7 +521,7 @@ void ff2theora_output(ff2theora this) {
     AVCodec *vcodec = NULL;
     pp_mode_t *ppMode = NULL;
     pp_context_t *ppContext = NULL;
-    int sws_flags;
+    int sws_flags = this->resize_method;
     float frame_aspect = 0;
     double fps = 0.0;
     AVRational vstream_fps;
@@ -882,11 +885,13 @@ void ff2theora_output(ff2theora this) {
         this->frame_y_offset = this->frame_height-this->picture_height>>1&~1;
 
         //Bicubic  (best for upscaling),
-        if(display_width - (this->frame_leftBand + this->frame_rightBand) < this->picture_width ||
-           display_height - (this->frame_topBand + this->frame_bottomBand) < this->picture_height) {
-           sws_flags = SWS_BICUBIC;
-        } else {        //Bilinear (best for downscaling),
-           sws_flags = SWS_BILINEAR;
+        if (sws_flags < 0) {
+          if(display_width - (this->frame_leftBand + this->frame_rightBand) < this->picture_width ||
+             display_height - (this->frame_topBand + this->frame_bottomBand) < this->picture_height) {
+             sws_flags = SWS_BICUBIC;
+          } else {        //Bilinear (best for downscaling),
+             sws_flags = SWS_BILINEAR;
+          }
         }
 
         if (this->frame_width > 0 || this->frame_height > 0) {
@@ -1851,6 +1856,42 @@ int crop_check(ff2theora this, char *name, const char *arg)
     return crop_value;
 }
 
+static const struct {
+  const char *name;
+  int method;
+} resize_methods[] = {
+  { "fast-bilinear", SWS_FAST_BILINEAR },
+  { "bilinear", SWS_BILINEAR },
+  { "bicubic", SWS_BICUBIC },
+  { "x", SWS_X },
+  { "point", SWS_POINT },
+  { "area", SWS_AREA },
+  { "bicublin", SWS_BICUBLIN },
+  { "gauss", SWS_GAUSS },
+  { "sinc", SWS_SINC },
+  { "lanczos", SWS_LANCZOS },
+  { "spline", SWS_SPLINE },
+};
+
+static int get_resize_method_by_name(const char *name)
+{
+  int n;
+  for (n=0; n<sizeof(resize_methods)/sizeof(resize_methods[0]); ++n) {
+    if (!strcmp(resize_methods[n].name, name))
+      return resize_methods[n].method;
+  }
+  return -1;
+}
+
+static void print_resize_help(void)
+{
+  int n;
+  printf("Known resize methods:\n");
+  for (n=0; n<sizeof(resize_methods)/sizeof(resize_methods[0]); ++n) {
+    printf("  %s\n",resize_methods[n].name);
+  }
+}
+
 void copy_metadata(const AVFormatContext *av)
 {
     static const char *allowed[] = {
@@ -2144,6 +2185,7 @@ int main(int argc, char **argv) {
         {"buf-delay",required_argument,NULL,'d'},
         {"deinterlace",0,&flag,DEINTERLACE_FLAG},
         {"pp",required_argument,&flag,PP_FLAG},
+        {"resize-method",required_argument,&flag,RESIZE_METHOD_FLAG},
         {"samplerate",required_argument,NULL,'H'},
         {"channels",required_argument,NULL,'c'},
         {"gamma",required_argument,NULL,'G'},
@@ -2278,6 +2320,14 @@ int main(int argc, char **argv) {
                                 exit(1);
                             }
                             snprintf(convert->pp_mode,sizeof(convert->pp_mode),"%s",optarg);
+                            flag = -1;
+                            break;
+                        case RESIZE_METHOD_FLAG:
+                            if (!strcmp(optarg, "help")) {
+                                print_resize_help();
+                                exit(1);
+                            }
+                            convert->resize_method = get_resize_method_by_name(optarg);
                             flag = -1;
                             break;
                         case VHOOK_FLAG:
