@@ -106,6 +106,8 @@ void init_info(oggmux_info *info) {
 
     info->prev_vorbis_window = -1;
     info->content_offset = 0;
+
+    info->serialno = 0;
 }
 
 void oggmux_setup_kate_streams(oggmux_info *info, int n_kate_streams)
@@ -813,7 +815,8 @@ void oggmux_init (oggmux_info *info) {
 
     /* yayness.  Set up Ogg output stream */
     srand (time (NULL));
-    ogg_stream_init (&info->vo, rand ());
+    info->serialno = rand();
+    ogg_stream_init (&info->vo, info->serialno++);
 
     if (info->passno!=1) {
         th_comment_add_tag(&info->tc, "ENCODER", PACKAGE_STRING);
@@ -825,7 +828,7 @@ void oggmux_init (oggmux_info *info) {
     }
 
     if (!info->audio_only) {
-        ogg_stream_init (&info->to, rand ());    /* oops, add one ot the above */
+        ogg_stream_init (&info->to, info->serialno++);
         seek_index_init(&info->theora_index, info->index_interval);
     }
     /* init theora done */
@@ -860,7 +863,7 @@ void oggmux_init (oggmux_info *info) {
         int ret, n;
         for (n=0; n<info->n_kate_streams; ++n) {
             oggmux_kate_stream *ks=info->kate_streams+n;
-            ogg_stream_init (&ks->ko, rand ());    /* oops, add one ot the above */
+            ogg_stream_init (&ks->ko, info->serialno++);
             ret = kate_encode_init (&ks->k, &ks->ki);
             if (ret<0) {
                 fprintf(stderr, "kate_encode_init: %d\n",ret);
@@ -897,7 +900,7 @@ void oggmux_init (oggmux_info *info) {
            page with a Skeleton4.0 header page. */
         int skeleton_3 = info->skeleton_3;
         info->skeleton_3 = 1;
-        ogg_stream_init (&info->so, rand());
+        ogg_stream_init (&info->so, info->serialno++);
         add_fishead_packet (info, 3, 0);
         if (ogg_stream_pageout (&info->so, &og) != 1) {
             fprintf (stderr, "Internal Ogg library error.\n");
@@ -921,7 +924,7 @@ void oggmux_init (oggmux_info *info) {
                 exit (1);
             }
             ogg_stream_clear (&info->so);
-            ogg_stream_init (&info->so, rand());
+            ogg_stream_init (&info->so, info->serialno++);
             add_fishead_packet (info, 4, 0);
             if (ogg_stream_pageout (&info->so, &og) != 1) {
                 fprintf (stderr, "Internal Ogg library error.\n");
