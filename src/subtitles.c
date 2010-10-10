@@ -343,6 +343,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
     int id;
     static char text[4096];
     int h0,m0,s0,ms0,h1,m1,s1,ms1;
+    int x1,x2,y1,y2;
     double t0=0.0;
     double t1=0.0;
     static char str[4096];
@@ -397,16 +398,24 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
           }
           break;
         case need_timing:
-          ret=sscanf(str,"%d:%d:%d%*[.,]%d --> %d:%d:%d%*[.,]%d\n",&h0,&m0,&s0,&ms0,&h1,&m1,&s1,&ms1);
-          if (ret!=8 || (h0|m0|s0|ms0)<0 || (h1|m1|s1|ms1)<0) {
-            warn(frontend, this->filename, line, "Syntax error: %s",str);
+          ret=sscanf(str,"%d:%d:%d%*[.,]%d --> %d:%d:%d%*[.,]%d %*[xX]1: %d %*[xX]2: %d %*[yY]1: %d %*[yY]2: %d\n",&h0,&m0,&s0,&ms0,&h1,&m1,&s1,&ms1,&x1,&x2,&y1,&y2);
+          if (ret!=12) {
+            x1=y1=x2=y2=-INT_MAX;
+            ret=sscanf(str,"%d:%d:%d%*[.,]%d --> %d:%d:%d%*[.,]%d\n",&h0,&m0,&s0,&ms0,&h1,&m1,&s1,&ms1);
+            if (ret!=8) {
+              warn(frontend, this->filename, line, "Syntax error: %s",str);
+              fclose(f);
+              free(this->subtitles);
+              return -1;
+            }
+          }
+          t0=hmsms2s(h0,m0,s0,ms0);
+          t1=hmsms2s(h1,m1,s1,ms1);
+          if ((h0|m0|s0|ms0)<0 || (h1|m1|s1|ms1)<0) {
+            warn(frontend, this->filename, line, "Bad timestamp specification: %s",str);
             fclose(f);
             free(this->subtitles);
             return -1;
-          }
-          else {
-            t0=hmsms2s(h0,m0,s0,ms0);
-            t1=hmsms2s(h1,m1,s1,ms1);
           }
           need=need_text;
           break;
@@ -452,6 +461,10 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
               this->subtitles[this->num_subtitles].len = len;
               this->subtitles[this->num_subtitles].t0 = t0;
               this->subtitles[this->num_subtitles].t1 = t1;
+              this->subtitles[this->num_subtitles].x1 = x1;
+              this->subtitles[this->num_subtitles].x2 = x2;
+              this->subtitles[this->num_subtitles].y1 = y1;
+              this->subtitles[this->num_subtitles].y2 = y2;
               this->num_subtitles++;
             }
             need=need_id;
@@ -522,6 +535,10 @@ int add_subtitle_for_stream(ff2theora_kate_stream *streams, int nstreams, int id
         ks->subtitles[ks->num_subtitles].len = utf8len;
         ks->subtitles[ks->num_subtitles].t0 = t;
         ks->subtitles[ks->num_subtitles].t1 = t+duration;
+        ks->subtitles[ks->num_subtitles].x1 = -INT_MAX;
+        ks->subtitles[ks->num_subtitles].x2 = -INT_MAX;
+        ks->subtitles[ks->num_subtitles].y1 = -INT_MAX;
+        ks->subtitles[ks->num_subtitles].y2 = -INT_MAX;
         ks->num_subtitles++;
       }
     }

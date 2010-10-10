@@ -1693,7 +1693,7 @@ void ff2theora_output(ff2theora this) {
                         while (ks->subtitles_count < ks->num_subtitles && sub->t0-1.0 <= avtime+this->start_time) {
 #ifdef HAVE_KATE
                             if (sub->text) {
-                              oggmux_add_kate_text(&info, i, sub->t0, sub->t1, sub->text, sub->len);
+                              oggmux_add_kate_text(&info, i, sub->t0, sub->t1, sub->text, sub->len, sub->x1, sub->x2, sub->y1, sub->y2);
                             }
                             else {
                               oggmux_add_kate_image(&info, i, sub->t0, sub->t1, &sub->kr, &sub->kp, &sub->kb);

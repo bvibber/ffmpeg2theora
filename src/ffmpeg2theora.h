@@ -13,6 +13,7 @@ typedef struct ff2theora_subtitle{
     kate_palette kp;
     kate_bitmap kb;
 #endif
+    int x1,x2,y1,y2;
 } ff2theora_subtitle;
 
 typedef struct ff2theora_kate_stream{

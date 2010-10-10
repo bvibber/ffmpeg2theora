@@ -1319,10 +1319,24 @@ static void oggmux_record_kate_index(oggmux_info *info, oggmux_kate_stream *ks, 
  * @param text the utf-8 text
  * @param len the number of bytes in the text
  */
-void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len) {
+void oggmux_add_kate_text (oggmux_info *info, int idx, double t0, double t1, const char *text, size_t len, int x1, int x2, int y1, int y2) {
     ogg_packet op;
     oggmux_kate_stream *ks=info->kate_streams+idx;
     int ret;
+    if (x1!=-INT_MAX && y1!=-INT_MAX && x2!=-INT_MAX && y2!=-INT_MAX) {
+      kate_region kr;
+      kate_region_init(&kr);
+      kr.metric=kate_pixel;
+      kr.x=x1;
+      kr.y=y1;
+      kr.w=x2-x1+1;
+      kr.h=y2-y1+1;
+      ret=kate_encode_set_region(&ks->k,&kr);
+      if (ret<0) {
+        fprintf(stderr,"Error setting region: %d\n",ret);
+        return;
+      }
+    }
     ret = kate_ogg_encode_text(&ks->k, t0, t1, text, len, &op);
     if (ret>=0) {
         if (!info->skeleton_3 && info->passno != 1) {
