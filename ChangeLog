@@ -1,5 +1,6 @@
 svn
     - select resize method via commandline
+    - fix 5.1 channel ordering
 
 0.27 2010-06-18
     - Use Skeleton 4.0 by default (including index),

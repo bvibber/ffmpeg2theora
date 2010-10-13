@@ -89,10 +89,10 @@ instead of a hierarchical one. This can reduce video bitrate about 5%,
 but it is slower and therefore is disabled by default.
 .TP
 .B \-\-speedlevel
-encoding is faster with higher values the cost is quality and bandwidth
- 0: Slowest (best)
- 1: Enable early skip (default)
- 2: Disable motion compensation
+encoding is faster with higher values
+the cost is quality and bandwidth (default 1)
+available values depend on the version of libtheora
+check ffmpeg2theora --help for supported values.
 .TP
 .B \-x, \-\-width
 Scale to given width (in pixels).

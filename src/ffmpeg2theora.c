@@ -1963,6 +1963,17 @@ void print_presets_info() {
 }
 
 void print_usage() {
+    th_info ti;
+    th_enc_ctx *td;
+    int max_speed_level = -1;
+
+    th_info_init(&ti);
+    ti.pic_width = ti.frame_width = 320;
+    ti.pic_height = ti.frame_height = 240;
+    td = th_encode_alloc(&ti);
+    th_encode_ctl(td, TH_ENCCTL_GET_SPLEVEL_MAX, &max_speed_level, sizeof(int));
+    th_encode_free(td);
+
     fprintf(stdout,
         PACKAGE " " PACKAGE_VERSION " - %s\n", th_version_string());
     fprintf(stdout,
@@ -2005,10 +2016,9 @@ void print_usage() {
         "      --optimize         optimize video output filesize (slower)\n"
         "                         (same as speedlevel 0)\n"
         "      --speedlevel       encoding is faster with higher values\n"
-        "                         the cost is quality and bandwidth\n"
-        "                         - 0: Slowest (best)\n"
-        "                         - 1: Enable early skip (default)\n"
-    "                         - 2: Disable motion compensation\n"
+        "                         the cost is quality and bandwidth (default 1)\n"
+        "                         available values depend on the version of libtheora\n"
+        "                         your version supports speedlevels 0 to %d\n"
 
         "  -x, --width            scale to given width (in pixels)\n"
         "  -y, --height           scale to given height (in pixels)\n"
@@ -2138,7 +2148,7 @@ void print_usage() {
         "     | ffmpeg2theora -f dv -x 160 -y 128 -o /dev/stdout - \\\n"
         "     | oggfwd icast2server 8000 password /theora.ogv\n"
         "\n"
-        );
+        ,max_speed_level);
     exit(0);
 }
 
