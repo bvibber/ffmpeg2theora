@@ -181,14 +181,17 @@ void report_unknown_subtitle_encoding(const char *name, FILE *frontend)
 
 static char *fgets2(char *s,size_t sz,FILE *f)
 {
-    char *ret = fgets(s, sz, f);
+  char *ret = fgets(s, sz, f);
+  if (ret) {
     /* fixup DOS newline character */
     char *ptr=strchr(s, '\r');
     if (ptr) {
       *ptr='\n';
       *(ptr+1)=0;
     }
-    return ret;
+  }
+  else *s=0;
+  return ret;
 }
 
 static double hmsms2s(int h,int m,int s,int ms)
@@ -331,6 +334,58 @@ static void remove_last_newline(char *text)
   }
 }
 
+static int store_subtitle(ff2theora_kate_stream *this,
+                          char *text, double t0, double t1, int x1, int x2, int y1, int y2,
+                          int ignore_non_utf8,int *warned, unsigned int line, FILE *frontend)
+{
+  char *utf8;
+  size_t len;
+  int ret;
+
+  remove_last_newline(text);
+
+  /* we want all text to be UTF-8 */
+  utf8=convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8, frontend);
+  if (!utf8) {
+    warn(frontend, this->filename, line, "Failed to get UTF-8 text");
+    return -1;
+  }
+
+  len = strlen(utf8);
+  this->subtitles = (ff2theora_subtitle*)realloc(this->subtitles, (this->num_subtitles+1)*sizeof(ff2theora_subtitle));
+  if (!this->subtitles) {
+    free(utf8);
+    warn(frontend, NULL, 0, "Out of memory");
+    return -1;
+  }
+  ret=kate_text_validate(kate_utf8,utf8,len+1);
+  if (ret<0) {
+    if (!*warned) {
+      warn(frontend, this->filename, line, "subtitle is not valid UTF-8: %s",utf8);
+      if (!frontend)
+        fprintf(stderr,"  further invalid subtitles will NOT be flagged\n");
+      *warned=1;
+    }
+  }
+  else {
+    /* kill off trailing \n characters */
+    while (len>0) {
+      if (utf8[len-1]=='\n') utf8[--len]=0; else break;
+    }
+    this->subtitles[this->num_subtitles].text = utf8;
+    this->subtitles[this->num_subtitles].len = len;
+    this->subtitles[this->num_subtitles].t0 = t0;
+    this->subtitles[this->num_subtitles].t1 = t1;
+    this->subtitles[this->num_subtitles].x1 = x1;
+    this->subtitles[this->num_subtitles].x2 = x2;
+    this->subtitles[this->num_subtitles].y1 = y1;
+    this->subtitles[this->num_subtitles].y2 = y2;
+    this->num_subtitles++;
+  }
+
+  return 0;
+}
+
 #endif
 
 int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *frontend)
@@ -349,9 +404,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
     static char str[4096];
     int warned=0;
     FILE *f;
-    size_t len;
     unsigned int line=0;
-    char *utf8;
 
     this->subtitles = NULL;
 
@@ -375,7 +428,7 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
 
     fgets2(str,sizeof(str),f);
     ++line;
-    while (!feof(f)) {
+    while (!feof(f) || *str) {
       switch (need) {
         case need_id:
           if (!strcmp(str,"\n")) {
@@ -422,56 +475,17 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
         case need_text:
           if (str[0]=='\n') {
             /* we have all the lines for that subtitle, remove the last \n */
-            remove_last_newline(text);
-
-            /* we want all text to be UTF-8 */
-            utf8=convert_subtitle_to_utf8(this->subtitles_encoding,text,ignore_non_utf8, frontend);
-            if (!utf8) {
-              warn(frontend, this->filename, line, "Failed to get UTF-8 text");
+            int ret = store_subtitle(this, text, t0, t1, x1, x2, y1, y2, ignore_non_utf8, &warned, line, frontend);
+            if (ret < 0) {
               fclose(f);
               free(this->subtitles);
-              return -1;
-              break;
-            }
-
-            len = strlen(utf8);
-            this->subtitles = (ff2theora_subtitle*)realloc(this->subtitles, (this->num_subtitles+1)*sizeof(ff2theora_subtitle));
-            if (!this->subtitles) {
-              free(utf8);
-              warn(frontend, NULL, 0, "Out of memory");
-              fclose(f);
-              free(this->subtitles);
-              return -1;
-            }
-            ret=kate_text_validate(kate_utf8,utf8,len+1);
-            if (ret<0) {
-              if (!warned) {
-                warn(frontend, this->filename, line, "subtitle is not valid UTF-8: %s",utf8);
-                if (!frontend)
-                  fprintf(stderr,"  further invalid subtitles will NOT be flagged\n");
-                warned=1;
-              }
-            }
-            else {
-              /* kill off trailing \n characters */
-              while (len>0) {
-                if (utf8[len-1]=='\n') utf8[--len]=0; else break;
-              }
-              this->subtitles[this->num_subtitles].text = utf8;
-              this->subtitles[this->num_subtitles].len = len;
-              this->subtitles[this->num_subtitles].t0 = t0;
-              this->subtitles[this->num_subtitles].t1 = t1;
-              this->subtitles[this->num_subtitles].x1 = x1;
-              this->subtitles[this->num_subtitles].x2 = x2;
-              this->subtitles[this->num_subtitles].y1 = y1;
-              this->subtitles[this->num_subtitles].y2 = y2;
-              this->num_subtitles++;
+              return ret;
             }
             need=need_id;
           }
           else {
             /* in case of very long subtitles */
-            len=strlen(text);
+            size_t len=strlen(text);
             if (len+strlen(str) >= sizeof(text)) {
               warn(frontend, this->filename, line, "Subtitle text is too long - truncated");
             }
@@ -486,13 +500,20 @@ int load_subtitles(ff2theora_kate_stream *this, int ignore_non_utf8, FILE *front
 
     fclose(f);
 
-#if 0
-    // there seems to be quite a lot of files like this, so disable this test.
     if (need!=need_id) {
       /* shouldn't be a problem though, but warn */
       warn(frontend, this->filename, line, "Missing data in - truncated file ?");
+
+      /* add any leftover text we've accumulated */
+      if (need == need_text && text[0]) {
+        int ret = store_subtitle(this, text, t0, t1, x1, x2, y1, y2, ignore_non_utf8, &warned, line, frontend);
+        if (ret < 0) {
+          fclose(f);
+          free(this->subtitles);
+          return ret;
+        }
+      }
     }
-#endif
 
     /* fprintf(stderr,"  %u subtitles loaded.\n", this->num_subtitles); */
 
