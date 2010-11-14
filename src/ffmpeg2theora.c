@@ -2762,7 +2762,7 @@ int main(int argc, char **argv) {
 
     if (convert->soft_target) {
         if (convert->video_bitrate <= 0) {
-          fprintf(stderr,"Soft rate target (--soft-tagret) requested without a bitrate (-V).\n");
+          fprintf(stderr,"Soft rate target (--soft-target) requested without a bitrate (-V).\n");
           exit(1);
         }
         if (convert->video_quality == -1)
