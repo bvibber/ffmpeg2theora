@@ -701,14 +701,10 @@ void ff2theora_output(ff2theora this) {
                 this->frame_aspect.num = width;
                 this->frame_aspect.den = height;
             }
-            if (av_q2d(this->frame_aspect) <= 1.5) {
-                this->picture_width=128;
-                this->picture_height=96;
-            }
-            else {
-                this->picture_width=128;
-                this->picture_height=72;
-            }
+
+            this->picture_width=128;
+            this->picture_height=128/av_q2d(this->frame_aspect);
+
             this->frame_aspect.num = this->picture_width;
             this->frame_aspect.den = this->picture_height;
         }
