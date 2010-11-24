@@ -309,8 +309,10 @@ Encode a series of images:
   ffmpeg2theora frame%06d.png -o output.ogv
 
 Live streaming from V4L Device:
-  ffmpeg2theora /dev/video0 \-f video4linux \-\-inputfps 15 \-x 160 \-y 128 \\
-                 \-o \- | oggfwd icast2server 8000 password /theora.ogv
+  ffmpeg2theora \-\-no\-skeleton /dev/video0 \-f video4linux \\
+                \-\-inputfps 15 \-x 160 \-y 128 \\
+                \-o \- | oggfwd icast2server 8000 password /theora.ogv
+
   (you might have to use video4linux2 depending on your hardware)
   
 Live encoding from a DV camcorder (needs a fast machine):
@@ -318,8 +320,8 @@ Live encoding from a DV camcorder (needs a fast machine):
 
 Live encoding and streaming to icecast server:
   dvgrab \-\-format raw \- \\
-    | ffmpeg2theora \-f dv \-x 160 \-y 128 \-o /dev/stdout \- \\
-    | oggfwd icast2server 8000 password /theora.ogv
+  | ffmpeg2theora \-\-no\-skeleton \-f dv \-x 160 \-y 128 \-o /dev/stdout \- \\
+  | oggfwd icast2server 8000 password /theora.ogv
 
 
 .SH AUTHOR
