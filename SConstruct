@@ -11,7 +11,7 @@ def svnversion():
     return version
 
 pkg_version="0.27"
-#pkg_version +="+svn" + svnversion()
+pkg_version +="+svn" + svnversion()
 
 pkg_name="ffmpeg2theora"
 
