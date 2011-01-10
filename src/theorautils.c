@@ -854,6 +854,7 @@ void oggmux_init (oggmux_info *info) {
         vorbis_block_init (&info->vd, &info->vb);
         
         seek_index_init(&info->vorbis_index, info->index_interval);
+        info->vorbis_granulepos = 0;
     }
     /* audio init done */
 
@@ -1275,6 +1276,31 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
             info->prev_vorbis_window = info->vb.pcmend;
 
             ogg_int64_t start_granule = op.granulepos - num_samples;
+            if (start_granule < 0) {
+                /* The first vorbis content packet can have more samples than
+                   its granulepos reports. This is allowed by the spec, and
+                   players should discard the leading samples and not play them.
+                   Thus the indexer needs to discard them as well.*/
+                if (op.packetno != 4) {
+                    /* We only expect negative start granule in the first content
+                       packet, not any of the others... */
+                    fprintf(stderr, "WARNING: vorbis packet %d has calculated start"
+                            " granule of %lld, but it should be non-negative!",
+                            op.packetno, start_granule);
+                }
+                start_granule = 0;
+            }
+            if (start_granule < info->vorbis_granulepos) {
+                /* This packet starts before the end of the previous packet. This is
+                   allowed by the specification in the last packet only, and the
+                   trailing samples should be discarded and not played/indexed. */
+                if (!op.e_o_s) {
+                    fprintf(stderr, "WARNING: vorbis packet %d (granulepos %lld) starts before"
+                            " the end of the preceeding packet!", op.packetno, op.granulepos);
+                }
+                start_granule = info->vorbis_granulepos;
+            }
+            info->vorbis_granulepos = op.granulepos;
             ogg_int64_t start_time = vorbis_time (&info->vd, start_granule);
             
             if (op.granulepos != -1 &&

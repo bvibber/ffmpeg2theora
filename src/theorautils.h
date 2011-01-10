@@ -157,6 +157,8 @@ typedef struct
                                calculate duration of vorbis packets. */
     /* The offset of the first non header page in bytes. */
     ogg_int64_t content_offset;
+    /* Granulepos of the last encoded packet. */
+    ogg_int64_t vorbis_granulepos;
 
     ogg_int32_t serialno;
 }
