@@ -5,7 +5,7 @@ import os
 import SCons
 
 def svnversion():
-    f = os.popen("svnversion")
+    f = os.popen("./version.sh")
     version = f.read().strip()
     f.close()
     return version
