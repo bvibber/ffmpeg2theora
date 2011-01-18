@@ -21,15 +21,14 @@ uname | grep MINGW && options="$common --enable-memalign-hack --enable-mingw32 -
 # load FFMPEG specific properties
 . ./ffmpegrev
 
-#Get ffmpeg from svn
-#svn -r $FFMPEG_REVISION co $FFMPEG_SVN $FFMPEG_CO_DIR
-#svn update -r $FFMPEG_EXTERNALS_REVISION $FFMPEG_CO_DIR/libswscale
-
-#Get ffmpeg from svn 0.6 branch
-svn co $FFMPEG_SVN $FFMPEG_CO_DIR
+test -e $FFMPEG_CO_DIR || git clone $FFPMEG_URL $FFMPEG_CO_DIR
+cd $FFMPEG_CO_DIR
+#git pull -r $FFMPEG_REVISION
+git pull
+cd ..
 
 apply_patches() {
-  cd ffmpeg
+  cd $FFMPEG_CO_DIR
   for patch in ../patches/*.patch; do
     patch -p0 < $patch
   done
@@ -37,7 +36,7 @@ apply_patches() {
   cd ..
 }
 
-test -e ffmpeg/.ffmpeg2theora_patched || apply_patches
+test -e $FFMPEG_CO_DIR/.ffmpeg2theora_patched || apply_patches
 #configure and build ffmpeg
-cd ffmpeg && ./configure $options && make
+cd $FFMPEG_CO_DIR && ./configure $options && make
 

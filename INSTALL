@@ -3,7 +3,7 @@ Compiling from tarball or subversion:
 you need
 - scons (http://www.scons.org/)
 - the latest version of libtheora <http://downloads.xiph.org/releases/theora/>
-- ffmpeg svn <http://ffmpeg.sf.net> by running ./get_ffmpeg_svn.sh
+- ffmpeg git <http://ffmpeg.org> by running ./get_ffmpeg.sh
   (this script downloads ffmpeg and runs configure and compiles ffmpeg)
 - for subtitles support, libkate <http://code.google.com/p/libkate/>,
   or by running ./get_libkate.sh (this script downloads libkate, and

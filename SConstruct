@@ -139,16 +139,25 @@ if not conf.CheckPKG(XIPH_LIBS):
   Exit(1) 
 ParsePKGConfig(env, XIPH_LIBS)
 
-FFMPEG_LIBS=["libavcodec >= 52.30.0", "libavdevice", "libavformat", "libpostproc", "libswscale"]
+FFMPEG_LIBS=[
+    "libavdevice",
+    "libavformat",
+    "libavcodec >= 52.30.0",
+    "libpostproc",
+    "libswscale",
+]
 if os.path.exists("./ffmpeg"):
-  os.environ['PKG_CONFIG_PATH'] = "./ffmpeg/libavutil:./ffmpeg/libavformat:./ffmpeg/libavcodec:./ffmpeg/libavdevice:./ffmpeg/libswscale:./ffmpeg/libpostproc:" + os.environ.get('PKG_CONFIG_PATH', '')
+  pkg_path = list(set(map(os.path.dirname, glob('./ffmpeg/*/*.pc'))))
+  pkg_path.append(os.environ.get('PKG_CONFIG_PATH', ''))
+  os.environ['PKG_CONFIG_PATH'] = ':'.join(pkg_path)
+
 if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
   print """
       Could not find %s.
       You can install it via
        sudo apt-get install %s
       or update PKG_CONFIG_PATH to point to ffmpeg's source folder
-      or run ./get_ffmpeg_svn.sh (for more information see INSTALL)
+      or run ./get_ffmpeg.sh (for more information see INSTALL)
   """ %(" ".join(FFMPEG_LIBS), " ".join(["%s-dev"%l.split()[0] for l in FFMPEG_LIBS]))
   Exit(1) 
 

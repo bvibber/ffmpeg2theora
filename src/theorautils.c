@@ -1284,7 +1284,7 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
                 if (op.packetno != 4) {
                     /* We only expect negative start granule in the first content
                        packet, not any of the others... */
-                    fprintf(stderr, "WARNING: vorbis packet %d has calculated start"
+                    fprintf(stderr, "WARNING: vorbis packet %lld has calculated start"
                             " granule of %lld, but it should be non-negative!",
                             op.packetno, start_granule);
                 }
@@ -1295,7 +1295,7 @@ void oggmux_add_audio (oggmux_info *info, int16_t * buffer, int bytes, int sampl
                    allowed by the specification in the last packet only, and the
                    trailing samples should be discarded and not played/indexed. */
                 if (!op.e_o_s) {
-                    fprintf(stderr, "WARNING: vorbis packet %d (granulepos %lld) starts before"
+                    fprintf(stderr, "WARNING: vorbis packet %lld (granulepos %lld) starts before"
                             " the end of the preceeding packet!", op.packetno, op.granulepos);
                 }
                 start_granule = info->vorbis_granulepos;

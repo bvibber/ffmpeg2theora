@@ -316,20 +316,6 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int ind
         fprintf(output, "{\n");
 
         json_codec_info(output, st->codec, indent + 1);
-        if (st->sample_aspect_ratio.num && // default
-            av_cmp_q(st->sample_aspect_ratio, st->codec->sample_aspect_ratio)) {
-            AVRational display_aspect_ratio;
-            av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
-                      st->codec->width*st->sample_aspect_ratio.num,
-                      st->codec->height*st->sample_aspect_ratio.den,
-                      1024*1024);
-            snprintf(buf1, sizeof(buf1), "%d:%d",
-                     st->sample_aspect_ratio.num, st->sample_aspect_ratio.den);
-            json_add_key_value(output, "pixel_aspect_ratio", buf1, JSON_STRING, 0, indent + 1);
-            snprintf(buf1, sizeof(buf1), "%d:%d",
-                     display_aspect_ratio.num, display_aspect_ratio.den);
-            json_add_key_value(output, "display_aspect_ratio", buf1, JSON_STRING, 0, indent + 1);
-        }
         if(st->codec->codec_type == CODEC_TYPE_VIDEO){
             if (st->time_base.den && st->time_base.num && av_q2d(st->time_base) > 0.001) {
                 snprintf(buf1, sizeof(buf1), "%d:%d",
