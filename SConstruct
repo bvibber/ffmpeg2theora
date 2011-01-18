@@ -15,10 +15,7 @@ pkg_version +="+svn" + svnversion()
 
 pkg_name="ffmpeg2theora"
 
-scons_version=(0,97,0)
-#this is needed to make scons -h work, so not checking for it right now
-#(i.e. ubuntu hardy only ships with 0.97..)
-#scons_version=(0,98,0)
+scons_version=(1,2,0)
 
 try:
     EnsureSConsVersion(*scons_version)
@@ -26,18 +23,18 @@ except TypeError:
     print 'SCons %d.%d.%d or greater is required, but you have an older version' % scons_version
     Exit(2)
 
-opts = Options()
-opts.AddOptions(
-  BoolOption('static', 'Set to 1 for static linking', 0),
-  BoolOption('debug', 'Set to 1 to enable debugging', 0),
+opts = Variables()
+opts.AddVariables(
+  BoolVariable('static', 'Set to 1 for static linking', 0),
+  BoolVariable('debug', 'Set to 1 to enable debugging', 0),
   ('prefix', 'install files in', '/usr/local'),
   ('bindir', 'user executables', 'PREFIX/bin'),
   ('mandir', 'man documentation', 'PREFIX/man'),
   ('destdir', 'extra install time prefix', ''),
   ('APPEND_CCFLAGS', 'Additional C/C++ compiler flags'),
   ('APPEND_LINKFLAGS', 'Additional linker flags'),
-  BoolOption('libkate', 'enable libkate support', 1),
-  BoolOption('crossmingw', 'Set to 1 for crosscompile with mingw', 0)
+  BoolVariable('libkate', 'enable libkate support', 1),
+  BoolVariable('crossmingw', 'Set to 1 for crosscompile with mingw', 0)
 )
 env = Environment(options = opts)
 Help(opts.GenerateHelpText(env))
