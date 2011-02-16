@@ -883,7 +883,8 @@ void oggmux_init (oggmux_info *info) {
     }
     /* kate init done */
 
-    if (!info->skeleton_3 &&
+    if (info->with_skeleton &&
+        !info->skeleton_3 &&
         info->duration == -1)
     {
         /* We've not got a duration, we can't index the keyframes. */
