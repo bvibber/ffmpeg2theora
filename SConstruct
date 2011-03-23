@@ -191,7 +191,6 @@ if conf.CheckCHeader('iconv.h'):
 
 if env['crossmingw']:
     env.Append(CCFLAGS=['-Wl,-subsystem,windows'])
-    env.Append(LINKFLAGS=['-Wl,-subsystem,windows'])
     env.Append(LIBS=['m'])
 elif env['static']:
     env.Append(LIBS=['m', 'dl'])
