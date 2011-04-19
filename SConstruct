@@ -142,6 +142,7 @@ FFMPEG_LIBS=[
     "libavcodec >= 52.30.0",
     "libpostproc",
     "libswscale",
+    "libavutil",
 ]
 if os.path.exists("./ffmpeg"):
   pkg_path = list(set(map(os.path.dirname, glob('./ffmpeg/*/*.pc'))))
