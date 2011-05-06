@@ -196,7 +196,7 @@ void json_codec_info(FILE *output, AVCodecContext *enc, int indent) {
     }
 
     switch(enc->codec_type) {
-    case CODEC_TYPE_VIDEO:
+    case AVMEDIA_TYPE_VIDEO:
         codec_name = fix_codec_name(codec_name);
         json_add_key_value(output, "codec", (void *)codec_name, JSON_STRING, 0, indent);
         if (enc->pix_fmt != PIX_FMT_NONE) {
@@ -224,7 +224,7 @@ void json_codec_info(FILE *output, AVCodecContext *enc, int indent) {
             json_add_key_value(output, "bitrate", &t, JSON_FLOAT, 0, indent);
         }
         break;
-    case CODEC_TYPE_AUDIO:
+    case AVMEDIA_TYPE_AUDIO:
         codec_name = fix_codec_name(codec_name);
         json_add_key_value(output, "codec", (void *)codec_name, JSON_STRING, 0, indent);
         if (enc->sample_rate) {
@@ -277,15 +277,15 @@ void json_codec_info(FILE *output, AVCodecContext *enc, int indent) {
         }
         break;
     /*
-    case CODEC_TYPE_DATA:
+    case AVMEDIA_TYPE_DATA:
         fprintf(output, "datacodec: %s\n", codec_name);
         bitrate = enc->bit_rate;
         break;
-    case CODEC_TYPE_SUBTITLE:
+    case AVMEDIA_TYPE_SUBTITLE:
         fprintf(output, "subtitle: %s\n", codec_name);
         bitrate = enc->bit_rate;
         break;
-    case CODEC_TYPE_ATTACHMENT:
+    case AVMEDIA_TYPE_ATTACHMENT:
         fprintf(output, "attachment: : %s\n", codec_name);
         bitrate = enc->bit_rate;
         break;
@@ -316,7 +316,7 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int ind
         fprintf(output, "{\n");
 
         json_codec_info(output, st->codec, indent + 1);
-        if(st->codec->codec_type == CODEC_TYPE_VIDEO){
+        if(st->codec->codec_type == AVMEDIA_TYPE_VIDEO){
             if (st->time_base.den && st->time_base.num && av_q2d(st->time_base) > 0.001) {
                 snprintf(buf1, sizeof(buf1), "%d:%d",
                          st->time_base.den, st->time_base.num);
@@ -325,6 +325,20 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int ind
                 snprintf(buf1, sizeof(buf1), "%d:%d",
                          st->r_frame_rate.num, st->r_frame_rate.den);
                 json_add_key_value(output, "framerate", buf1, JSON_STRING, 0, indent + 1);
+            }
+            if (st->sample_aspect_ratio.num && // default
+                av_cmp_q(st->sample_aspect_ratio, st->codec->sample_aspect_ratio)) {
+                AVRational display_aspect_ratio;
+                av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
+                          st->codec->width*st->sample_aspect_ratio.num,
+                          st->codec->height*st->sample_aspect_ratio.den,
+                          1024*1024);
+                snprintf(buf1, sizeof(buf1), "%d:%d",
+                         st->sample_aspect_ratio.num, st->sample_aspect_ratio.den);
+                json_add_key_value(output, "pixel_aspect_ratio", buf1, JSON_STRING, 0, indent+1);
+                snprintf(buf1, sizeof(buf1), "%d:%d",
+                         display_aspect_ratio.num, display_aspect_ratio.den);
+                json_add_key_value(output, "display_aspect_ratio", buf1, JSON_STRING, 0, indent+1);
             }
         }
         json_add_key_value(output, "id", &i, JSON_INT, 1, indent + 1);
@@ -470,11 +484,11 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
             int j, k;
             for(j=0; j<ic->nb_programs; j++) {
                 for(k=0; k<ic->programs[j]->nb_stream_indexes; k++)
-                    json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, CODEC_TYPE_VIDEO);
+                    json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, AVMEDIA_TYPE_VIDEO);
              }
         } else {
             for(i=0;i<ic->nb_streams;i++) {
-                json_stream_format(output, ic, i, 2, !i, CODEC_TYPE_VIDEO);
+                json_stream_format(output, ic, i, 2, !i, AVMEDIA_TYPE_VIDEO);
             }
         }
         fprintf(output, "],\n");
@@ -485,11 +499,11 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
             int j, k;
             for(j=0; j<ic->nb_programs; j++) {
                 for(k=0; k<ic->programs[j]->nb_stream_indexes; k++)
-                    json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, CODEC_TYPE_AUDIO);
+                    json_stream_format(output, ic, ic->programs[j]->stream_index[k], 2, !k && !j, AVMEDIA_TYPE_AUDIO);
              }
         } else {
             for(i=0;i<ic->nb_streams;i++) {
-                json_stream_format(output, ic, i, 2, !i, CODEC_TYPE_AUDIO);
+                json_stream_format(output, ic, i, 2, !i, AVMEDIA_TYPE_AUDIO);
             }
         }
         fprintf(output, "],\n");

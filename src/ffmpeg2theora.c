@@ -344,7 +344,7 @@ static void prepare_ycbcr_buffer(ff2theora this, th_ycbcr_buffer ycbcr, AVFrame 
 static const char *find_category_for_subtitle_stream (ff2theora this, int idx, int included_subtitles)
 {
   AVCodecContext *enc = this->context->streams[idx]->codec;
-  if (enc->codec_type != CODEC_TYPE_SUBTITLE) return 0;
+  if (enc->codec_type != AVMEDIA_TYPE_SUBTITLE) return 0;
   switch (enc->codec_id) {
     case CODEC_ID_TEXT:
     case CODEC_ID_SSA:
@@ -503,9 +503,11 @@ static void extra_info_from_ssa(AVPacket *pkt, const char **utf8, size_t *utf8le
 
 static const char *find_language_for_subtitle_stream(const AVStream *s)
 {
-  const char *lang=find_iso639_1(s->language);
+  AVMetadataTag *language = av_metadata_get(s->metadata, "language", NULL, 0);
+  const char *lang=find_iso639_1(language->value);
   if (!lang) {
-    fprintf(stderr,"WARNING - unrecognized ISO 639-2 language code: %s\n",s->language);
+    fprintf(stderr, "WARNING - unrecognized ISO 639-2 language code: %s\n",
+                    language->value);
   }
   return lang;
 }
@@ -533,7 +535,7 @@ void ff2theora_output(ff2theora this) {
 
     if (this->audiostream >= 0 && this->context->nb_streams > this->audiostream) {
         AVCodecContext *enc = this->context->streams[this->audiostream]->codec;
-        if (enc->codec_type == CODEC_TYPE_AUDIO) {
+        if (enc->codec_type == AVMEDIA_TYPE_AUDIO) {
             this->audio_index = this->audiostream;
             fprintf(stderr, "  Using stream #0.%d as audio input\n",this->audio_index);
         }
@@ -543,7 +545,7 @@ void ff2theora_output(ff2theora this) {
     }
     if (this->videostream >= 0 && this->context->nb_streams > this->videostream) {
         AVCodecContext *enc = this->context->streams[this->videostream]->codec;
-        if (enc->codec_type == CODEC_TYPE_VIDEO) {
+        if (enc->codec_type == AVMEDIA_TYPE_VIDEO) {
             this->video_index = this->videostream;
             fprintf(stderr, "  Using stream #0.%d as video input\n",this->video_index);
         }
@@ -555,11 +557,11 @@ void ff2theora_output(ff2theora this) {
     for (i = 0; i < this->context->nb_streams; i++) {
         AVCodecContext *enc = this->context->streams[i]->codec;
         switch (enc->codec_type) {
-            case CODEC_TYPE_VIDEO:
+            case AVMEDIA_TYPE_VIDEO:
                 if (this->video_index < 0 && !this->disable_video)
                     this->video_index = i;
                 break;
-            case CODEC_TYPE_AUDIO:
+            case AVMEDIA_TYPE_AUDIO:
                 if (this->audio_index < 0 && !this->disable_audio)
                     this->audio_index = i;
                 break;
@@ -981,7 +983,7 @@ void ff2theora_output(ff2theora this) {
           AVStream *stream = this->context->streams[i];
           AVCodecContext *enc = stream->codec;
           const char *category;
-          if (enc->codec_type == CODEC_TYPE_SUBTITLE) {
+          if (enc->codec_type == AVMEDIA_TYPE_SUBTITLE) {
             AVCodec *codec = avcodec_find_decoder (enc->codec_id);
             if (codec && avcodec_open (enc, codec) >= 0) {
               subtitles_opened[i] = 1;
@@ -1456,9 +1458,11 @@ void ff2theora_output(ff2theora this) {
                             }
                             if (this->sws_scale_ctx) {
                                 sws_scale(this->sws_scale_ctx,
-                                output_cropped->data, output_cropped->linesize, 0,
-                                display_height - (this->frame_topBand + this->frame_bottomBand),
-                                output_resized->data, output_resized->linesize);
+                                    output_cropped->data,
+                                    output_cropped->linesize, 0,
+                                    display_height - (this->frame_topBand + this->frame_bottomBand),
+                                    output_resized->data,
+                                    output_resized->linesize);
                             }
                             else{
                                 output_resized = output_cropped;
@@ -1517,7 +1521,7 @@ void ff2theora_output(ff2theora this) {
                     int samples=0;
                     int samples_out=0;
                     int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
-                    int bytes_per_sample = av_get_bits_per_sample_format(aenc->sample_fmt)/8;
+                    int bytes_per_sample = av_get_bits_per_sample_fmt(aenc->sample_fmt)/8;
 
                     if (avpkt.size > 0) {
                         len1 = avcodec_decode_audio3(astream->codec, audio_buf, &data_size, &avpkt);
@@ -2791,8 +2795,7 @@ int main(int argc, char **argv) {
 
     for(info.passno=(info.twopass==3?1:info.twopass);info.passno<=(info.twopass==3?2:info.twopass);info.passno++){
     //detect image sequences and set framerate if provided
-    if (av_guess_image2_codec(inputfile_name) != CODEC_ID_NONE || \
-        (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
+    if (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
         formatParams = &params;
         memset(formatParams, 0, sizeof(*formatParams));
         if (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
@@ -2813,7 +2816,6 @@ int main(int argc, char **argv) {
             formatParams->time_base.den = convert->framerate_new.num;
             formatParams->time_base.num = convert->framerate_new.den;
         }
-        formatParams->video_codec_id = av_guess_image2_codec(inputfile_name);
     }
     if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0) {
         if (av_find_stream_info(convert->context) >= 0) {
@@ -2825,9 +2827,9 @@ int main(int argc, char **argv) {
                     for (i = 0; i < convert->context->nb_streams; i++) {
                         AVCodecContext *enc = convert->context->streams[i]->codec;
                         switch (enc->codec_type) {
-                            case CODEC_TYPE_VIDEO: has_video = 1; break;
-                            case CODEC_TYPE_AUDIO: has_audio = 1; break;
-                            case CODEC_TYPE_SUBTITLE: if (is_supported_subtitle_stream(convert, i, convert->included_subtitles)) has_kate = 1; break;
+                            case AVMEDIA_TYPE_VIDEO: has_video = 1; break;
+                            case AVMEDIA_TYPE_AUDIO: has_audio = 1; break;
+                            case AVMEDIA_TYPE_SUBTITLE: if (is_supported_subtitle_stream(convert, i, convert->included_subtitles)) has_kate = 1; break;
                             default: break;
                         }
                     }
@@ -2893,7 +2895,7 @@ int main(int argc, char **argv) {
 
                 if (!info.frontend) {
                     if (info.twopass!=3 || info.passno==1) {
-                        dump_format(convert->context, 0,inputfile_name, 0);
+                        av_dump_format(convert->context, 0,inputfile_name, 0);
                     }
                 }
                 if (convert->disable_audio) {
