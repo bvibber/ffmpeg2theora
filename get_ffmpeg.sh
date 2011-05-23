@@ -36,7 +36,7 @@ apply_patches() {
   cd ..
 }
 
-test -e $FFMPEG_CO_DIR/.ffmpeg2theora_patched || apply_patches
+#test -e $FFMPEG_CO_DIR/.ffmpeg2theora_patched || apply_patches
 #configure and build ffmpeg
 cd $FFMPEG_CO_DIR && ./configure $options && make
 
