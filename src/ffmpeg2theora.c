@@ -934,6 +934,7 @@ void ff2theora_output(ff2theora this) {
         astream = this->context->streams[this->audio_index];
         aenc = this->context->streams[this->audio_index]->codec;
         acodec = avcodec_find_decoder (aenc->codec_id);
+        int sample_rate = aenc->sample_rate;
         if (this->channels < 1) {
             this->channels = aenc->channels;
         }
@@ -949,19 +950,19 @@ void ff2theora_output(ff2theora this) {
         }
 
         if (acodec != NULL && avcodec_open (aenc, acodec) >= 0) {
-            if (this->sample_rate != aenc->sample_rate
+            if (this->sample_rate != sample_rate
                 || this->channels != aenc->channels
                 || aenc->sample_fmt != SAMPLE_FMT_S16) {
                 // values take from libavcodec/resample.c
                 this->audio_resample_ctx = av_audio_resample_init(this->channels,    aenc->channels,
-                                                                  this->sample_rate, aenc->sample_rate,
+                                                                  this->sample_rate, sample_rate,
                                                                   SAMPLE_FMT_S16,    aenc->sample_fmt,
                                                                   16, 10, 0, 0.8);
                 if (!this->audio_resample_ctx) {
                     this->channels = aenc->channels;
                 }
-                if (!info.frontend && this->sample_rate!=aenc->sample_rate)
-                    fprintf(stderr, "  Resample: %dHz => %dHz\n",aenc->sample_rate,this->sample_rate);
+                if (!info.frontend && this->sample_rate!=sample_rate)
+                    fprintf(stderr, "  Resample: %dHz => %dHz\n", sample_rate,this->sample_rate);
                 if (!info.frontend && this->channels!=aenc->channels)
                     fprintf(stderr, "  Channels: %d => %d\n",aenc->channels,this->channels);
             }
