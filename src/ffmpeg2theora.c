@@ -2898,23 +2898,24 @@ int main(int argc, char **argv) {
                     if (info.twopass!=3 || info.passno==1) {
                         av_dump_format(convert->context, 0,inputfile_name, 0);
                     }
-                }
-                if (convert->disable_audio) {
-                    fprintf(stderr, "  [audio disabled].\n");
-                }
-                if (convert->disable_video) {
-                    fprintf(stderr, "  [video disabled].\n");
-                }
-                if (!convert->included_subtitles) {
-                    fprintf(stderr, "  [subtitles disabled].\n");
+                    if (convert->disable_audio) {
+                        fprintf(stderr, "  [audio disabled].\n");
+                    }
+                    if (convert->disable_video) {
+                        fprintf(stderr, "  [video disabled].\n");
+                    }
+                    if (!convert->included_subtitles) {
+                        fprintf(stderr, "  [subtitles disabled].\n");
+                    }
                 }
                 if (convert->disable_metadata) {
-                    fprintf(stderr, "  [metadata disabled].\n");
+                    if (!info.frontend)
+                        fprintf(stderr, "  [metadata disabled].\n");
                 } else {
                     copy_metadata(convert->context);
                 }
 
-                if (!convert->sync) {
+                if (!convert->sync && !info.frontend) {
                     fprintf(stderr, "  Ignore A/V Sync from input container.\n");
                 }
 
@@ -2967,9 +2968,11 @@ int main(int argc, char **argv) {
     if (info.twopass_file)
         fclose(info.twopass_file);
 
-    if (info.frontend)
+    if (info.frontend) {
         fprintf(info.frontend, "{\"result\": \"ok\"}\n");
-    if (info.frontend && info.frontend != stderr)
+        fflush(info.frontend);
+    }
+    if (info.frontend && info.frontend != stdout)
         fclose(info.frontend);
 #ifdef WIN32
     if (info.twopass==3)
