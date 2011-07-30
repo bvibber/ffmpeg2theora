@@ -52,6 +52,7 @@
 enum {
     NULL_FLAG,
     DEINTERLACE_FLAG,
+    NODEINTERLACE_FLAG,
     SOFTTARGET_FLAG,
     TWOPASS_FLAG,
     FIRSTPASS_FLAG,
@@ -852,8 +853,12 @@ void ff2theora_output(ff2theora this) {
             fprintf(stderr, "  Frame Aspect Ratio: %.2f/1\n", frame_aspect);
         }
 
-        if (!(info.twopass==3 && info.passno==2) && !info.frontend && this->deinterlace==1)
+        if (!(info.twopass==3 && info.passno==2) && !info.frontend &&
+            this->deinterlace==1)
             fprintf(stderr, "  Deinterlace: on\n");
+        if (!(info.twopass==3 && info.passno==2) && !info.frontend &&
+            this->deinterlace==-1)
+            fprintf(stderr, "  Deinterlace: off\n");
 
         if (strcmp(this->pp_mode, "")) {
             ppContext = pp_get_context(display_width, display_height, PP_FORMAT_420);
@@ -1424,7 +1429,8 @@ void ff2theora_output(ff2theora this) {
                                                 display_width, display_height);
                                 output_tmp_p=NULL;
                             }
-                            if (frame->interlaced_frame || this->deinterlace) {
+                            if ((this->deinterlace==0 && frame->interlaced_frame) ||
+                                this->deinterlace==1) {
                                 if (avpicture_deinterlace((AVPicture *)output,(AVPicture *)output_tmp,this->pix_fmt,display_width,display_height)<0) {
                                         fprintf(stderr, "Deinterlace failed.\n");
                                         exit(1);
@@ -2070,6 +2076,7 @@ void print_usage() {
         "Input options:\n"
         "      --deinterlace      force deinterlace, otherwise only material\n"
         "                          marked as interlaced will be deinterlaced\n"
+        "      --no-deinterlace   force deinterlace off\n"
 #ifdef HAVE_FRAMEHOOK
         "      --vhook            you can use ffmpeg's vhook system, example:\n"
         "        ffmpeg2theora --vhook '/path/watermark.so -f wm.gif' input.dv\n"
@@ -2200,6 +2207,7 @@ int main(int argc, char **argv) {
         {"keyint",required_argument,NULL,'K'},
         {"buf-delay",required_argument,NULL,'d'},
         {"deinterlace",0,&flag,DEINTERLACE_FLAG},
+        {"no-deinterlace",0,&flag,NODEINTERLACE_FLAG},
         {"pp",required_argument,&flag,PP_FLAG},
         {"resize-method",required_argument,&flag,RESIZE_METHOD_FLAG},
         {"samplerate",required_argument,NULL,'H'},
@@ -2285,6 +2293,10 @@ int main(int argc, char **argv) {
                     {
                         case DEINTERLACE_FLAG:
                             convert->deinterlace = 1;
+                            flag = -1;
+                            break;
+                        case NODEINTERLACE_FLAG:
+                            convert->deinterlace = -1;
                             flag = -1;
                             break;
                         case SOFTTARGET_FLAG:
