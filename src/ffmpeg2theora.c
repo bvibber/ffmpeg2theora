@@ -528,7 +528,7 @@ void ff2theora_output(ff2theora this) {
     float frame_aspect = 0;
     double fps = 0.0;
     AVRational vstream_fps;
-    int display_width, display_height;
+    int display_width = -1, display_height = -1;
     char *subtitles_enabled = (char*)alloca(this->context->nb_streams);
     char *subtitles_opened = (char*)alloca(this->context->nb_streams);
     int synced = this->start_time == 0.0;
@@ -1292,8 +1292,10 @@ void ff2theora_output(ff2theora this) {
                     ki->gps_denominator = 1;
                 }
                 ki->granule_shift = 32;
-                ki->original_canvas_width = display_width;
-                ki->original_canvas_height = display_height;
+                if (display_width >= 0)
+                    ki->original_canvas_width = display_width;
+                if (display_height >= 0)
+                    ki->original_canvas_height = display_height;
             }
           }
         }
