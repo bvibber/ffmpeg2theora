@@ -24,6 +24,7 @@ uname | grep MINGW && options="$common --enable-memalign-hack --enable-mingw32 -
 test -e $FFMPEG_CO_DIR || git clone $FFMPEG_URL $FFMPEG_CO_DIR
 cd $FFMPEG_CO_DIR
 #git pull -r $FFMPEG_REVISION
+git checkout release/0.7 
 git pull
 cd ..
 

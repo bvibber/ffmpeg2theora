@@ -1,7 +1,7 @@
-svn
+0.28 2011-07-30
     - select resize method via commandline
     - fix 5.1 channel ordering
-    - use ffmpeg trunk
+    - update to FFmpeg 0.7 branch
 
 0.27 2010-06-18
     - Use Skeleton 4.0 by default (including index),
