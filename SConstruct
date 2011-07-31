@@ -148,6 +148,9 @@ if os.path.exists("./ffmpeg"):
   pkg_path = list(set(map(os.path.dirname, glob('./ffmpeg/*/*.pc'))))
   pkg_path.append(os.environ.get('PKG_CONFIG_PATH', ''))
   os.environ['PKG_CONFIG_PATH'] = ':'.join(pkg_path)
+  env.Append(CCFLAGS=[
+    '-Iffmpeg'
+  ])
 
 if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
   print """
