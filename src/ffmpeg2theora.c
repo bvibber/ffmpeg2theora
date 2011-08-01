@@ -504,7 +504,7 @@ static void extra_info_from_ssa(AVPacket *pkt, const char **utf8, size_t *utf8le
 
 static const char *find_language_for_subtitle_stream(const AVStream *s)
 {
-  AVMetadataTag *language = av_metadata_get(s->metadata, "language", NULL, 0);
+  AVDictionaryEntry *language = av_dict_get(s->metadata, "language", NULL, 0);
   const char *lang=find_iso639_1(language->value);
   if (!lang) {
     fprintf(stderr, "WARNING - unrecognized ISO 639-2 language code: %s\n",
@@ -517,7 +517,7 @@ void ff2theora_output(ff2theora this) {
     unsigned int i;
     AVCodecContext *aenc = NULL;
     AVCodecContext *venc = NULL;
-    int venc_pix_fmt;
+    int venc_pix_fmt = 0;
     AVStream *astream = NULL;
     AVStream *vstream = NULL;
     AVCodec *acodec = NULL;
@@ -575,6 +575,7 @@ void ff2theora_output(ff2theora this) {
         vstream = this->context->streams[this->video_index];
         venc = vstream->codec;
         vcodec = avcodec_find_decoder (venc->codec_id);
+
         display_width = venc->width;
         display_height = venc->height;
         venc_pix_fmt =  venc->pix_fmt;
@@ -594,7 +595,7 @@ void ff2theora_output(ff2theora this) {
         }
         this->fps = fps = av_q2d(vstream_fps);
 
-        if (vcodec == NULL || avcodec_open (venc, vcodec) < 0) {
+        if (vcodec == NULL || avcodec_open2 (venc, vcodec, NULL) < 0) {
             this->video_index = -1;
         }
         this->fps = fps;
@@ -954,7 +955,7 @@ void ff2theora_output(ff2theora this) {
                 this->channels = aenc->channels;
         }
 
-        if (acodec != NULL && avcodec_open (aenc, acodec) >= 0) {
+        if (acodec != NULL && avcodec_open2 (aenc, acodec, NULL) >= 0) {
             if (this->sample_rate != sample_rate
                 || this->channels != aenc->channels
                 || aenc->sample_fmt != SAMPLE_FMT_S16) {
@@ -991,7 +992,7 @@ void ff2theora_output(ff2theora this) {
           const char *category;
           if (enc->codec_type == AVMEDIA_TYPE_SUBTITLE) {
             AVCodec *codec = avcodec_find_decoder (enc->codec_id);
-            if (codec && avcodec_open (enc, codec) >= 0) {
+            if (codec && avcodec_open2 (enc, codec, NULL) >= 0) {
               subtitles_opened[i] = 1;
             }
             category = find_category_for_subtitle_stream(this, i, this->included_subtitles);
@@ -1530,7 +1531,7 @@ void ff2theora_output(ff2theora this) {
                     int samples=0;
                     int samples_out=0;
                     int data_size = 4*AVCODEC_MAX_AUDIO_FRAME_SIZE;
-                    int bytes_per_sample = av_get_bits_per_sample_fmt(aenc->sample_fmt)/8;
+                    int bytes_per_sample = av_get_bytes_per_sample(aenc->sample_fmt);
 
                     if (avpkt.size > 0) {
                         len1 = avcodec_decode_audio3(astream->codec, audio_buf, &data_size, &avpkt);
@@ -1922,8 +1923,8 @@ void copy_metadata(const AVFormatContext *av)
 
         "AUTHOR"
     };
-    AVMetadataTag *tag = NULL;
-    while ((tag = av_metadata_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
+    AVDictionaryEntry *tag = NULL;
+    while ((tag = av_dict_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
         char uc_key[16];
         int i;
         for (i = 0; tag->key[i] != '\0' && i < LENGTH(uc_key) - 1; i++)
@@ -2180,7 +2181,7 @@ int main(int argc, char **argv) {
     static int metadata_flag = -1;
 
     AVInputFormat *input_fmt = NULL;
-    AVFormatParameters params, *formatParams = NULL;
+    AVDictionary *format_opts = NULL;
 
     int c,long_option_index;
     const char *optstring = "P:o:k:f:F:x:y:v:V:a:A:K:d:H:c:G:Z:C:B:p:N:s:e:D:h::";
@@ -2811,29 +2812,25 @@ int main(int argc, char **argv) {
     for(info.passno=(info.twopass==3?1:info.twopass);info.passno<=(info.twopass==3?2:info.twopass);info.passno++){
     //detect image sequences and set framerate if provided
     if (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
-        formatParams = &params;
-        memset(formatParams, 0, sizeof(*formatParams));
-        if (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
-            formatParams->channel = 0;
-            formatParams->width = PAL_HALF_WIDTH;
-            formatParams->height = PAL_HALF_HEIGHT;
-            formatParams->time_base.den = 25;
-            formatParams->time_base.num = 2;
-            if (convert->picture_width)
-                formatParams->width = convert->picture_width;
-            if (convert->picture_height)
-                formatParams->height = convert->picture_height;
+        char buf[100];
+        av_dict_set(&format_opts, "channel", "0", 0);
+        if (convert->picture_width || convert->picture_height) {
+            snprintf(buf, sizeof(buf), "%dx%d",
+                          convert->picture_width, convert->picture_height);
+            av_dict_set(&format_opts,"video_size", buf, 0); 
         }
         if (convert->force_input_fps.num > 0) {
-            formatParams->time_base.den = convert->force_input_fps.num;
-            formatParams->time_base.num = convert->force_input_fps.den;
+            snprintf(buf, sizeof(buf), "%d/%d", 
+                          convert->force_input_fps.den, convert->force_input_fps.num);
+            av_dict_set(&format_opts, "framerate", buf, 0);
         } else if (convert->framerate_new.num > 0) {
-            formatParams->time_base.den = convert->framerate_new.num;
-            formatParams->time_base.num = convert->framerate_new.den;
+            snprintf(buf, sizeof(buf), "%d/%d", 
+                          convert->framerate_new.den, convert->framerate_new.num);
+            av_dict_set(&format_opts, "framerate", buf, 0);
         }
     }
-    if (av_open_input_file(&convert->context, inputfile_name, input_fmt, 0, formatParams) >= 0) {
-        if (av_find_stream_info(convert->context) >= 0) {
+    if (avformat_open_input(&convert->context, inputfile_name, input_fmt, &format_opts) >= 0) {
+        if (avformat_find_stream_info(convert->context, NULL) >= 0) {
 
                 if (output_filename_needs_building) {
                     int i;
@@ -2992,5 +2989,6 @@ int main(int argc, char **argv) {
     if (info.twopass==3)
         unlink(_tmp_2pass);
 #endif
+    av_dict_free(&format_opts); 
     return(0);
 }

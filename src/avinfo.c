@@ -42,6 +42,7 @@
 #include <sys/stat.h>
 
 #include "libavformat/avformat.h"
+#include "libavutil/pixdesc.h"
 
 #ifndef WIN32
 #if !defined(off64_t)
@@ -200,7 +201,7 @@ void json_codec_info(FILE *output, AVCodecContext *enc, int indent) {
         codec_name = fix_codec_name(codec_name);
         json_add_key_value(output, "codec", (void *)codec_name, JSON_STRING, 0, indent);
         if (enc->pix_fmt != PIX_FMT_NONE) {
-            json_add_key_value(output, "pixel_format", (void *)avcodec_get_pix_fmt_name(enc->pix_fmt), JSON_STRING, 0, indent);
+            json_add_key_value(output, "pixel_format", (void *)av_get_pix_fmt_name(enc->pix_fmt), JSON_STRING, 0, indent);
         }
         if (enc->width) {
             json_add_key_value(output, "width", &enc->width, JSON_INT, 0, indent);
@@ -389,8 +390,8 @@ error:
 void json_metadata(FILE *output, const AVFormatContext *av)
 {
     int first = 1, indent=2;
-    AVMetadataTag *tag = NULL;
-    while ((tag = av_metadata_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
+    AVDictionaryEntry *tag = NULL;
+    while ((tag = av_dict_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
         if (strlen(tag->value) && utf8_validate (tag->value, strlen(tag->value))) {
             if (first) {
                 first = 0;
