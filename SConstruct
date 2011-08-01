@@ -1,4 +1,5 @@
 # SCons build specification
+# vi:si:et:sw=2:sts=2:ts=2
 from glob import glob
 import os
 
@@ -11,7 +12,7 @@ def svnversion():
     return version
 
 pkg_version="0.28"
-#pkg_version +="+svn" + svnversion()
+pkg_version +="+svn" + svnversion()
 
 pkg_name="ffmpeg2theora"
 
@@ -71,8 +72,6 @@ if env['debug'] and env['CC'] == 'gcc':
 if GetOption("help"):
     Return()
 
-env.PrependENVPath ('PATH', os.environ['PATH'])
-
 def ParsePKGConfig(env, name): 
   if os.environ.get('PKG_CONFIG_PATH', ''):
     action = 'PKG_CONFIG_PATH=%s pkg-config %s "%s"' % (os.environ['PKG_CONFIG_PATH'], pkg_flags, name)
@@ -103,101 +102,105 @@ def CheckPKG(context, name):
   context.Result( ret ) 
   return ret
 
+env.PrependENVPath ('PATH', os.environ['PATH'])
+
 conf = Configure(env, custom_tests = {
   'CheckPKGConfig' : CheckPKGConfig,
   'CheckPKG' : CheckPKG,
-  })
+})
 
-pkgconfig_version='0.15.0'
-if not conf.CheckPKGConfig(pkgconfig_version): 
-   print 'pkg-config >= %s not found.' % pkgconfig_version 
-   Exit(1)
+if not env.GetOption('clean'):
+  pkgconfig_version='0.15.0'
+  if not conf.CheckPKGConfig(pkgconfig_version): 
+     print 'pkg-config >= %s not found.' % pkgconfig_version 
+     Exit(1)
 
-if not conf.CheckPKG("ogg >= 1.1"): 
-  print 'ogg >= 1.1 missing'
-  Exit(1) 
+  if not conf.CheckPKG("ogg >= 1.1"): 
+    print 'ogg >= 1.1 missing'
+    Exit(1) 
 
-if not conf.CheckPKG("vorbis"): 
-  print 'vorbis missing'
-  Exit(1) 
+  if not conf.CheckPKG("vorbis"): 
+    print 'vorbis missing'
+    Exit(1) 
 
-if not conf.CheckPKG("vorbisenc"): 
-  print 'vorbisenc missing'
-  Exit(1) 
+  if not conf.CheckPKG("vorbisenc"): 
+    print 'vorbisenc missing'
+    Exit(1) 
 
-if not conf.CheckPKG("theoraenc >= 1.1.0"): 
-  print 'theoraenc >= 1.1.0 missing'
-  Exit(1) 
+  if not conf.CheckPKG("theoraenc >= 1.1.0"): 
+    print 'theoraenc >= 1.1.0 missing'
+    Exit(1) 
 
-XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theoraenc >= 1.1.0"
+  XIPH_LIBS="ogg >= 1.1 vorbis vorbisenc theoraenc >= 1.1.0"
 
-if not conf.CheckPKG(XIPH_LIBS): 
-  print 'some xiph libs are missing, ffmpeg2theora depends on %s' % XIPH_LIBS
-  Exit(1) 
-ParsePKGConfig(env, XIPH_LIBS)
+  if not conf.CheckPKG(XIPH_LIBS): 
+    print 'some xiph libs are missing, ffmpeg2theora depends on %s' % XIPH_LIBS
+    Exit(1) 
+  ParsePKGConfig(env, XIPH_LIBS)
 
-FFMPEG_LIBS=[
-    "libavdevice",
-    "libavformat",
-    "libavcodec >= 52.30.0",
-    "libpostproc",
-    "libswscale",
-    "libavutil",
-]
-if os.path.exists("./ffmpeg"):
-  pkg_path = list(set(map(os.path.dirname, glob('./ffmpeg/*/*.pc'))))
-  pkg_path.append(os.environ.get('PKG_CONFIG_PATH', ''))
-  os.environ['PKG_CONFIG_PATH'] = ':'.join(pkg_path)
-  env.Append(CCFLAGS=[
-    '-Iffmpeg'
-  ])
-
-if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
-  print """
-      Could not find %s.
-      You can install it via
-       sudo apt-get install %s
-      or update PKG_CONFIG_PATH to point to ffmpeg's source folder
-      or run ./get_ffmpeg.sh (for more information see INSTALL)
-  """ %(" ".join(FFMPEG_LIBS), " ".join(["%s-dev"%l.split()[0] for l in FFMPEG_LIBS]))
-  Exit(1) 
-
-for lib in FFMPEG_LIBS:
-    ParsePKGConfig(env, lib)
-
-if conf.CheckCHeader('libavformat/framehook.h'):
+  FFMPEG_LIBS=[
+      "libavdevice",
+      "libavformat",
+      "libavcodec >= 52.30.0",
+      "libpostproc",
+      "libswscale",
+      "libavutil",
+  ]
+  if os.path.exists("./ffmpeg"):
+    pkg_path = list(set(map(os.path.dirname, glob('./ffmpeg/*/*.pc'))))
+    pkg_path.append(os.environ.get('PKG_CONFIG_PATH', ''))
+    os.environ['PKG_CONFIG_PATH'] = ':'.join(pkg_path)
     env.Append(CCFLAGS=[
-      '-DHAVE_FRAMEHOOK'
+      '-Iffmpeg'
     ])
 
-KATE_LIBS="oggkate"
-if env['libkate']:
-  if os.path.exists("./libkate/misc/pkgconfig"):
-    os.environ['PKG_CONFIG_PATH'] = "./libkate/misc/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
-  if os.path.exists("./libkate/pkg/pkgconfig"):
-    os.environ['PKG_CONFIG_PATH'] = "./libkate/pkg/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
-  if conf.CheckPKG(KATE_LIBS):
-    ParsePKGConfig(env, KATE_LIBS)
-    env.Append(CCFLAGS=['-DHAVE_KATE', '-DHAVE_OGGKATE'])
-  else:
+  if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
     print """
-        Could not find libkate. Subtitles support will be disabled.
-        You can also run ./get_libkate.sh (for more information see INSTALL)
-        or update PKG_CONFIG_PATH to point to libkate's source folder
-    """
+        Could not find %s.
+        You can install it via
+         sudo apt-get install %s
+        or update PKG_CONFIG_PATH to point to ffmpeg's source folder
+        or run ./get_ffmpeg.sh (for more information see INSTALL)
+    """ %(" ".join(FFMPEG_LIBS), " ".join(["%s-dev"%l.split()[0] for l in FFMPEG_LIBS]))
+    Exit(1) 
 
-if conf.CheckCHeader('iconv.h'):
-    env.Append(CCFLAGS=[
-      '-DHAVE_ICONV'
-    ])
-    if conf.CheckLib('iconv'):
-        env.Append(LIBS=['iconv'])
+  for lib in FFMPEG_LIBS:
+      ParsePKGConfig(env, lib)
 
-if env['crossmingw']:
-    env.Append(CCFLAGS=['-Wl,-subsystem,windows'])
-    env.Append(LIBS=['m'])
-elif env['static']:
-    env.Append(LIBS=['m', 'dl'])
+  if conf.CheckCHeader('libavformat/framehook.h'):
+      env.Append(CCFLAGS=[
+        '-DHAVE_FRAMEHOOK'
+      ])
+
+  KATE_LIBS="oggkate"
+  if env['libkate']:
+    if os.path.exists("./libkate/misc/pkgconfig"):
+      os.environ['PKG_CONFIG_PATH'] = "./libkate/misc/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
+    if os.path.exists("./libkate/pkg/pkgconfig"):
+      os.environ['PKG_CONFIG_PATH'] = "./libkate/pkg/pkgconfig:" + os.environ.get('PKG_CONFIG_PATH', '')
+    if conf.CheckPKG(KATE_LIBS):
+      ParsePKGConfig(env, KATE_LIBS)
+      env.Append(CCFLAGS=['-DHAVE_KATE', '-DHAVE_OGGKATE'])
+    else:
+      print """
+          Could not find libkate. Subtitles support will be disabled.
+          You can also run ./get_libkate.sh (for more information see INSTALL)
+          or update PKG_CONFIG_PATH to point to libkate's source folder
+      """
+
+  if conf.CheckCHeader('iconv.h'):
+      env.Append(CCFLAGS=[
+        '-DHAVE_ICONV'
+      ])
+      if conf.CheckLib('iconv'):
+          env.Append(LIBS=['iconv'])
+
+  if env['crossmingw']:
+      env.Append(CCFLAGS=['-Wl,-subsystem,windows'])
+      env.Append(LIBS=['m'])
+  elif env['static']:
+      env.Append(LIBS=['m', 'dl'])
+
 
 env = conf.Finish()
 
@@ -209,4 +212,3 @@ ffmpeg2theora.Program('ffmpeg2theora', ffmpeg2theora_sources)
 ffmpeg2theora.Install(bin_dir, 'ffmpeg2theora')
 ffmpeg2theora.Install(man_dir + "/man1", 'ffmpeg2theora.1')
 ffmpeg2theora.Alias('install', prefix)
-
