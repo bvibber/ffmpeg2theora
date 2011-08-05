@@ -1985,9 +1985,21 @@ void print_usage() {
     th_encode_free(td);
 
     fprintf(stdout,
-        PACKAGE " " PACKAGE_VERSION " - %s\n", th_version_string());
+        PACKAGE " " PACKAGE_VERSION "\n\n"
+        "\t%s\n"
+        "\t%s\n",
+        th_version_string(),
+        vorbis_version_string());
+
+    unsigned int version = avcodec_version();
+    fprintf(stdout, "\tFFmpeg\t libavcodec %02d.%d.%d\n",
+                    version >> 16, version >> 8 & 0xff, version & 0xff);
+    version = avformat_version();
+    fprintf(stdout, "\tFFmpeg\t libavformat %02d.%d.%d\n",
+                    version >> 16, version >> 8 & 0xff, version & 0xff);
+
     fprintf(stdout,
-        "\n"
+        "\n\n"
         "  Usage: " PACKAGE " [options] input\n"
         "\n"
         "General output options:\n"
