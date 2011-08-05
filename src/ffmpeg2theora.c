@@ -2860,7 +2860,7 @@ int main(int argc, char **argv) {
                     /* reserve 4 bytes in the buffer for the `.og[va]' extension */
                     snprintf(outputfile_name, sizeof(outputfile_name) - strlen(ext), "%s",inputfile_name);
                     if ((str_ptr = strrchr(outputfile_name, '.'))) {
-                        sprintf(str_ptr, ext);
+                        sprintf(str_ptr, "%s", ext);
                         if (!strcmp(inputfile_name, outputfile_name)) {
                             snprintf(outputfile_name, sizeof(outputfile_name), "%s%s", inputfile_name, ext);
                         }
