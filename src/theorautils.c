@@ -533,8 +533,12 @@ write_index_pages (seek_index* index,
     int index_bytes = 0;  
     int keypoints_cutoff = 0;
 
-    /* Must have indexed keypoints. */
-    assert(index->max_keypoints > 0 && index->packet_num > 0);
+    /* Must have indexed keypoints to go on */
+    if (index->max_keypoints == 0 || index->packet_num == 0) {
+      fprintf(stderr, "WARNING: no key points for %s stream %08x\n", name, serialno);
+      return 0;
+    }
+
     /* Must have placeholder packet to rewrite. */
     assert(index->page_location > 0);
 
