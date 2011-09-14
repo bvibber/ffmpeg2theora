@@ -141,6 +141,7 @@ if not env.GetOption('clean'):
   FFMPEG_LIBS=[
       "libavdevice",
       "libavformat",
+      "libavfilter",
       "libavcodec >= 52.30.0",
       "libpostproc",
       "libswscale",
