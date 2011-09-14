@@ -2842,7 +2842,7 @@ int main(int argc, char **argv) {
         }
     }
     if (avformat_open_input(&convert->context, inputfile_name, input_fmt, &format_opts) >= 0) {
-        if (avformat_find_stream_info(convert->context, NULL) >= 0) {
+        if (av_find_stream_info(convert->context) >= 0) {
 
                 if (output_filename_needs_building) {
                     int i;
