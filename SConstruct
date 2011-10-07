@@ -28,6 +28,7 @@ opts = Variables()
 opts.AddVariables(
   BoolVariable('static', 'Set to 1 for static linking', 0),
   BoolVariable('debug', 'Set to 1 to enable debugging', 0),
+  BoolVariable('build_ffmpeg', 'Set to 1 to build local copy of ffmpeg', 0),
   ('prefix', 'install files in', '/usr/local'),
   ('bindir', 'user executables', 'PREFIX/bin'),
   ('mandir', 'man documentation', 'PREFIX/man'),
@@ -108,6 +109,12 @@ conf = Configure(env, custom_tests = {
   'CheckPKGConfig' : CheckPKGConfig,
   'CheckPKG' : CheckPKG,
 })
+
+if env["build_ffmpeg"]:
+  if env.GetOption('clean'):
+    TryAction("cd ffmpeg;make distclean")
+  else:
+    TryAction("./build_ffmpeg.sh")
 
 if not env.GetOption('clean'):
   pkgconfig_version='0.15.0'
