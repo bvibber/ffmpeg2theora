@@ -5,14 +5,13 @@ import os
 
 import SCons
 
-def svnversion():
+def version():
     f = os.popen("./version.sh")
     version = f.read().strip()
     f.close()
     return version
 
-pkg_version="0.28"
-pkg_version +="+svn" + svnversion()
+pkg_version=version()
 
 pkg_name="ffmpeg2theora"
 
