@@ -2,7 +2,7 @@
 . ./ffmpegrev
 
 
-common="--enable-version2 --enable-gpl --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
+common="--enable-gpl --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
 common="$common --disable-avconv --disable-ffmpeg --disable-ffplay --disable-ffserver --disable-ffprobe --disable-doc"
 
 #optional, if you have those libs installed(requires GPL3):
