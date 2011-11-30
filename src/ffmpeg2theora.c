@@ -1786,6 +1786,7 @@ void ff2theora_close(ff2theora this) {
     /* clear out state */
     if (info.passno != 1)
       free_subtitles(this);
+    this->context = NULL;
     if (info.twopass != 3) {
         av_free(this);
     }
