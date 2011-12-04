@@ -386,12 +386,11 @@ static int utf8_validate (char *s, int n) {
 error:
   return i == n;
 }
-
-void json_metadata(FILE *output, const AVFormatContext *av)
+int _json_metadata(FILE *output, AVDictionary *m, int first, int indent)
 {
-    int first = 1, indent=2;
+    int i = 0;
     AVDictionaryEntry *tag = NULL;
-    while ((tag = av_dict_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
+    while ((tag = av_dict_get(m, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
         if (strlen(tag->value) && utf8_validate (tag->value, strlen(tag->value))) {
             if (first) {
                 first = 0;
@@ -404,6 +403,17 @@ void json_metadata(FILE *output, const AVFormatContext *av)
             }
             json_add_key_value(output, tag->key, tag->value, JSON_STRING, 1, indent);
         }
+    }
+    return first;
+}
+
+void json_metadata(FILE *output, const AVFormatContext *av)
+{
+    int first = 1, indent=2, i=0;
+    first = _json_metadata(output, av->metadata, first, indent);
+
+    for(i=0;i<av->nb_streams;i++) {
+        first = _json_metadata(output, av->streams[i]->metadata, first, indent);
     }
     if (!first) {
         do_indent(output, 1);
