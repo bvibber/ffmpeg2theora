@@ -522,8 +522,8 @@ void ff2theora_output(ff2theora this) {
     AVStream *vstream = NULL;
     AVCodec *acodec = NULL;
     AVCodec *vcodec = NULL;
-    pp_mode_t *ppMode = NULL;
-    pp_context_t *ppContext = NULL;
+    pp_mode *ppMode = NULL;
+    pp_context *ppContext = NULL;
     int sws_flags = this->resize_method;
     float frame_aspect = 0;
     double fps = 0.0;
@@ -958,11 +958,11 @@ void ff2theora_output(ff2theora this) {
         if (acodec != NULL && avcodec_open2 (aenc, acodec, NULL) >= 0) {
             if (this->sample_rate != sample_rate
                 || this->channels != aenc->channels
-                || aenc->sample_fmt != SAMPLE_FMT_S16) {
+                || aenc->sample_fmt != AV_SAMPLE_FMT_S16) {
                 // values take from libavcodec/resample.c
                 this->audio_resample_ctx = av_audio_resample_init(this->channels,    aenc->channels,
                                                                   this->sample_rate, sample_rate,
-                                                                  SAMPLE_FMT_S16,    aenc->sample_fmt,
+                                                                  AV_SAMPLE_FMT_S16,    aenc->sample_fmt,
                                                                   16, 10, 0, 0.8);
                 if (!this->audio_resample_ctx) {
                     this->channels = aenc->channels;
@@ -1925,7 +1925,7 @@ void copy_metadata(const AVFormatContext *av)
         "AUTHOR"
     };
     AVDictionaryEntry *tag = NULL;
-    while ((tag = av_dict_get(av->metadata, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
+    while ((tag = av_dict_get(av->metadata, "", tag, AV_DICT_IGNORE_SUFFIX))) {
         char uc_key[16];
         int i;
         for (i = 0; tag->key[i] != '\0' && i < LENGTH(uc_key) - 1; i++)
@@ -2843,7 +2843,7 @@ int main(int argc, char **argv) {
         }
     }
     if (avformat_open_input(&convert->context, inputfile_name, input_fmt, &format_opts) >= 0) {
-        if (av_find_stream_info(convert->context) >= 0) {
+        if (avformat_find_stream_info(convert->context, NULL) >= 0) {
 
                 if (output_filename_needs_building) {
                     int i;
@@ -2970,7 +2970,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr,"\nUnable to decode input.\n");
             return(1);
         }
-        av_close_input_file(convert->context);
+        avformat_close_input(&convert->context);
     }
     else{
         if (info.frontend)

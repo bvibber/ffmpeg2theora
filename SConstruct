@@ -151,6 +151,7 @@ if not env.GetOption('clean'):
       "libavcodec >= 52.30.0",
       "libpostproc",
       "libswscale",
+      "libswresample",
       "libavutil",
   ]
   if os.path.exists("./ffmpeg"):

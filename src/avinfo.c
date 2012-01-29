@@ -390,7 +390,7 @@ int _json_metadata(FILE *output, AVDictionary *m, int first, int indent)
 {
     int i = 0;
     AVDictionaryEntry *tag = NULL;
-    while ((tag = av_dict_get(m, "", tag, AV_METADATA_IGNORE_SUFFIX))) {
+    while ((tag = av_dict_get(m, "", tag, AV_DICT_IGNORE_SUFFIX))) {
         if (strlen(tag->value) && utf8_validate (tag->value, strlen(tag->value))) {
             if (first) {
                 first = 0;
