@@ -3,7 +3,7 @@
 
 
 common="--enable-gpl --enable-postproc --disable-muxers --disable-encoders --enable-libvorbis"
-common="$common --disable-avconv --disable-ffmpeg --disable-ffplay --disable-ffserver --disable-ffprobe --disable-doc"
+common="$common --disable-ffmpeg --disable-ffplay --disable-ffserver --disable-ffprobe --disable-doc"
 
 #optional, if you have those libs installed(requires GPL3):
 #extra="$extra --enable-version3 --enable-libopencore-amrnb --enable-libopencore-amrwb"
