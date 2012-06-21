@@ -36,11 +36,6 @@
 #endif
 #endif
 
-#ifdef WIN32
-#define fseeko fseeko64
-#define ftello ftello64
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -50,6 +45,13 @@
 #include <assert.h>
 #include <math.h>
 #include <limits.h>
+
+#ifdef WIN32
+#if !defined(fseeko)
+#define fseeko fseeko64
+#define ftello ftello64
+#endif
+#endif
 
 #include "theora/theoraenc.h"
 #include "vorbis/codec.h"
