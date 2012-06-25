@@ -1,4 +1,4 @@
-svn  2011-09-15
+0.29 2012-06-25
     - use GPL 2 or later, to make use of some decoders only available
       in GPL 2 version of ffmpeg
     - update to current ffmpeg api

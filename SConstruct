@@ -11,7 +11,7 @@ def version():
     f.close()
     return version
 
-pkg_version=version()
+pkg_version="0.29"
 
 pkg_name="ffmpeg2theora"
 
