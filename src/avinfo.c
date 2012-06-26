@@ -359,6 +359,7 @@ static int utf8_validate (char *s, int n) {
       i+=4;
       continue;
     }
+    if (s[i] < 0) goto error;
     if (s[i] < 128) {
       i++;
       continue;
