@@ -595,6 +595,7 @@ void ff2theora_output(ff2theora this) {
         }
         this->fps = fps = av_q2d(vstream_fps);
 
+        venc->thread_count = 1;
         if (vcodec == NULL || avcodec_open2 (venc, vcodec, NULL) < 0) {
             this->video_index = -1;
         }
@@ -954,7 +955,7 @@ void ff2theora_output(ff2theora this) {
             if (this->channels > aenc->channels)
                 this->channels = aenc->channels;
         }
-
+        aenc->thread_count = 1;
         if (acodec != NULL && avcodec_open2 (aenc, acodec, NULL) >= 0) {
             if (this->sample_rate != sample_rate
                 || this->channels != aenc->channels
