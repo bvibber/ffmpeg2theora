@@ -161,6 +161,12 @@ if not env.GetOption('clean'):
     env.Append(CCFLAGS=[
       '-Iffmpeg'
     ])
+    for lib in FFMPEG_LIBS:
+      lib = lib.split(' ')[0]
+      env.Append(LINKFLAGS=[
+        '-Lffmpeg/' + lib
+      ])
+
 
   if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
     print """

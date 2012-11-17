@@ -21,5 +21,5 @@ options="$common --enable-pthreads $extra"
 uname | grep MINGW && options="$common --enable-memalign-hack --enable-mingw32 --extra-cflags=-I/usr/local/include --extra-ldflags=-L/usr/local/lib $extra"
 
 #configure and build ffmpeg
-cd $FFMPEG_CO_DIR && ./configure $options && make
+cd $FFMPEG_CO_DIR && ./configure $options && make -j8
 
