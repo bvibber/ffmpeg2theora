@@ -6,12 +6,13 @@ import os
 import SCons
 
 def version():
+    #return "0.29"
     f = os.popen("./version.sh")
     version = f.read().strip()
     f.close()
     return version
 
-pkg_version="0.29"
+pkg_version=version()
 
 pkg_name="ffmpeg2theora"
 
