@@ -152,10 +152,10 @@ if not env.GetOption('clean'):
       "libavcodec >= 52.30.0",
       "libpostproc",
       "libswscale",
-      "libswresample",
       "libavutil",
   ]
   if os.path.exists("./ffmpeg"):
+    FFMPEG_LIBS.append('libswresample')
     pkg_path = list(set(map(os.path.dirname, glob('./ffmpeg/*/*.pc'))))
     pkg_path.append(os.environ.get('PKG_CONFIG_PATH', ''))
     os.environ['PKG_CONFIG_PATH'] = ':'.join(pkg_path)
