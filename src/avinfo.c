@@ -462,6 +462,8 @@ void json_oshash(FILE *output, char const *filename, int indent) {
     char hash[32];
 #ifdef WIN32
     sprintf(hash,"%016I64x", gen_oshash(filename));
+#elif defined (__SVR4) && defined (__sun)
+    sprintf(hash,"%016llx", gen_oshash(filename));
 #else
     sprintf(hash,"%016qx", gen_oshash(filename));
 #endif
