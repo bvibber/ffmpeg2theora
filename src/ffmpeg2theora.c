@@ -2773,6 +2773,9 @@ int main(int argc, char **argv) {
             outputfile_set=1;
         }
         optind++;
+    } else {
+        fprintf(stderr, "ERROR: no input specified\n");
+        exit(1);
     }
     if(optind<argc) {
         fprintf(stderr, "WARNING: Only one input file supported, others will be ignored\n");
