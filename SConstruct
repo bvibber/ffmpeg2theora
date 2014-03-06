@@ -155,7 +155,6 @@ if not env.GetOption('clean'):
       "libavutil",
   ]
   if os.path.exists("./ffmpeg"):
-    FFMPEG_LIBS.append('libswresample')
     pkg_path = list(set(map(os.path.dirname, glob('./ffmpeg/*/*.pc'))))
     pkg_path.append(os.environ.get('PKG_CONFIG_PATH', ''))
     os.environ['PKG_CONFIG_PATH'] = ':'.join(pkg_path)
@@ -168,6 +167,13 @@ if not env.GetOption('clean'):
         '-Lffmpeg/' + lib
       ])
 
+  if conf.CheckPKG('libavresample'):
+    FFMPEG_LIBS.append('libavresample')
+  else:
+    FFMPEG_LIBS.append('libswresample')
+    env.Append(CCFLAGS=[
+      '-DUSE_SWRESAMPLE'
+    ])
 
   if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
     print """

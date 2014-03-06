@@ -62,7 +62,6 @@ typedef struct ff2theora{
     double fps;
     struct SwsContext *sws_colorspace_ctx; /* for image resampling/resizing */
     struct SwsContext *sws_scale_ctx; /* for image resampling/resizing */
-    ReSampleContext *audio_resample_ctx;
     ogg_int32_t aspect_numerator;
     ogg_int32_t aspect_denominator;
     int colorspace;
