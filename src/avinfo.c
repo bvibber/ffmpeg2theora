@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 #include <getopt.h>
 #include <math.h>
 #include <errno.h>
@@ -107,7 +108,7 @@ char *replace_str_all(char *str, char *orig, char *rep) {
   char *p, *p_str = str, *p_buffer = (char *)buffer;
   int len = strlen(str);
   strncpy(p_buffer, str, len);
-  while (p = strstr(p_str, orig)) {
+  while ((p = strstr(p_str, orig))) {
     strncpy(p_buffer, p_str, p-p_str);
     p_buffer += (p-p_str);
     len = len - strlen(orig) + strlen(rep);    

@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <strings.h>
 #include "iso639.h"
 
 static const struct {

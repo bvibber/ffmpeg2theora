@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 #include <getopt.h>
 #include <math.h>
 #include <errno.h>
@@ -899,8 +900,8 @@ void ff2theora_output(ff2theora this) {
 
         /*Force the offsets to be even so that chroma samples line up like we
            expect.*/
-        this->frame_x_offset = this->frame_width-this->picture_width>>1&~1;
-        this->frame_y_offset = this->frame_height-this->picture_height>>1&~1;
+        this->frame_x_offset = (this->frame_width-this->picture_width)>>1&~1;
+        this->frame_y_offset = (this->frame_height-this->picture_height)>>1&~1;
 
         //Bicubic  (best for upscaling),
         if (sws_flags < 0) {
@@ -1694,7 +1695,7 @@ void ff2theora_output(ff2theora this) {
                   }
                 }
                 else if (enc->codec_id == CODEC_ID_TEXT) {
-                  utf8 = pkt.data;
+                  utf8 = (const char *)pkt.data;
                   utf8len = pkt.size;
                 }
                 else if (enc->codec_id == CODEC_ID_SSA) {
@@ -1702,7 +1703,7 @@ void ff2theora_output(ff2theora this) {
                   extra_info_from_ssa(&pkt,&utf8,&utf8len,&allocated_utf8,&duration);
                 }
                 else if (enc->codec_id == CODEC_ID_MOV_TEXT) {
-                  utf8 = pkt.data;
+                  utf8 = (const char *)pkt.data;
                   utf8len = pkt.size;
                   if (utf8len >= 2) {
                     const unsigned char *data = (const unsigned char*)pkt.data;
