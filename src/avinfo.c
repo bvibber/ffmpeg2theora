@@ -507,9 +507,7 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
 #ifdef AVINFO
 int main(int argc, char **argv) {
     char inputfile_name[255];
-    AVInputFormat *input_fmt = NULL;
-    AVFormatParameters *formatParams = NULL;
-    AVFormatContext *context;
+    AVFormatContext *context = NULL;
     FILE* output = stdout;
     
     avcodec_register_all();
@@ -524,8 +522,8 @@ int main(int argc, char **argv) {
         output = fopen(argv[2], "w");
     }
     
-    if (av_open_input_file(&context, inputfile_name, input_fmt, 0, formatParams) >= 0) {
-        if (av_find_stream_info(context) >= 0) {
+    if (avformat_open_input(&context, inputfile_name, NULL, NULL) >= 0) {
+        if (avformat_find_stream_info(context, NULL) >= 0) {
             json_format_info(output, context, inputfile_name);
         }
     }
