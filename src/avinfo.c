@@ -166,36 +166,11 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
 
 void json_codec_info(FILE *output, AVCodecContext *enc, int indent) {
     const char *codec_name;
-    AVCodec *p;
     char buf1[32];
     int bitrate;
     AVRational display_aspect_ratio;
 
-    p = avcodec_find_decoder(enc->codec_id);
-
-    if (p) {
-        codec_name = p->name;
-    } else if (enc->codec_id == CODEC_ID_MPEG2TS) {
-        /* fake mpeg2 transport stream codec (currently not
-           registered) */
-        codec_name = "mpeg2ts";
-    } else if (enc->codec_name[0] != '\0') {
-        codec_name = enc->codec_name;
-    } else {
-        /* output avi tags */
-        if(   isprint(enc->codec_tag&0xFF) && isprint((enc->codec_tag>>8)&0xFF)
-           && isprint((enc->codec_tag>>16)&0xFF) && isprint((enc->codec_tag>>24)&0xFF)){
-            snprintf(buf1, sizeof(buf1), "%c%c%c%c / 0x%04X",
-                     enc->codec_tag & 0xff,
-                     (enc->codec_tag >> 8) & 0xff,
-                     (enc->codec_tag >> 16) & 0xff,
-                     (enc->codec_tag >> 24) & 0xff,
-                      enc->codec_tag);
-        } else {
-            snprintf(buf1, sizeof(buf1), "0x%04x", enc->codec_tag);
-        }
-        codec_name = buf1;
-    }
+    codec_name  = avcodec_get_name(enc->codec_id);
 
     switch(enc->codec_type) {
     case AVMEDIA_TYPE_VIDEO:
