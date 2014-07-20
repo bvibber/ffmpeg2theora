@@ -301,6 +301,72 @@ void json_codec_info(FILE *output, AVCodecContext *enc, int indent) {
     }
 }
 
+static int utf8_validate (char *s, int n) {
+  int i;
+  int extra_bytes;
+  int mask;
+
+  i=0;
+  while (i<n) {
+    if (i < n-3 && (*(uint32_t *)(s+i) & 0x80808080) == 0) {
+      i+=4;
+      continue;
+    }
+    if (s[i] < 0) goto error;
+    if (s[i] < 128) {
+      i++;
+      continue;
+    }
+    if ((s[i] & 0xe0) == 0xc0) {
+      extra_bytes = 1;
+      mask = 0x7f;
+    } else if ((s[i] & 0xf0) == 0xe0) {
+      extra_bytes = 2;
+      mask = 0x1f;
+    } else if ((s[i] & 0xf8) == 0xf0) {
+      extra_bytes = 3;
+      mask = 0x0f;
+    } else {
+      goto error;
+    }
+    if (i + extra_bytes >= n) goto error;
+    while(extra_bytes--) {
+      i++;
+      if ((s[i] & 0xc0) != 0x80) goto error;
+    }
+    i++;
+  }
+
+error:
+  return i == n;
+}
+
+
+void json_metadata(FILE *output, AVDictionary *m, int indent)
+{
+    int first = 1;
+    AVDictionaryEntry *tag = NULL;
+    while ((tag = av_dict_get(m, "", tag, AV_DICT_IGNORE_SUFFIX))) {
+        if (strlen(tag->value) && utf8_validate (tag->value, strlen(tag->value))) {
+            if (first) {
+                first = 0;
+                do_indent(output, indent);
+                fprintf(output, "\"metadata\": {\n");
+                do_indent(output, indent + 1);
+            } else {
+                do_indent(output, indent + 1);
+                fprintf(output, ",");
+            }
+            json_add_key_value(output, tag->key, tag->value, JSON_STRING, 1, 0);
+        }
+    }
+    if (!first) {
+        do_indent(output, indent);
+        fprintf(output, "},\n");
+    }
+}
+
+
 
 static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int indent, int first, int type_filter) {
     static int _first = 1;
@@ -343,83 +409,10 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int ind
                 json_add_key_value(output, "display_aspect_ratio", buf1, JSON_STRING, 0, indent+1);
             }
         }
+        json_metadata(output, st->metadata, indent + 1);
         json_add_key_value(output, "id", &i, JSON_INT, 1, indent + 1);
         do_indent(output, indent-1);
         fprintf(output, "}");
-    }
-}
-
-static int utf8_validate (char *s, int n) {
-  int i;
-  int extra_bytes;
-  int mask;
-
-  i=0;
-  while (i<n) {
-    if (i < n-3 && (*(uint32_t *)(s+i) & 0x80808080) == 0) {
-      i+=4;
-      continue;
-    }
-    if (s[i] < 0) goto error;
-    if (s[i] < 128) {
-      i++;
-      continue;
-    }
-    if ((s[i] & 0xe0) == 0xc0) {
-      extra_bytes = 1;
-      mask = 0x7f;
-    } else if ((s[i] & 0xf0) == 0xe0) {
-      extra_bytes = 2;
-      mask = 0x1f;
-    } else if ((s[i] & 0xf8) == 0xf0) {
-      extra_bytes = 3;
-      mask = 0x0f;
-    } else {
-      goto error;
-    }
-    if (i + extra_bytes >= n) goto error;
-    while(extra_bytes--) {
-      i++;
-      if ((s[i] & 0xc0) != 0x80) goto error;
-    }
-    i++;
-  }
-
-error:
-  return i == n;
-}
-int _json_metadata(FILE *output, AVDictionary *m, int first, int indent)
-{
-    int i = 0;
-    AVDictionaryEntry *tag = NULL;
-    while ((tag = av_dict_get(m, "", tag, AV_DICT_IGNORE_SUFFIX))) {
-        if (strlen(tag->value) && utf8_validate (tag->value, strlen(tag->value))) {
-            if (first) {
-                first = 0;
-                do_indent(output, 1);
-                fprintf(output, "\"metadata\": {\n");
-            } else {
-                do_indent(output, 2);
-                fprintf(output, ",");
-                indent=0;
-            }
-            json_add_key_value(output, tag->key, tag->value, JSON_STRING, 1, indent);
-        }
-    }
-    return first;
-}
-
-void json_metadata(FILE *output, const AVFormatContext *av)
-{
-    int first = 1, indent=2, i=0;
-    first = _json_metadata(output, av->metadata, first, indent);
-
-    for(i=0;i<av->nb_streams;i++) {
-        first = _json_metadata(output, av->streams[i]->metadata, first, indent);
-    }
-    if (!first) {
-        do_indent(output, 1);
-        fprintf(output, "},\n");
     }
 }
 
@@ -522,7 +515,7 @@ void json_format_info(FILE* output, AVFormatContext *ic, const char *url) {
             }
         }
         fprintf(output, "],\n");
-        json_metadata(output, ic);
+        json_metadata(output, ic->metadata, 1);
     } else {
         json_add_key_value(output, "code", "badfile", JSON_STRING, 0, 1);
         json_add_key_value(output, "error", "file does not exist or has unknown format.", JSON_STRING, 0, 1);
