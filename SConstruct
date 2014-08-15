@@ -152,6 +152,7 @@ if not env.GetOption('clean'):
       "libavcodec >= 52.30.0",
       "libpostproc",
       "libswscale",
+      "libswresample",
       "libavutil",
   ]
   if os.path.exists("./ffmpeg"):
@@ -167,13 +168,13 @@ if not env.GetOption('clean'):
         '-Lffmpeg/' + lib
       ])
 
-  if conf.CheckPKG('libavresample'):
-    FFMPEG_LIBS.append('libavresample')
-  else:
+  if conf.CheckPKG('libswresample'):
     FFMPEG_LIBS.append('libswresample')
     env.Append(CCFLAGS=[
       '-DUSE_SWRESAMPLE'
     ])
+  elif conf.CheckPKG('libavresample'):
+    FFMPEG_LIBS.append('libavresample')
 
   if not conf.CheckPKG(' '.join(FFMPEG_LIBS)): 
     print """

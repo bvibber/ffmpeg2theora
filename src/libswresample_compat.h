@@ -4,9 +4,6 @@
 
     #include <libswresample/swresample.h>
 
-    //swr does not have the equivalent so this does nothing
-    void swr_close(SwrContext *ctx) {};
-
 #else
 
     #include <libavresample/avresample.h>
