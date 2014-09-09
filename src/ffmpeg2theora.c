@@ -604,8 +604,8 @@ void ff2theora_output(ff2theora this) {
             vstream_fps.num = venc->time_base.den;
             vstream_fps.den = venc->time_base.num * venc->ticks_per_frame;
         }
-        if (av_q2d(vstream->r_frame_rate) < av_q2d(vstream_fps)) {
-            vstream_fps = vstream->r_frame_rate;
+        if (av_q2d(vstream->avg_frame_rate) < av_q2d(vstream_fps)) {
+            vstream_fps = vstream->avg_frame_rate;
         }
         this->fps = fps = av_q2d(vstream_fps);
 
@@ -982,11 +982,11 @@ void ff2theora_output(ff2theora this) {
                     av_opt_set_int(swr_ctx, "in_channel_layout", av_get_default_channel_layout(aenc->channels), 0);
                 }
                 av_opt_set_int(swr_ctx, "in_sample_rate",       aenc->sample_rate, 0);
-                av_opt_set_sample_fmt(swr_ctx, "in_sample_fmt", aenc->sample_fmt, 0);
+                av_opt_set_int(swr_ctx, "in_sample_fmt", aenc->sample_fmt, 0);
 
                 av_opt_set_int(swr_ctx, "out_channel_layout", av_get_default_channel_layout(this->channels), 0);
                 av_opt_set_int(swr_ctx, "out_sample_rate",       this->sample_rate, 0);
-                av_opt_set_sample_fmt(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
+                av_opt_set_int(swr_ctx, "out_sample_fmt", AV_SAMPLE_FMT_FLTP, 0);
 
                 /* initialize the resampling context */
                 if (swr_init(swr_ctx) < 0) {
@@ -997,8 +997,8 @@ void ff2theora_output(ff2theora this) {
                 max_dst_nb_samples = dst_nb_samples =
                     av_rescale_rnd(src_nb_samples, this->sample_rate, sample_rate, AV_ROUND_UP);
 
-                if (av_samples_alloc_array_and_samples(&dst_audio_data, &dst_linesize, this->channels,
-                                                         dst_nb_samples, AV_SAMPLE_FMT_FLTP, 0) < 0) {
+                if (av_samples_alloc(dst_audio_data, &dst_linesize, this->channels,
+                                     dst_nb_samples, AV_SAMPLE_FMT_FLTP, 0) < 0) {
                     fprintf(stderr, "Could not allocate destination samples\n");
                     exit(1);
                 }

@@ -7,6 +7,7 @@
 #else
 
     #include <libavresample/avresample.h>
+    #include <libavutil/mathematics.h>
 
     #define SwrContext AVAudioResampleContext
     #define swr_init(ctx) avresample_open(ctx)

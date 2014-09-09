@@ -366,7 +366,7 @@ static void json_stream_format(FILE *output, AVFormatContext *ic, int i, int ind
                 json_add_key_value(output, "framerate", buf1, JSON_STRING, 0, indent + 1);
             } else {
                 snprintf(buf1, sizeof(buf1), "%d:%d",
-                         st->r_frame_rate.num, st->r_frame_rate.den);
+                         st->avg_frame_rate.num, st->avg_frame_rate.den);
                 json_add_key_value(output, "framerate", buf1, JSON_STRING, 0, indent + 1);
             }
             if (st->sample_aspect_ratio.num && // default
