@@ -356,14 +356,14 @@ static const char *find_category_for_subtitle_stream (ff2theora this, int idx, i
   AVCodecContext *enc = this->context->streams[idx]->codec;
   if (enc->codec_type != AVMEDIA_TYPE_SUBTITLE) return 0;
   switch (enc->codec_id) {
-    case CODEC_ID_TEXT:
-    case CODEC_ID_SSA:
-    case CODEC_ID_MOV_TEXT:
+    case AV_CODEC_ID_TEXT:
+    case AV_CODEC_ID_SSA:
+    case AV_CODEC_ID_MOV_TEXT:
       if (included_subtitles & INCSUB_TEXT)
         return "SUB";
       else
         return NULL;
-    case CODEC_ID_DVD_SUBTITLE:
+    case AV_CODEC_ID_DVD_SUBTITLE:
       if (included_subtitles & INCSUB_SPU)
         return "K-SPU";
       else
@@ -1694,15 +1694,15 @@ void ff2theora_output(ff2theora this) {
                     }
                   }
                 }
-                else if (enc->codec_id == CODEC_ID_TEXT) {
+                else if (enc->codec_id == AV_CODEC_ID_TEXT) {
                   utf8 = (const char *)pkt.data;
                   utf8len = pkt.size;
                 }
-                else if (enc->codec_id == CODEC_ID_SSA) {
+                else if (enc->codec_id == AV_CODEC_ID_SSA) {
                   // SSA has control stuff in there, extract raw text
                   extra_info_from_ssa(&pkt,&utf8,&utf8len,&allocated_utf8,&duration);
                 }
-                else if (enc->codec_id == CODEC_ID_MOV_TEXT) {
+                else if (enc->codec_id == AV_CODEC_ID_MOV_TEXT) {
                   utf8 = (const char *)pkt.data;
                   utf8len = pkt.size;
                   if (utf8len >= 2) {
