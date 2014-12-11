@@ -2886,7 +2886,7 @@ int main(int argc, char **argv) {
 
     for(info.passno=(info.twopass==3?1:info.twopass);info.passno<=(info.twopass==3?2:info.twopass);info.passno++){
     //detect image sequences and set framerate if provided
-    if (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0) {
+    if (!input_fmt || (input_fmt != NULL && strcmp(input_fmt->name, "video4linux") >= 0)) {
         char buf[100];
         av_dict_set(&format_opts, "channel", "0", 0);
         if (convert->picture_width || convert->picture_height) {
