@@ -144,6 +144,9 @@ void json_add_key_value(FILE *output, char *key, void *value, int type, int last
             p = (char *)value;
             p = replace_str_all(p, "\\", "\\\\");
             p = replace_str_all(p, "\"", "\\\"");
+            p = replace_str_all(p, "\n", "");
+            p = replace_str_all(p, "\f", "");
+            p = replace_str_all(p, "\r", "");
             fprintf(output, "\"%s\": \"%s\"", key, p);
             free(p);
             break;
