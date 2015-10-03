@@ -543,7 +543,7 @@ void ff2theora_output(ff2theora this) {
     int synced = this->start_time == 0.0;
     AVRational display_aspect_ratio, sample_aspect_ratio;
 
-    struct SwrContext *swr_ctx;
+    struct SwrContext *swr_ctx = NULL;
     uint8_t **dst_audio_data = NULL;
     int dst_linesize;
     int src_nb_samples = 1024, dst_nb_samples, max_dst_nb_samples;
@@ -997,6 +997,7 @@ void ff2theora_output(ff2theora this) {
                 max_dst_nb_samples = dst_nb_samples =
                     av_rescale_rnd(src_nb_samples, this->sample_rate, sample_rate, AV_ROUND_UP);
 
+                dst_audio_data = malloc((sizeof (uint8_t *)) * this->channels);
                 if (av_samples_alloc(dst_audio_data, &dst_linesize, this->channels,
                                      dst_nb_samples, AV_SAMPLE_FMT_FLTP, 0) < 0) {
                     fprintf(stderr, "Could not allocate destination samples\n");
@@ -1608,7 +1609,9 @@ void ff2theora_output(ff2theora this) {
                         avpkt.data += len1;
                     }
                     if(got_frame || audio_eos) {
-                        if (no_samples > 0 && this->sample_count + dst_nb_samples > no_samples) {
+                        if (!got_frame) {
+                            dst_nb_samples = 0;
+                        } else if (no_samples > 0 && this->sample_count + dst_nb_samples > no_samples) {
                             audio_eos = 1;
                             dst_nb_samples = no_samples - this->sample_count;
                             if (dst_nb_samples <= 0) {
@@ -1825,8 +1828,11 @@ void ff2theora_output(ff2theora this) {
             frame_dealloc(output_cropped_p);
             frame_dealloc(output_padded_p);
         }
-        if (dst_audio_data)
+        if (dst_audio_data) {
             av_freep(&dst_audio_data[0]);
+            free(dst_audio_data);
+            dst_audio_data = NULL;
+        }
         av_freep(&dst_audio_data);
         if(swr_ctx) {
             swr_close(swr_ctx);
